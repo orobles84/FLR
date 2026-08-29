@@ -3,29 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Finca Los Robles - Sistema de Gestión</title>
+    <title>Finca Los Robles</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2C5E2E">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finca Los Robles">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/751/751621.png">
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
-            --primary: #2C5E2E;
-            --primary-dark: #1e4220;
-            --secondary: #8B5A2B;
-            --accent: #D4AF37;
-            --bg-color: #F5F5DC;
-            --text-color: #333;
-            --white: #ffffff;
-            --danger: #d32f2f;
-            --sidebar-width: 280px;
+            --primary: #2C5E2E; --primary-dark: #1e4220; --secondary: #8B5A2B;
+            --accent: #D4AF37; --bg-color: #F5F5DC; --text-color: #333;
+            --white: #ffffff; --danger: #d32f2f; --sidebar-width: 280px;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
         html, body { overflow-x: hidden; }
         body { background-color: var(--bg-color); color: var(--text-color); background-size: cover; background-attachment: fixed; min-height: 100vh; }
         
-        /* ===== AUTH SCREENS ===== */
+        /* AUTH SCREENS */
         #auth-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; background: linear-gradient(rgba(44,94,46,0.85), rgba(139,90,43,0.85)), url('https://images.unsplash.com/photo-1511537632536-b7a575805d75?auto=format&fit=crop&w=1920') center/cover; }
         .auth-box { background: var(--white); padding: 1.5rem; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); width: 100%; max-width: 420px; text-align: center; }
-        .auth-box img { max-width: 120px; margin-bottom: 1rem; border-radius: 50%; border: 3px solid var(--accent); }
+        .auth-logo { width: 100px; height: 100px; margin-bottom: 1rem; }
         .auth-box input, .auth-box select { width: 100%; padding: 14px; margin: 6px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
         .btn { background: var(--primary); color: white; padding: 14px 20px; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1rem; margin-top: 10px; transition: 0.3s; min-height: 48px; }
         .btn:active { transform: scale(0.98); }
@@ -35,182 +38,62 @@
         .error-msg { color: var(--danger); margin-top: 10px; font-size: 0.9rem; display: none; }
         .otp-display { background: #fff9c4; padding: 12px; border-radius: 8px; border: 2px dashed #fbc02d; font-size: 1.8rem; font-weight: bold; color: var(--secondary); letter-spacing: 5px; margin: 10px 0; }
         
-        /* ===== TOP BAR (HAMBURGUESA) ===== */
+        /* TOP BAR */
         #app-screen { display: none; min-height: 100vh; }
-        .top-bar {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            height: 60px;
-            background: var(--primary);
-            color: white;
-            display: flex;
-            align-items: center;
-            padding: 0 1rem;
-            z-index: 100;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-        .hamburger {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.8rem;
-            cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-width: 48px;
-            min-height: 48px;
-        }
+        .top-bar { position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--primary); color: white; display: flex; align-items: center; padding: 0 1rem; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+        .hamburger { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; justify-content: center; min-width: 48px; min-height: 48px; }
         .hamburger:active { background: rgba(255,255,255,0.1); }
-        .top-bar-title {
-            flex: 1;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: var(--accent);
-            text-align: center;
-            margin-right: 48px;
-        }
-        .top-bar-logo {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 10px;
-            object-fit: cover;
-        }
+        .top-bar-title { flex: 1; font-size: 1.1rem; font-weight: bold; color: var(--accent); text-align: center; margin-right: 48px; }
+        .top-bar-logo { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; object-fit: cover; background: white; padding: 2px; }
         
-        /* ===== SIDEBAR (DRAWER) ===== */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: var(--sidebar-width);
-            max-width: 85vw;
-            height: 100vh;
-            background: var(--primary);
-            color: white;
-            padding: 1rem;
-            overflow-y: auto;
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-            z-index: 200;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
-        }
+        /* SIDEBAR */
+        .sidebar { position: fixed; top: 0; left: 0; width: var(--sidebar-width); max-width: 85vw; height: 100vh; background: var(--primary); color: white; padding: 1rem; overflow-y: auto; transform: translateX(-100%); transition: transform 0.3s ease; z-index: 200; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
         .sidebar.open { transform: translateX(0); }
-        .sidebar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-        }
-        .sidebar-close {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 8px;
-            min-width: 40px;
-            min-height: 40px;
-        }
-        .sidebar-logo {
-            width: 90px;
-            height: 90px;
-            border-radius: 50%;
-            display: block;
-            margin: 0 auto 1rem;
-            border: 3px solid var(--accent);
-            object-fit: cover;
-        }
-        .sidebar h2 {
-            text-align: center;
-            color: var(--accent);
-            font-size: 1.2rem;
-            margin-bottom: 1.5rem;
-        }
-        .menu-item {
-            padding: 14px 16px;
-            cursor: pointer;
-            border-radius: 8px;
-            margin-bottom: 6px;
-            transition: 0.3s;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            min-height: 48px;
-        }
+        .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.2); }
+        .sidebar-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 8px; min-width: 40px; min-height: 40px; }
+        .sidebar-logo { width: 90px; height: 90px; border-radius: 50%; display: block; margin: 0 auto 1rem; border: 3px solid var(--accent); object-fit: cover; background: white; padding: 5px; }
+        .sidebar h2 { text-align: center; color: var(--accent); font-size: 1.2rem; margin-bottom: 1.5rem; }
+        .menu-item { padding: 14px 16px; cursor: pointer; border-radius: 8px; margin-bottom: 6px; transition: 0.3s; font-size: 1rem; display: flex; align-items: center; min-height: 48px; }
         .menu-item:active, .menu-item.active { background: var(--secondary); }
         .menu-item .icon { margin-right: 12px; font-size: 1.2rem; }
         .logout-btn { background: var(--danger); margin-top: 1.5rem; }
         
-        /* ===== OVERLAY ===== */
-        .overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 150;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s;
-        }
+        /* OVERLAY & MAIN */
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 150; opacity: 0; visibility: hidden; transition: opacity 0.3s; }
         .overlay.show { opacity: 1; visibility: visible; }
-        
-        /* ===== MAIN CONTENT ===== */
-        .main-content {
-            padding: 70px 1rem 2rem 1rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .main-content { padding: 70px 1rem 2rem 1rem; max-width: 1200px; margin: 0 auto; }
         .section { display: none; background: rgba(255,255,255,0.97); padding: 1.25rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 2rem; }
         .section.active { display: block; }
         h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.25rem; font-size: 1.3rem; }
         h3 { color: var(--secondary); margin: 1.5rem 0 0.75rem; font-size: 1.1rem; }
         
-        /* ===== FORMS ===== */
+        /* FORMS & TABLES */
         .form-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 1rem; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #555; }
-        .form-group input, .form-group select, .form-group textarea {
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 1rem;
-            width: 100%;
-            min-height: 44px;
-        }
+        .form-group input, .form-group select, .form-group textarea { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; width: 100%; min-height: 44px; }
         .form-group textarea { min-height: 80px; resize: vertical; }
         .yellow-input { background-color: #fff9c4 !important; border: 1px solid #fbc02d !important; }
         .form-group input[readonly] { background-color: #e9ecef; }
-        
-        /* ===== TABLES (Responsive) ===== */
         .table-wrapper { overflow-x: auto; margin-top: 1rem; -webkit-overflow-scrolling: touch; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 500px; }
         th, td { border: 1px solid #ddd; padding: 10px 8px; text-align: left; }
         th { background-color: var(--primary); color: white; position: sticky; top: 0; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         
-        /* ===== CARDS ===== */
+        /* CARDS & MODAL */
         .card { background: white; padding: 1.25rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); margin-bottom: 1rem; border-left: 4px solid var(--accent); }
         .card h3 { color: var(--primary); margin: 0 0 0.5rem; font-size: 1rem; }
         .card p { font-size: 1.5rem; font-weight: bold; color: var(--secondary); margin: 0; }
-        
-        /* ===== MODAL QR ===== */
         #modal-qr { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; }
         .modal-content { background: white; padding: 1.5rem; border-radius: 12px; text-align: center; max-width: 400px; width: 100%; max-height: 90vh; overflow-y: auto; }
         #qrcode { margin: 20px auto; display: flex; justify-content: center; }
-        #qrcode img, #qrcode canvas { max-width: 100%; height: auto !important; }
         
-        /* ===== RESPONSIVE: DESKTOP ===== */
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
             .form-grid { grid-template-columns: repeat(2, 1fr); }
             h2 { font-size: 1.6rem; }
-            .top-bar-title { font-size: 1.3rem; }
             .card p { font-size: 1.8rem; }
         }
         @media (min-width: 1024px) {
@@ -220,11 +103,15 @@
 </head>
 <body>
 
-    <!-- ===== AUTH SCREEN ===== -->
+    <!-- AUTH SCREEN -->
     <div id="auth-screen">
         <div class="auth-box">
-            <!-- LOGO HARDCODEADO -->
-            <img id="auth-logo" src="https://drive.google.com/uc?export=view&id=1WDTgqGN78SJXVjDJblfYts5LkmNdVcMX" alt="Logo Finca Los Robles">
+            <!-- LOGO SVG INTEGRADO (Nunca fallará) -->
+            <svg class="auth-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
+                <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Arial">FLR</text>
+                <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
+            </svg>
             <div id="form-login">
                 <h2>Iniciar Sesión</h2>
                 <input type="email" id="login-email" placeholder="Correo electrónico">
@@ -255,40 +142,39 @@
         </div>
     </div>
 
-    <!-- ===== APP SCREEN ===== -->
+    <!-- APP SCREEN -->
     <div id="app-screen">
-        <!-- Top Bar con Hamburguesa -->
         <div class="top-bar">
             <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
-            <!-- LOGO HARDCODEADO -->
-            <img id="topbar-logo" src="https://drive.google.com/uc?export=view&id=1WDTgqGN78SJXVjDJblfYts5LkmNdVcMX" alt="Logo" class="top-bar-logo">
+            <svg class="top-bar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
+                <text x="50" y="58" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Arial">FLR</text>
+            </svg>
             <div class="top-bar-title">Finca Los Robles</div>
         </div>
 
-        <!-- Overlay -->
         <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
-        <!-- Sidebar Drawer -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <span style="color: var(--accent); font-weight: bold;">Menú</span>
                 <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Cerrar">✕</button>
             </div>
-            <!-- LOGO HARDCODEADO -->
-            <img id="sidebar-logo" src="https://drive.google.com/uc?export=view&id=1WDTgqGN78SJXVjDJblfYts5LkmNdVcMX" alt="Logo" class="sidebar-logo">
+            <svg class="sidebar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
+                <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Arial">FLR</text>
+                <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
+            </svg>
             <h2>Finca Los Robles</h2>
             <div class="menu-item active" onclick="showSection('dashboard', this)"><span class="icon">📊</span> Dashboard</div>
             <div class="menu-item" onclick="showSection('ventas', this)"><span class="icon">💰</span> Ventas</div>
             <div class="menu-item" onclick="showSection('inventario', this)"><span class="icon">📦</span> Inventario</div>
             <div class="menu-item" onclick="showSection('costos', this)"><span class="icon">🧮</span> Costos</div>
             <div class="menu-item" onclick="showSection('muestreo', this)"><span class="icon">🔬</span> Muestreo Lab</div>
-            <div class="menu-item" onclick="showSection('config', this)"><span class="icon">⚙️</span> Configuración</div>
             <button class="btn logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
         </div>
 
-        <!-- Main Content -->
         <div class="main-content">
-            <!-- DASHBOARD -->
             <div id="dashboard" class="section active">
                 <h2>📊 Dashboard General</h2>
                 <div class="form-grid">
@@ -299,7 +185,6 @@
                 </div>
             </div>
 
-            <!-- VENTAS -->
             <div id="ventas" class="section">
                 <h2>💰 Registro de Ventas</h2>
                 <div class="form-grid">
@@ -318,26 +203,13 @@
                             <option value="Molido">Molido</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Cantidad (Libras)</label>
-                        <input type="number" id="venta-cantidad" class="yellow-input" step="0.01">
-                    </div>
-                    <div class="form-group">
-                        <label>Precio por Libra (Q)</label>
-                        <input type="number" id="venta-precio" class="yellow-input" step="0.01">
-                    </div>
+                    <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="venta-cantidad" class="yellow-input" step="0.01"></div>
+                    <div class="form-group"><label>Precio por Libra (Q)</label><input type="number" id="venta-precio" class="yellow-input" step="0.01"></div>
                     <div class="form-group">
                         <label>Método de Pago</label>
-                        <select id="venta-pago">
-                            <option value="Efectivo">Efectivo</option>
-                            <option value="Tarjeta">Tarjeta</option>
-                            <option value="Pendiente">Pendiente</option>
-                        </select>
+                        <select id="venta-pago"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Pendiente">Pendiente</option></select>
                     </div>
-                    <div class="form-group">
-                        <label>Cliente / Notas</label>
-                        <input type="text" id="venta-notas" class="yellow-input">
-                    </div>
+                    <div class="form-group"><label>Cliente / Notas</label><input type="text" id="venta-notas" class="yellow-input"></div>
                 </div>
                 <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
                 <h3>Historial de Ventas</h3>
@@ -346,7 +218,6 @@
                 </div>
             </div>
 
-            <!-- INVENTARIO -->
             <div id="inventario" class="section">
                 <h2>📦 Gestión de Inventario</h2>
                 <div class="form-grid">
@@ -358,25 +229,13 @@
                             <option value="Tostado">Tostado</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Cantidad (Libras)</label>
-                        <input type="number" id="inv-cantidad" class="yellow-input" step="0.01">
-                    </div>
+                    <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="inv-cantidad" class="yellow-input" step="0.01"></div>
                     <div class="form-group" id="inv-presentacion-group" style="display:none;">
                         <label>Presentación</label>
-                        <select id="inv-presentacion">
-                            <option value="Entero">Grano Entero</option>
-                            <option value="Molido">Molido</option>
-                        </select>
+                        <select id="inv-presentacion"><option value="Entero">Grano Entero</option><option value="Molido">Molido</option></select>
                     </div>
-                    <div class="form-group">
-                        <label>Finca / Origen</label>
-                        <input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Variedad</label>
-                        <input type="text" id="inv-variedad" value="Catimor" class="yellow-input">
-                    </div>
+                    <div class="form-group"><label>Finca / Origen</label><input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input"></div>
+                    <div class="form-group"><label>Variedad</label><input type="text" id="inv-variedad" value="Catimor" class="yellow-input"></div>
                     <div class="form-group">
                         <label>Proceso</label>
                         <select id="inv-proceso"><option>Lavado</option><option>Honey</option><option>Natural</option></select>
@@ -387,14 +246,12 @@
                     </div>
                 </div>
                 <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
-                
                 <h3>Inventario Actual Disponible</h3>
                 <div class="table-wrapper">
                     <table id="tabla-inventario"><thead><tr><th>Fecha</th><th>Estado</th><th>Pres.</th><th>Variedad</th><th>Libras</th></tr></thead><tbody></tbody></table>
                 </div>
             </div>
 
-            <!-- COSTOS -->
             <div id="costos" class="section">
                 <h2>🧮 Calculadora de Costos</h2>
                 <div class="form-grid">
@@ -410,7 +267,6 @@
                 </div>
             </div>
 
-            <!-- MUESTREO -->
             <div id="muestreo" class="section">
                 <h2>🔬 Ficha de Muestreo - Café Oro</h2>
                 <div class="form-grid">
@@ -453,21 +309,10 @@
                     <div class="form-group"><label>Observaciones</label><textarea id="m-observaciones" class="yellow-input" rows="2"></textarea></div>
                 </div>
                 <button class="btn" style="margin-top:1rem;" onclick="guardarMuestreo()">Guardar Ficha, Generar PDF y QR</button>
-
                 <h3>Historial de Análisis</h3>
                 <div class="table-wrapper">
                     <table id="tabla-muestreos"><thead><tr><th>Fecha</th><th>Nombre</th><th>Lote</th><th>Rend.</th><th>Acciones</th></tr></thead><tbody></tbody></table>
                 </div>
-            </div>
-
-            <!-- CONFIG -->
-            <div id="config" class="section">
-                <h2>⚙️ Configuración</h2>
-                <p style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">El logo de la aplicación está fijado en el código para mantener la identidad de marca.</p>
-                <div class="form-grid">
-                    <div class="form-group"><label>URL Imagen de Fondo (Opcional)</label><input type="text" id="conf-fondo" class="yellow-input" placeholder="https://..."></div>
-                </div>
-                <button class="btn" onclick="guardarConfiguracion()">Aplicar Cambios de Fondo</button>
             </div>
         </div>
     </div>
@@ -483,7 +328,7 @@
         </div>
     </div>
 
-    <!-- ===== FIREBASE & LOGIC ===== -->
+    <!-- FIREBASE & LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -507,15 +352,11 @@
         let currentAuthUid = null;
         let currentAuthEmail = null;
 
-        // ===== SIDEBAR TOGGLE =====
         window.toggleSidebar = () => {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('overlay');
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('show');
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('show');
         };
 
-        // ===== AUTH =====
         window.showAuthState = (state) => {
             document.getElementById('form-login').style.display = state === 'login' ? 'block' : 'none';
             document.getElementById('form-register').style.display = state === 'register' ? 'block' : 'none';
@@ -591,17 +432,8 @@
         };
 
         window.logout = () => { signOut(auth); location.reload(); };
-
-        function showError(elementId, message) {
-            const el = document.getElementById(elementId);
-            el.innerText = message; el.style.display = 'block';
-        }
-
-        function entrarAlSistema() {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'block';
-            cargarDatosIniciales();
-        }
+        function showError(elementId, message) { const el = document.getElementById(elementId); el.innerText = message; el.style.display = 'block'; }
+        function entrarAlSistema() { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; cargarDatosIniciales(); }
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -618,30 +450,24 @@
             }
         });
 
-        // ===== NAVEGACIÓN =====
         window.showSection = (sectionId, element) => {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             document.getElementById(sectionId).classList.add('active');
             if (element) element.classList.add('active');
-            if (window.innerWidth < 1024) {
-                toggleSidebar();
-            }
+            if (window.innerWidth < 1024) toggleSidebar();
         };
 
         window.toggleVentaPresentacion = () => {
-            const tipo = document.getElementById('venta-tipo').value;
-            document.getElementById('venta-presentacion-group').style.display = (tipo === 'Tostado') ? 'flex' : 'none';
+            document.getElementById('venta-presentacion-group').style.display = (document.getElementById('venta-tipo').value === 'Tostado') ? 'flex' : 'none';
         };
 
         window.toggleInvFields = () => {
-            const estado = document.getElementById('inv-estado').value;
-            const isTostado = estado === 'Tostado';
+            const isTostado = document.getElementById('inv-estado').value === 'Tostado';
             document.getElementById('inv-presentacion-group').style.display = isTostado ? 'flex' : 'none';
             document.getElementById('field-tostado').style.display = isTostado ? 'flex' : 'none';
         };
 
-        // ===== CÁLCULOS =====
         window.calcularMuestreo = () => {
             const pesoPerg = parseFloat(document.getElementById('m-peso-perg').value) || 0;
             const pesoOro = parseFloat(document.getElementById('m-peso-oro').value) || 0;
@@ -668,15 +494,13 @@
             const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
             const margen = parseFloat(document.getElementById('costo-margen').value) || 0;
             const costoTotal = verde + tostado + empaque;
-            const precioSugerido = costoTotal * (1 + (margen / 100));
             document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
-            document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
+            document.getElementById('precio-sugerido').innerText = 'Q ' + (costoTotal * (1 + (margen / 100))).toFixed(2);
         };
 
-        // ===== INVENTARIO =====
         window.guardarInventario = async () => {
             const estado = document.getElementById('inv-estado').value;
-            const data = {
+            await addDoc(collection(db, "inventario"), {
                 estado: estado,
                 presentacion: estado === 'Tostado' ? document.getElementById('inv-presentacion').value : 'N/A',
                 cantidad: parseFloat(document.getElementById('inv-cantidad').value) || 0,
@@ -685,82 +509,56 @@
                 proceso: document.getElementById('inv-proceso').value,
                 fechaTostado: document.getElementById('inv-fecha-tostado').value,
                 fecha: serverTimestamp()
-            };
-            await addDoc(collection(db, "inventario"), data);
-            alert("Inventario actualizado correctamente");
+            });
+            alert("Inventario actualizado");
             cargarDatosIniciales();
         };
 
-        // ===== VENTAS =====
         window.guardarVenta = async () => {
             const tipo = document.getElementById('venta-tipo').value;
             const presentacion = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
             const cantidad = parseFloat(document.getElementById('venta-cantidad').value) || 0;
             const precio = parseFloat(document.getElementById('venta-precio').value) || 0;
             if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0");
-            const ventaData = {
-                tipo, presentacion, cantidad, precio,
-                pago: document.getElementById('venta-pago').value,
-                notas: document.getElementById('venta-notas').value,
-                fecha: serverTimestamp()
-            };
-            try {
-                await addDoc(collection(db, "ventas"), ventaData);
-                let cantidadPendiente = cantidad;
-                const qInv = query(collection(db, "inventario"), where("estado", "==", tipo));
-                const snapshotInv = await getDocs(qInv);
-                for (const docInv of snapshotInv.docs) {
-                    if (cantidadPendiente <= 0) break;
-                    const invData = docInv.data();
-                    if (tipo === 'Tostado' && invData.presentacion !== presentacion) continue;
-                    if (invData.cantidad >= cantidadPendiente) {
-                        await updateDoc(doc(db, "inventario", docInv.id), { cantidad: invData.cantidad - cantidadPendiente });
-                        cantidadPendiente = 0;
-                    } else {
-                        const resto = cantidadPendiente - invData.cantidad;
-                        await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
-                        cantidadPendiente = resto;
-                    }
-                }
-                if (cantidadPendiente > 0) {
-                    alert(`Venta registrada, pero faltan ${cantidadPendiente.toFixed(2)} libras en inventario.`);
+            
+            await addDoc(collection(db, "ventas"), { tipo, presentacion, cantidad, precio, pago: document.getElementById('venta-pago').value, notas: document.getElementById('venta-notas').value, fecha: serverTimestamp() });
+            
+            let cantidadPendiente = cantidad;
+            const snapshotInv = await getDocs(query(collection(db, "inventario"), where("estado", "==", tipo)));
+            for (const docInv of snapshotInv.docs) {
+                if (cantidadPendiente <= 0) break;
+                const invData = docInv.data();
+                if (tipo === 'Tostado' && invData.presentacion !== presentacion) continue;
+                if (invData.cantidad >= cantidadPendiente) {
+                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: invData.cantidad - cantidadPendiente });
+                    cantidadPendiente = 0;
                 } else {
-                    alert("Venta registrada e inventario descontado.");
+                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
+                    cantidadPendiente -= invData.cantidad;
                 }
-                cargarDatosIniciales();
-                document.getElementById('venta-cantidad').value = '';
-                document.getElementById('venta-precio').value = '';
-                document.getElementById('venta-notas').value = '';
-            } catch (error) {
-                console.error(error);
-                alert("Error: " + error.message);
             }
+            alert(cantidadPendiente > 0 ? `Venta registrada, pero faltan ${cantidadPendiente.toFixed(2)} libras en inventario.` : "Venta registrada e inventario descontado.");
+            cargarDatosIniciales();
+            document.getElementById('venta-cantidad').value = '';
+            document.getElementById('venta-precio').value = '';
+            document.getElementById('venta-notas').value = '';
         };
 
-        // ===== MUESTREO + PDF + QR =====
         window.guardarMuestreo = async () => {
             const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Generando PDF...";
+            btn.disabled = true; btn.innerText = "Generando PDF...";
             try {
                 const { jsPDF } = window.jspdf;
                 const docPdf = new jsPDF();
-                docPdf.setFillColor(44, 94, 46);
-                docPdf.rect(0, 0, 210, 40, 'F');
-                docPdf.setTextColor(255, 255, 255);
-                docPdf.setFontSize(22);
+                docPdf.setFillColor(44, 94, 46); docPdf.rect(0, 0, 210, 40, 'F');
+                docPdf.setTextColor(255, 255, 255); docPdf.setFontSize(22);
                 docPdf.text("Finca Los Robles", 105, 20, null, null, "center");
-                docPdf.setFontSize(16);
-                docPdf.text("FICHA DE MUESTREO - CAFÉ ORO", 105, 30, null, null, "center");
-                docPdf.setTextColor(0, 0, 0);
-                docPdf.setFontSize(12);
+                docPdf.setFontSize(16); docPdf.text("FICHA DE MUESTREO - CAFÉ ORO", 105, 30, null, null, "center");
+                docPdf.setTextColor(0, 0, 0); docPdf.setFontSize(12);
                 let y = 50;
                 const addLine = (label, value) => {
-                    docPdf.setFont("helvetica", "bold");
-                    docPdf.text(label, 20, y);
-                    docPdf.setFont("helvetica", "normal");
-                    docPdf.text(value || "N/A", 70, y);
-                    y += 10;
+                    docPdf.setFont("helvetica", "bold"); docPdf.text(label, 20, y);
+                    docPdf.setFont("helvetica", "normal"); docPdf.text(value || "N/A", 70, y); y += 10;
                 };
                 addLine("Nombre:", document.getElementById('m-nombre').value);
                 addLine("Fecha:", document.getElementById('m-fecha').value);
@@ -770,13 +568,8 @@
                 addLine("Proceso:", document.getElementById('m-proceso').value);
                 addLine("Lote:", document.getElementById('m-lote').value);
                 addLine("Muestra #:", document.getElementById('m-muestra').value);
-                y += 5;
-                docPdf.setDrawColor(212, 175, 55);
-                docPdf.line(20, y, 190, y);
-                y += 10;
-                docPdf.setFont("helvetica", "bold");
-                docPdf.text("RESULTADOS DE LABORATORIO", 20, y);
-                y += 10;
+                y += 5; docPdf.setDrawColor(212, 175, 55); docPdf.line(20, y, 190, y); y += 10;
+                docPdf.setFont("helvetica", "bold"); docPdf.text("RESULTADOS DE LABORATORIO", 20, y); y += 10;
                 docPdf.setFont("helvetica", "normal");
                 addLine("Peso Pergamino:", document.getElementById('m-peso-perg').value + " g");
                 addLine("Peso Oro:", document.getElementById('m-peso-oro').value + " g");
@@ -785,54 +578,42 @@
                 addLine("Densidad:", document.getElementById('m-densidad').value + " g/ml");
                 addLine("Defectos:", document.getElementById('m-defectos').value + " / 300g");
                 addLine("Observaciones:", document.getElementById('m-observaciones').value);
+                
                 const pdfBlob = docPdf.output('blob');
                 const fileName = `Muestra_${document.getElementById('m-lote').value || 'SinLote'}_${Date.now()}.pdf`;
                 const storageRef = ref(storage, `muestreos/${fileName}`);
                 await uploadBytes(storageRef, pdfBlob);
                 const downloadURL = await getDownloadURL(storageRef);
-                const muestraData = {
-                    nombre: document.getElementById('m-nombre').value,
-                    fecha: document.getElementById('m-fecha').value,
-                    lote: document.getElementById('m-lote').value,
-                    rendimiento: document.getElementById('m-rendimiento').value,
-                    humedad: document.getElementById('m-humedad').value,
-                    pdfUrl: downloadURL,
-                    fechaRegistro: serverTimestamp()
-                };
-                await addDoc(collection(db, "muestreos"), muestraData);
+                
+                await addDoc(collection(db, "muestreos"), {
+                    nombre: document.getElementById('m-nombre').value, fecha: document.getElementById('m-fecha').value,
+                    lote: document.getElementById('m-lote').value, rendimiento: document.getElementById('m-rendimiento').value,
+                    humedad: document.getElementById('m-humedad').value, pdfUrl: downloadURL, fechaRegistro: serverTimestamp()
+                });
+                
                 document.getElementById('qrcode').innerHTML = "";
                 new QRCode(document.getElementById("qrcode"), { text: downloadURL, width: 200, height: 200 });
                 document.getElementById('pdf-download-link').href = downloadURL;
                 document.getElementById('modal-qr').style.display = 'flex';
                 alert("Ficha guardada y QR generado.");
                 cargarDatosIniciales();
-            } catch (error) {
-                console.error(error);
-                alert("Error: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Guardar Ficha, Generar PDF y QR";
-            }
+            } catch (error) { alert("Error: " + error.message); }
+            finally { btn.disabled = false; btn.innerText = "Guardar Ficha, Generar PDF y QR"; }
         };
 
-        // ===== CARGAR DATOS =====
         async function cargarDatosIniciales() {
-            const qVentas = query(collection(db, "ventas"), orderBy("fecha", "desc"));
-            const snapVentas = await getDocs(qVentas);
-            const tbodyVentas = document.querySelector('#tabla-ventas tbody');
-            tbodyVentas.innerHTML = '';
+            const snapVentas = await getDocs(query(collection(db, "ventas"), orderBy("fecha", "desc")));
+            const tbodyVentas = document.querySelector('#tabla-ventas tbody'); tbodyVentas.innerHTML = '';
             let totalLibras = 0;
             snapVentas.forEach(doc => {
-                const v = doc.data();
-                totalLibras += v.cantidad;
+                const v = doc.data(); totalLibras += v.cantidad;
                 const fecha = v.fecha ? new Date(v.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
                 tbodyVentas.innerHTML += `<tr><td>${fecha}</td><td>${v.tipo}</td><td>${v.presentacion !== 'N/A' ? v.presentacion : '-'}</td><td>${v.cantidad}</td><td>Q${(v.cantidad * v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
             });
             document.getElementById('dash-ventas').innerText = totalLibras.toFixed(1) + " libras";
 
             const snapInv = await getDocs(collection(db, "inventario"));
-            const tbodyInv = document.querySelector('#tabla-inventario tbody');
-            tbodyInv.innerHTML = '';
+            const tbodyInv = document.querySelector('#tabla-inventario tbody'); tbodyInv.innerHTML = '';
             let oro = 0, tostado = 0, pergamino = 0;
             snapInv.forEach(doc => {
                 const d = doc.data();
@@ -846,21 +627,12 @@
             document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
             document.getElementById('dash-pergamino').innerText = pergamino.toFixed(1) + " libras";
 
-            const qMuestras = query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc"));
-            const snapMuestras = await getDocs(qMuestras);
-            const tbodyMuestras = document.querySelector('#tabla-muestreos tbody');
-            tbodyMuestras.innerHTML = '';
+            const snapMuestras = await getDocs(query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc")));
+            const tbodyMuestras = document.querySelector('#tabla-muestreos tbody'); tbodyMuestras.innerHTML = '';
             snapMuestras.forEach(doc => {
                 const m = doc.data();
                 const fecha = m.fecha || (m.fechaRegistro ? new Date(m.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
-                tbodyMuestras.innerHTML += `
-                    <tr>
-                        <td>${fecha}</td>
-                        <td>${m.nombre}</td>
-                        <td>${m.lote}</td>
-                        <td>${m.rendimiento}</td>
-                        <td><button class="btn btn-small" onclick="verMuestraQR('${m.pdfUrl}')">Ver QR</button></td>
-                    </tr>`;
+                tbodyMuestras.innerHTML += `<tr><td>${fecha}</td><td>${m.nombre}</td><td>${m.lote}</td><td>${m.rendimiento}</td><td><button class="btn btn-small" onclick="verMuestraQR('${m.pdfUrl}')">Ver QR</button></td></tr>`;
             });
         }
 
@@ -871,14 +643,10 @@
             document.getElementById('modal-qr').style.display = 'flex';
         };
 
-        window.guardarConfiguracion = async () => {
-            // Solo se guarda el fondo, el logo está fijo en el código
-            const config = {
-                fondo: document.getElementById('conf-fondo').value
-            };
-            await setDoc(doc(db, "config", "principal"), config, { merge: true });
-            alert("Configuración de fondo guardada. Recarga la página para ver los cambios.");
-        };
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW no registrado', err));
+        }
     </script>
 </body>
 </html>
