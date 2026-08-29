@@ -25,7 +25,7 @@
         /* ===== AUTH SCREENS ===== */
         #auth-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; background: linear-gradient(rgba(44,94,46,0.85), rgba(139,90,43,0.85)), url('https://images.unsplash.com/photo-1511537632536-b7a575805d75?auto=format&fit=crop&w=1920') center/cover; }
         .auth-box { background: var(--white); padding: 1.5rem; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); width: 100%; max-width: 420px; text-align: center; }
-        .auth-box img { max-width: 100px; margin-bottom: 1rem; border-radius: 50%; }
+        .auth-box img { max-width: 120px; margin-bottom: 1rem; border-radius: 50%; border: 3px solid var(--accent); }
         .auth-box input, .auth-box select { width: 100%; padding: 14px; margin: 6px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem; }
         .btn { background: var(--primary); color: white; padding: 14px 20px; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1rem; margin-top: 10px; transition: 0.3s; min-height: 48px; }
         .btn:active { transform: scale(0.98); }
@@ -70,13 +70,14 @@
             font-weight: bold;
             color: var(--accent);
             text-align: center;
-            margin-right: 48px; /* Compensa el ancho del botón */
+            margin-right: 48px;
         }
         .top-bar-logo {
             width: 40px;
             height: 40px;
             border-radius: 50%;
             margin-right: 10px;
+            object-fit: cover;
         }
         
         /* ===== SIDEBAR (DRAWER) ===== */
@@ -116,12 +117,13 @@
             min-height: 40px;
         }
         .sidebar-logo {
-            width: 80px;
-            height: 80px;
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
             display: block;
             margin: 0 auto 1rem;
             border: 3px solid var(--accent);
+            object-fit: cover;
         }
         .sidebar h2 {
             text-align: center;
@@ -159,7 +161,7 @@
         
         /* ===== MAIN CONTENT ===== */
         .main-content {
-            padding: 70px 1rem 2rem 1rem; /* 70px para compensar top-bar */
+            padding: 70px 1rem 2rem 1rem;
             max-width: 1200px;
             margin: 0 auto;
         }
@@ -221,7 +223,8 @@
     <!-- ===== AUTH SCREEN ===== -->
     <div id="auth-screen">
         <div class="auth-box">
-            <img id="auth-logo" src="https://via.placeholder.com/150/2C5E2E/FFFFFF?text=FLR" alt="Logo">
+            <!-- LOGO HARDCODEADO -->
+            <img id="auth-logo" src="https://drive.google.com/uc?export=view&id=1WDTgqGN78SJXVjDJblfYts5LkmNdVcMX" alt="Logo Finca Los Robles">
             <div id="form-login">
                 <h2>Iniciar Sesión</h2>
                 <input type="email" id="login-email" placeholder="Correo electrónico">
@@ -257,7 +260,8 @@
         <!-- Top Bar con Hamburguesa -->
         <div class="top-bar">
             <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
-            <img id="topbar-logo" src="https://via.placeholder.com/40/2C5E2E/FFFFFF?text=FLR" alt="Logo" class="top-bar-logo">
+            <!-- LOGO HARDCODEADO -->
+            <img id="topbar-logo" src="https://drive.google.com/uc?export=view&id=1WDTgqGN78SJXVjDJblfYts5LkmNdVcMX" alt="Logo" class="top-bar-logo">
             <div class="top-bar-title">Finca Los Robles</div>
         </div>
 
@@ -270,7 +274,8 @@
                 <span style="color: var(--accent); font-weight: bold;">Menú</span>
                 <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Cerrar">✕</button>
             </div>
-            <img id="sidebar-logo" src="https://via.placeholder.com/100/2C5E2E/FFFFFF?text=FLR" alt="Logo" class="sidebar-logo">
+            <!-- LOGO HARDCODEADO -->
+            <img id="sidebar-logo" src="https://drive.google.com/uc?export=view&id=1WDTgqGN78SJXVjDJblfYts5LkmNdVcMX" alt="Logo" class="sidebar-logo">
             <h2>Finca Los Robles</h2>
             <div class="menu-item active" onclick="showSection('dashboard', this)"><span class="icon">📊</span> Dashboard</div>
             <div class="menu-item" onclick="showSection('ventas', this)"><span class="icon">💰</span> Ventas</div>
@@ -458,11 +463,11 @@
             <!-- CONFIG -->
             <div id="config" class="section">
                 <h2>⚙️ Configuración</h2>
+                <p style="margin-bottom: 1rem; color: #666; font-size: 0.9rem;">El logo de la aplicación está fijado en el código para mantener la identidad de marca.</p>
                 <div class="form-grid">
-                    <div class="form-group"><label>URL del Logo</label><input type="text" id="conf-logo" class="yellow-input"></div>
-                    <div class="form-group"><label>URL Imagen de Fondo</label><input type="text" id="conf-fondo" class="yellow-input"></div>
+                    <div class="form-group"><label>URL Imagen de Fondo (Opcional)</label><input type="text" id="conf-fondo" class="yellow-input" placeholder="https://..."></div>
                 </div>
-                <button class="btn" onclick="guardarConfiguracion()">Aplicar Cambios</button>
+                <button class="btn" onclick="guardarConfiguracion()">Aplicar Cambios de Fondo</button>
             </div>
         </div>
     </div>
@@ -619,7 +624,6 @@
             document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
             document.getElementById(sectionId).classList.add('active');
             if (element) element.classList.add('active');
-            // Cerrar sidebar al seleccionar opción (en móvil)
             if (window.innerWidth < 1024) {
                 toggleSidebar();
             }
@@ -868,12 +872,12 @@
         };
 
         window.guardarConfiguracion = async () => {
+            // Solo se guarda el fondo, el logo está fijo en el código
             const config = {
-                logo: document.getElementById('conf-logo').value,
                 fondo: document.getElementById('conf-fondo').value
             };
             await setDoc(doc(db, "config", "principal"), config, { merge: true });
-            alert("Configuración guardada. Recarga la página.");
+            alert("Configuración de fondo guardada. Recarga la página para ver los cambios.");
         };
     </script>
 </body>
