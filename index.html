@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finca Los Robles - Sistema de Gestión</title>
+    <style>
+        :root {
+            --primary: #2C5E2E; /* Verde Bosque */
+            --secondary: #8B5A2B; /* Café */
+            --accent: #D4AF37; /* Dorado */
+            --bg-color: #F5F5DC; /* Beige claro */
+            --text-color: #333;
+            --white: #ffffff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); background-size: cover; background-attachment: fixed; transition: background 0.3s; }
+        
+        /* Login Screen */
+        #login-screen { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(rgba(44,94,46,0.8), rgba(139,90,43,0.8)), url('https://images.unsplash.com/photo-1511537632536-b7a575805d75?auto=format&fit=crop&w=1920') center/cover; }
+        .login-box { background: var(--white); padding: 2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 100%; max-width: 400px; text-align: center; }
+        .login-box img { max-width: 150px; margin-bottom: 1rem; }
+        .login-box input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; }
+        .btn { background: var(--primary); color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; width: 100%; font-weight: bold; }
+        .btn:hover { background: #1e4220; }
+
+        /* Main App */
+        #app-screen { display: none; min-height: 100vh; }
+        .sidebar { width: 250px; background: var(--primary); color: white; position: fixed; height: 100%; padding: 1rem; overflow-y: auto; }
+        .sidebar h2 { text-align: center; margin-bottom: 2rem; color: var(--accent); }
+        .sidebar img { max-width: 120px; display: block; margin: 0 auto 1rem; border-radius: 50%; }
+        .menu-item { padding: 12px; cursor: pointer; border-radius: 5px; margin-bottom: 5px; transition: 0.3s; }
+        .menu-item:hover, .menu-item.active { background: var(--secondary); }
+        .main-content { margin-left: 250px; padding: 2rem; }
+        
+        /* Sections */
+        .section { display: none; background: rgba(255,255,255,0.95); padding: 2rem; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .section.active { display: block; }
+        h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        
+        /* Forms & Tables */
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        .form-group input, .form-group select, .form-group textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .form-group input[readonly] { background-color: #e9ecef; }
+        .yellow-input { background-color: #fff9c4 !important; border: 1px solid #fbc02d !important; } /* Casillas amarillas como el Excel */
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: var(--primary); color: white; }
+        
+        .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 1rem; border-left: 4px solid var(--accent); }
+        .logout-btn { background: #d32f2f; margin-top: 2rem; }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA DE LOGIN -->
+    <div id="login-screen">
+        <div class="login-box">
+            <img id="login-logo" src="https://via.placeholder.com/150/2C5E2E/FFFFFF?text=Finca+Los+Robles" alt="Logo">
+            <h2>Finca Los Robles</h2>
+            <p>Sistema de Gestión de Café</p>
+            <input type="email" id="email" placeholder="Correo electrónico">
+            <input type="password" id="password" placeholder="Contraseña">
+            <button class="btn" onclick="login()">Ingresar</button>
+            <p id="login-error" style="color: red; margin-top: 10px; display: none;">Credenciales incorrectas</p>
+        </div>
+    </div>
+
+    <!-- PANTALLA PRINCIPAL DE LA APP -->
+    <div id="app-screen">
+        <div class="sidebar">
+            <img id="sidebar-logo" src="https://via.placeholder.com/150/2C5E2E/FFFFFF?text=FLR" alt="Logo">
+            <h2>Finca Los Robles</h2>
+            <div class="menu-item active" onclick="showSection('dashboard')">📊 Dashboard</div>
+            <div class="menu-item" onclick="showSection('ventas')">💰 Ventas</div>
+            <div class="menu-item" onclick="showSection('inventario')">📦 Inventario</div>
+            <div class="menu-item" onclick="showSection('costos')">🧮 Costos y Precios</div>
+            <div class="menu-item" onclick="showSection('muestreo')">🔬 Muestreo Laboratorio</div>
+            <div class="menu-item" onclick="showSection('config')">⚙️ Configuración</div>
+            <button class="btn logout-btn" onclick="logout()">Cerrar Sesión</button>
+        </div>
+
+        <div class="main-content">
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="section active">
+                <h2>Bienvenido al Sistema de Gestión</h2>
+                <div class="form-grid">
+                    <div class="card"><h3>Ventas del Mes</h3><p id="dash-ventas">0 libras</p></div>
+                    <div class="card"><h3>Inventario Tostado</h3><p id="dash-tostado">0 libras</p></div>
+                    <div class="card"><h3>Inventario Oro</h3><p id="dash-oro">0 libras</p></div>
+                </div>
+            </div>
+
+            <!-- VENTAS -->
+            <div id="ventas" class="section">
+                <h2>Registro de Ventas</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Tipo de Café</label>
+                        <select id="venta-tipo"><option value="Tostado">Tostado</option><option value="Verde">Verde (Oro)</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad (Libras)</label>
+                        <input type="number" id="venta-cantidad" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio por Libra (Q)</label>
+                        <input type="number" id="venta-precio" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <select id="venta-pago"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Pendiente">Pendiente</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cliente / Notas</label>
+                        <input type="text" id="venta-notas" class="yellow-input">
+                    </div>
+                </div>
+                <button class="btn" onclick="guardarVenta()">Registrar Venta</button>
+                <h3 style="margin-top: 2rem;">Historial de Ventas</h3>
+                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Tipo</th><th>Libras</th><th>Precio Unit.</th><th>Total</th><th>Pago</th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <!-- INVENTARIO -->
+            <div id="inventario" class="section">
+                <h2>Gestión de Inventario</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Estado del Café</label>
+                        <select id="inv-estado" onchange="toggleTostadoFields()"><option value="Pergamino">Pergamino</option><option value="Oro">Oro (Verde)</option><option value="Tostado">Tostado</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad (Libras)</label>
+                        <input type="number" id="inv-cantidad" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Finca / Origen</label>
+                        <input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Variedad</label>
+                        <input type="text" id="inv-variedad" value="Catimor" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Proceso</label>
+                        <select id="inv-proceso"><option>Lavado</option><option>Honey</option><option>Natural</option></select>
+                    </div>
+                    <div class="form-group" id="field-tostado" style="display:none;">
+                        <label>Fecha de Tostado</label>
+                        <input type="date" id="inv-fecha-tostado" class="yellow-input">
+                    </div>
+                    <div class="form-group" id="field-tipo-tostado" style="display:none;">
+                        <label>Tipo de Tostado</label>
+                        <select id="inv-tipo-tostado"><option>Medio</option><option>Oscuro</option><option>Claro</option></select>
+                    </div>
+                </div>
+                <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
+            </div>
+
+            <!-- COSTOS -->
+            <div id="costos" class="section">
+                <h2>Calculadora de Costos y Precio Sugerido</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Costo Café Verde por Libra (Q)</label>
+                        <input type="number" id="costo-verde" class="yellow-input" oninput="calcularPrecioSugerido()">
+                    </div>
+                    <div class="form-group">
+                        <label>Costo Tostado por Libra (Q)</label>
+                        <input type="number" id="costo-tostado" class="yellow-input" oninput="calcularPrecioSugerido()">
+                    </div>
+                    <div class="form-group">
+                        <label>Costo Empaque por Libra (Q)</label>
+                        <input type="number" id="costo-empaque" class="yellow-input" oninput="calcularPrecioSugerido()">
+                    </div>
+                    <div class="form-group">
+                        <label>Margen de Ganancia Deseado (%)</label>
+                        <input type="number" id="costo-margen" value="30" class="yellow-input" oninput="calcularPrecioSugerido()">
+                    </div>
+                </div>
+                <div class="card" style="background: var(--primary); color: white; text-align: center;">
+                    <h3>Precio Sugerido de Venta por Libra</h3>
+                    <h1 id="precio-sugerido">Q 0.00</h1>
+                    <p>Costo Total de Producción: <span id="costo-total">Q 0.00</span></p>
+                </div>
+            </div>
+
+            <!-- MUESTREO DE LABORATORIO (Basado en tu Excel) -->
+            <div id="muestreo" class="section">
+                <h2>Ficha de Muestreo - Café Oro</h2>
+                <div class="form-grid">
+                    <div class="form-group"><label>Nombre</label><input type="text" id="m-nombre" class="yellow-input"></div>
+                    <div class="form-group"><label>Fecha</label><input type="date" id="m-fecha" class="yellow-input"></div>
+                    <div class="form-group"><label>Finca</label><input type="text" id="m-finca" value="Finca Los Robles" class="yellow-input"></div>
+                    <div class="form-group"><label>Altitud (msnm)</label><input type="text" id="m-altitud" value="1600" class="yellow-input"></div>
+                    <div class="form-group"><label>Variedad</label><input type="text" id="m-variedad" value="Catimor" class="yellow-input"></div>
+                    <div class="form-group"><label>Proceso</label><input type="text" id="m-proceso" value="Lavado" class="yellow-input"></div>
+                    <div class="form-group"><label>Lote</label><input type="text" id="m-lote" class="yellow-input"></div>
+                    <div class="form-group"><label>Muestra #</label><input type="text" id="m-muestra" class="yellow-input"></div>
+                </div>
+                
+                <h3 style="margin-top:1rem; color: var(--secondary);">Pesos y Mediciones Físicas</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Peso Inicial (Pergamino) g</label><input type="number" id="m-peso-perg" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Peso Final (Oro) g</label><input type="number" id="m-peso-oro" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Humedad %</label><input type="number" step="0.1" id="m-humedad" class="yellow-input"></div>
+                    <div class="form-group"><label>Densidad g/ml</label><input type="number" step="0.01" id="m-densidad" class="yellow-input"></div>
+                    <div class="form-group"><label>ATW (1000 granos) g</label><input type="number" id="m-atw" class="yellow-input"></div>
+                    <div class="form-group"><label>Muestra para zarandas g</label><input type="number" id="m-muestra-zaranda" class="yellow-input"></div>
+                </div>
+
+                <h3 style="margin-top:1rem; color: var(--secondary);">Análisis por Zarandas</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Zaranda 18 (g)</label><input type="number" id="m-z18" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 16 (g)</label><input type="number" id="m-z16" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 15 (g)</label><input type="number" id="m-z15" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 14 (g)</label><input type="number" id="m-z14" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Residuo (g)</label><input type="number" id="m-residuo" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Total (g)</label><input type="number" id="m-total" readonly></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>% Z18</label><input type="text" id="m-pct-z18" readonly></div>
+                    <div class="form-group"><label>% Z16</label><input type="text" id="m-pct-z16" readonly></div>
+                    <div class="form-group"><label>% Z15</label><input type="text" id="m-pct-z15" readonly></div>
+                    <div class="form-group"><label>% Z14</label><input type="text" id="m-pct-z14" readonly></div>
+                    <div class="form-group"><label>% Residuo</label><input type="text" id="m-pct-residuo" readonly></div>
+                    <div class="form-group"><label style="color:var(--primary); font-size:1.1rem;">Rendimiento %</label><input type="text" id="m-rendimiento" readonly style="font-weight:bold; color:var(--primary); font-size:1.1rem;"></div>
+                </div>
+
+                <div class="form-grid" style="margin-top:1rem;">
+                    <div class="form-group"><label>Defectos (/ 300g)</label><input type="text" id="m-defectos" class="yellow-input"></div>
+                    <div class="form-group"><label>Observaciones</label><textarea id="m-observaciones" class="yellow-input" rows="2"></textarea></div>
+                </div>
+                <button class="btn" style="margin-top:1rem;" onclick="guardarMuestreo()">Guardar Ficha de Muestreo</button>
+            </div>
+
+            <!-- CONFIGURACIÓN -->
+            <div id="config" class="section">
+                <h2>Configuración de la App</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>URL del Logo (o subir a Firebase Storage)</label>
+                        <input type="text" id="conf-logo" class="yellow-input" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>URL de Imagen de Fondo</label>
+                        <input type="text" id="conf-fondo" class="yellow-input" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Color Principal</label>
+                        <input type="color" id="conf-color1" value="#2C5E2E" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Color Secundario</label>
+                        <input type="color" id="conf-color2" value="#8B5A2B" class="yellow-input">
+                    </div>
+                </div>
+                <button class="btn" onclick="guardarConfiguracion()">Aplicar Cambios</button>
+                
+                <h3 style="margin-top: 2rem;">Gestión de Usuarios (Solo Admin)</h3>
+                <p>Para agregar usuarios, hazlo desde la Consola de Authentication de Firebase o implementa un formulario de registro con rol.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE & LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
+            authDomain: "flr-db.firebaseapp.com",
+            projectId: "flr-db",
+            storageBucket: "flr-db.firebasestorage.app",
+            messagingSenderId: "778387910304",
+            appId: "1:778387910304:web:cff24e43422477f9bee3c5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- AUTH ---
+        window.login = async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch (error) {
+                document.getElementById('login-error').style.display = 'block';
+                console.error(error);
+            }
+        };
+
+        window.logout = () => signOut(auth);
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('app-screen').style.display = 'block';
+                cargarConfiguracion();
+                cargarDatosIniciales();
+            } else {
+                document.getElementById('login-screen').style.display = 'flex';
+                document.getElementById('app-screen').style.display = 'none';
+            }
+        });
+
+        // --- NAVEGACIÓN ---
+        window.showSection = (sectionId) => {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+        };
+
+        window.toggleTostadoFields = () => {
+            const estado = document.getElementById('inv-estado').value;
+            const show = estado === 'Tostado';
+            document.getElementById('field-tostado').style.display = show ? 'flex' : 'none';
+            document.getElementById('field-tipo-tostado').style.display = show ? 'flex' : 'none';
+        };
+
+        // --- CÁLCULOS DE MUESTREO (Réplica exacta de tu Excel) ---
+        window.calcularMuestreo = () => {
+            const pesoPerg = parseFloat(document.getElementById('m-peso-perg').value) || 0;
+            const pesoOro = parseFloat(document.getElementById('m-peso-oro').value) || 0;
+            const z18 = parseFloat(document.getElementById('m-z18').value) || 0;
+            const z16 = parseFloat(document.getElementById('m-z16').value) || 0;
+            const z15 = parseFloat(document.getElementById('m-z15').value) || 0;
+            const z14 = parseFloat(document.getElementById('m-z14').value) || 0;
+            const residuo = parseFloat(document.getElementById('m-residuo').value) || 0;
+
+            const total = z18 + z16 + z15 + z14 + residuo;
+            document.getElementById('m-total').value = total;
+
+            // Fórmula del Excel: Peso Oro / Peso Pergamino * 100
+            const rendimiento = pesoPerg > 0 ? (pesoOro / pesoPerg) * 100 : 0;
+            document.getElementById('m-rendimiento').value = rendimiento.toFixed(2) + '%';
+
+            // Porcentajes de zaranda
+            const calcPct = (val) => total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+            document.getElementById('m-pct-z18').value = calcPct(z18);
+            document.getElementById('m-pct-z16').value = calcPct(z16);
+            document.getElementById('m-pct-z15').value = calcPct(z15);
+            document.getElementById('m-pct-z14').value = calcPct(z14);
+            document.getElementById('m-pct-residuo').value = calcPct(residuo);
+        };
+
+        // --- CÁLCULOS DE COSTOS ---
+        window.calcularPrecioSugerido = () => {
+            const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
+            const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
+            const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
+            const margen = parseFloat(document.getElementById('costo-margen').value) || 0;
+
+            const costoTotal = verde + tostado + empaque;
+            const precioSugerido = costoTotal * (1 + (margen / 100));
+
+            document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
+            document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
+        };
+
+        // --- GUARDAR EN FIRESTORE ---
+        window.guardarVenta = async () => {
+            const data = {
+                tipo: document.getElementById('venta-tipo').value,
+                cantidad: parseFloat(document.getElementById('venta-cantidad').value),
+                precio: parseFloat(document.getElementById('venta-precio').value),
+                pago: document.getElementById('venta-pago').value,
+                notas: document.getElementById('venta-notas').value,
+                fecha: new Date().toISOString()
+            };
+            await addDoc(collection(db, "ventas"), data);
+            alert("Venta registrada exitosamente");
+            cargarDatosIniciales();
+        };
+
+        window.guardarInventario = async () => {
+            const data = {
+                estado: document.getElementById('inv-estado').value,
+                cantidad: parseFloat(document.getElementById('inv-cantidad').value),
+                finca: document.getElementById('inv-finca').value,
+                variedad: document.getElementById('inv-variedad').value,
+                proceso: document.getElementById('inv-proceso').value,
+                fechaTostado: document.getElementById('inv-fecha-tostado').value,
+                tipoTostado: document.getElementById('inv-tipo-tostado').value,
+                fecha: new Date().toISOString()
+            };
+            await addDoc(collection(db, "inventario"), data);
+            alert("Inventario actualizado");
+            cargarDatosIniciales();
+        };
+
+        window.guardarMuestreo = async () => {
+            const data = {
+                nombre: document.getElementById('m-nombre').value,
+                fecha: document.getElementById('m-fecha').value,
+                finca: document.getElementById('m-finca').value,
+                rendimiento: document.getElementById('m-rendimiento').value,
+                humedad: document.getElementById('m-humedad').value,
+                defectos: document.getElementById('m-defectos').value,
+                observaciones: document.getElementById('m-observaciones').value,
+                fechaRegistro: new Date().toISOString()
+            };
+            await addDoc(collection(db, "muestreos"), data);
+            alert("Ficha de muestreo guardada en base de datos");
+        };
+
+        window.guardarConfiguracion = async () => {
+            const config = {
+                logo: document.getElementById('conf-logo').value,
+                fondo: document.getElementById('conf-fondo').value,
+                color1: document.getElementById('conf-color1').value,
+                color2: document.getElementById('conf-color2').value
+            };
+            await setDoc(doc(db, "config", "principal"), config);
+            alert("Configuración guardada. Recarga la página para ver los cambios.");
+        };
+
+        // --- CARGAR DATOS ---
+        async function cargarDatosIniciales() {
+            // Ventas
+            const qVentas = query(collection(db, "ventas"), orderBy("fecha", "desc"));
+            const snapshotVentas = await getDocs(qVentas);
+            const tbody = document.querySelector('#tabla-ventas tbody');
+            tbody.innerHTML = '';
+            let totalLibras = 0;
+            snapshotVentas.forEach(doc => {
+                const v = doc.data();
+                totalLibras += v.cantidad;
+                tbody.innerHTML += `<tr><td>${new Date(v.fecha).toLocaleDateString()}</td><td>${v.tipo}</td><td>${v.cantidad}</td><td>Q${v.precio}</td><td>Q${(v.cantidad * v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
+            });
+            document.getElementById('dash-ventas').innerText = totalLibras.toFixed(1) + " libras";
+
+            // Inventario (Simplificado para dashboard)
+            const snapInv = await getDocs(collection(db, "inventario"));
+            let oro = 0, tostado = 0;
+            snapInv.forEach(doc => {
+                const d = doc.data();
+                if(d.estado === 'Oro') oro += d.cantidad;
+                if(d.estado === 'Tostado') tostado += d.cantidad;
+            });
+            document.getElementById('dash-oro').innerText = oro.toFixed(1) + " libras";
+            document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
+        }
+
+        async function cargarConfiguracion() {
+            const docRef = doc(db, "config", "principal");
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const c = docSnap.data();
+                if(c.logo) { document.getElementById('login-logo').src = c.logo; document.getElementById('sidebar-logo').src = c.logo; }
+                if(c.fondo) { document.body.style.backgroundImage = `url(${c.fondo})`; }
+                if(c.color1) { document.documentElement.style.setProperty('--primary', c.color1); }
+                if(c.color2) { document.documentElement.style.setProperty('--secondary', c.color2); }
+            }
+        }
+    </script>
+</body>
+</html>
