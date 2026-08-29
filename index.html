@@ -1,14 +1,343 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Solo el dueño de la cuenta puede leer/escribir su propia verificación
-    match /verificaciones/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    // Solo usuarios verificados pueden leer/escribir en el resto de la app
-    match /{document=**} {
-      allow read, write: if request.auth != null && 
-         get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.verificado == true;
-    }
-  }
-}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finca Los Robles - Sistema Seguro</title>
+    <style>
+        :root {
+            --primary: #2C5E2E; --secondary: #8B5A2B; --accent: #D4AF37;
+            --bg-color: #F5F5DC; --text-color: #333; --white: #ffffff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-color); background-size: cover; background-attachment: fixed; }
+        
+        /* Auth Screens */
+        #auth-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(rgba(44,94,46,0.85), rgba(139,90,43,0.85)), url('https://images.unsplash.com/photo-1511537632536-b7a575805d75?auto=format&fit=crop&w=1920') center/cover; }
+        .auth-box { background: var(--white); padding: 2.5rem; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); width: 100%; max-width: 420px; text-align: center; }
+        .auth-box img { max-width: 120px; margin-bottom: 1rem; border-radius: 50%; }
+        .auth-box input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+        .btn { background: var(--primary); color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1rem; margin-top: 10px; transition: 0.3s; }
+        .btn:hover { background: #1e4220; }
+        .btn-secondary { background: var(--secondary); margin-top: 5px; }
+        .link { color: var(--primary); text-decoration: none; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: inline-block; margin-top: 15px; }
+        .link:hover { text-decoration: underline; }
+        .error-msg { color: #d32f2f; margin-top: 10px; font-size: 0.9rem; display: none; }
+        .otp-display { background: #fff9c4; padding: 10px; border-radius: 6px; border: 1px dashed #fbc02d; font-size: 1.5rem; font-weight: bold; color: var(--secondary); letter-spacing: 3px; margin: 10px 0; }
+        
+        /* Main App (Hidden by default) */
+        #app-screen { display: none; min-height: 100vh; }
+        .sidebar { width: 250px; background: var(--primary); color: white; position: fixed; height: 100%; padding: 1rem; overflow-y: auto; }
+        .sidebar h2 { text-align: center; margin-bottom: 2rem; color: var(--accent); }
+        .sidebar img { max-width: 100px; display: block; margin: 0 auto 1rem; border-radius: 50%; }
+        .menu-item { padding: 12px; cursor: pointer; border-radius: 5px; margin-bottom: 5px; transition: 0.3s; }
+        .menu-item:hover, .menu-item.active { background: var(--secondary); }
+        .main-content { margin-left: 250px; padding: 2rem; }
+        .section { display: none; background: rgba(255,255,255,0.95); padding: 2rem; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .section.active { display: block; }
+        h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.5rem; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .form-group { display: flex; flex-direction: column; }
+        .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
+        .form-group input, .form-group select, .form-group textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .yellow-input { background-color: #fff9c4 !important; border: 1px solid #fbc02d !important; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: var(--primary); color: white; }
+        .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 1rem; border-left: 4px solid var(--accent); }
+        .logout-btn { background: #d32f2f; margin-top: 2rem; }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLAS DE AUTENTICACIÓN -->
+    <div id="auth-screen">
+        <div class="auth-box">
+            <img id="auth-logo" src="https://via.placeholder.com/150/2C5E2E/FFFFFF?text=FLR" alt="Logo">
+            
+            <!-- 1. Formulario de Login -->
+            <div id="form-login">
+                <h2>Iniciar Sesión</h2>
+                <input type="email" id="login-email" placeholder="Correo electrónico">
+                <input type="password" id="login-password" placeholder="Contraseña">
+                <button class="btn" onclick="login()">Ingresar</button>
+                <p class="error-msg" id="login-error">Credenciales incorrectas</p>
+                <a class="link" onclick="showAuthState('register')">¿No tienes cuenta? Crear una nueva</a>
+            </div>
+
+            <!-- 2. Formulario de Registro -->
+            <div id="form-register" style="display:none;">
+                <h2>Crear Cuenta</h2>
+                <input type="email" id="reg-email" placeholder="Correo electrónico">
+                <input type="password" id="reg-password" placeholder="Contraseña (mín. 6 caracteres)">
+                <input type="password" id="reg-password2" placeholder="Confirmar Contraseña">
+                <button class="btn" onclick="register()">Registrarse</button>
+                <p class="error-msg" id="reg-error"></p>
+                <a class="link" onclick="showAuthState('login')">¿Ya tienes cuenta? Iniciar Sesión</a>
+            </div>
+
+            <!-- 3. Formulario de Verificación OTP -->
+            <div id="form-verify" style="display:none;">
+                <h2>Verificación de Seguridad</h2>
+                <p style="font-size:0.9rem; margin: 15px 0; color: #555;">Se ha generado un código de 6 dígitos para <strong id="verify-email-display"></strong>.</p>
+                
+                <!-- NOTA: En producción, este código se envía por correo. Se muestra aquí solo para que puedas probar la app inmediatamente sin configurar un servidor de correo. -->
+                <p style="font-size:0.85rem; color: #666;">Código de prueba actual:</p>
+                <div class="otp-display" id="demo-otp">------</div>
+                
+                <input type="text" id="verify-otp-input" placeholder="Ingresa el código de 6 dígitos" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:5px; margin-top:15px;">
+                <button class="btn" onclick="verifyCode()">Verificar e Ingresar</button>
+                <button class="btn btn-secondary" onclick="resendCode()">Reenviar / Generar nuevo código</button>
+                <p class="error-msg" id="verify-error"></p>
+                <a class="link" onclick="showAuthState('login')">Volver al inicio de sesión</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANTALLA PRINCIPAL DE LA APP (Mismo contenido que antes, resumido para brevedad) -->
+    <div id="app-screen">
+        <div class="sidebar">
+            <img id="sidebar-logo" src="https://via.placeholder.com/150/2C5E2E/FFFFFF?text=FLR" alt="Logo">
+            <h2>Finca Los Robles</h2>
+            <div class="menu-item active" onclick="showSection('dashboard')">📊 Dashboard</div>
+            <div class="menu-item" onclick="showSection('ventas')">💰 Ventas</div>
+            <div class="menu-item" onclick="showSection('inventario')">📦 Inventario</div>
+            <div class="menu-item" onclick="showSection('costos')">🧮 Costos</div>
+            <div class="menu-item" onclick="showSection('muestreo')">🔬 Muestreo</div>
+            <div class="menu-item" onclick="showSection('config')">⚙️ Configuración</div>
+            <button class="btn logout-btn" onclick="logout()">Cerrar Sesión</button>
+        </div>
+        <div class="main-content">
+            <div id="dashboard" class="section active"><h2>Bienvenido al Sistema de Gestión</h2><div class="card"><h3>Estado</h3><p>Sesión verificada y activa.</p></div></div>
+            <!-- (El resto de las secciones de ventas, inventario, etc., se mantienen igual que en el código anterior) -->
+            <div id="ventas" class="section"><h2>Ventas</h2><p>Contenido de ventas...</p></div>
+            <div id="inventario" class="section"><h2>Inventario</h2><p>Contenido de inventario...</p></div>
+            <div id="costos" class="section"><h2>Costos</h2><p>Contenido de costos...</p></div>
+            <div id="muestreo" class="section"><h2>Muestreo</h2><p>Contenido de muestreo...</p></div>
+            <div id="config" class="section"><h2>Configuración</h2><p>Contenido de configuración...</p></div>
+        </div>
+    </div>
+
+    <!-- FIREBASE & LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
+            authDomain: "flr-db.firebaseapp.com",
+            projectId: "flr-db",
+            storageBucket: "flr-db.firebasestorage.app",
+            messagingSenderId: "778387910304",
+            appId: "1:778387910304:web:cff24e43422477f9bee3c5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentAuthUid = null;
+        let currentAuthEmail = null;
+
+        // --- NAVEGACIÓN DE AUTH ---
+        window.showAuthState = (state) => {
+            document.getElementById('form-login').style.display = state === 'login' ? 'block' : 'none';
+            document.getElementById('form-register').style.display = state === 'register' ? 'block' : 'none';
+            document.getElementById('form-verify').style.display = state === 'verify' ? 'block' : 'none';
+            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
+        };
+
+        // --- 1. REGISTRO CON GENERACIÓN DE OTP ---
+        window.register = async () => {
+            const email = document.getElementById('reg-email').value.trim();
+            const pass = document.getElementById('reg-password').value;
+            const pass2 = document.getElementById('reg-password2').value;
+
+            if (!email || !pass) { showError('reg-error', 'Completa todos los campos'); return; }
+            if (pass !== pass2) { showError('reg-error', 'Las contraseñas no coinciden'); return; }
+            if (pass.length < 6) { showError('reg-error', 'La contraseña debe tener al menos 6 caracteres'); return; }
+
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+                currentAuthUid = userCredential.user.uid;
+                currentAuthEmail = email;
+
+                // Generar código OTP de 6 dígitos
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+                // Guardar en Firestore con marca de tiempo
+                await setDoc(doc(db, "verificaciones", currentAuthUid), {
+                    codigo: otp,
+                    email: email,
+                    createdAt: serverTimestamp()
+                });
+
+                // Mostrar pantalla de verificación
+                document.getElementById('verify-email-display').innerText = email;
+                document.getElementById('demo-otp').innerText = otp; // Visible para pruebas
+                
+                /* 
+                   ==========================================================
+                   PARA ENVIAR EL CORREO REAL (Descomenta y configura EmailJS):
+                   1. Ve a https://www.emailjs.com/ y crea una cuenta gratuita.
+                   2. Crea un "Email Service" (ej. Gmail) y un "Email Template".
+                   3. En el template, usa la variable {{code}} para el código.
+                   4. Descomenta las siguientes líneas y pon tus claves:
+                   
+                   emailjs.init("TU_PUBLIC_KEY");
+                   emailjs.send("TU_SERVICE_ID", "TU_TEMPLATE_ID", {
+                       to_email: email,
+                       code: otp
+                   }).then(() => console.log("Correo enviado"));
+                   ==========================================================
+                */
+
+                showAuthState('verify');
+            } catch (error) {
+                showError('reg-error', error.message.replace('Firebase:', ''));
+            }
+        };
+
+        // --- 2. VERIFICACIÓN DEL CÓDIGO ---
+        window.verifyCode = async () => {
+            const inputOtp = document.getElementById('verify-otp-input').value.trim();
+            if (inputOtp.length !== 6) { showError('verify-error', 'El código debe tener 6 dígitos'); return; }
+
+            try {
+                const docRef = doc(db, "verificaciones", currentAuthUid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const now = new Date();
+                    const createdAt = data.createdAt.toDate();
+                    const diffMinutes = (now - createdAt) / 60000;
+
+                    if (data.codigo === inputOtp && diffMinutes < 15) { // Válido por 15 minutos
+                        // Marcar usuario como verificado en la colección "usuarios"
+                        await setDoc(doc(db, "usuarios", currentAuthUid), {
+                            email: currentAuthEmail,
+                            verificado: true,
+                            rol: 'admin',
+                            createdAt: serverTimestamp()
+                        }, { merge: true });
+
+                        // Eliminar el código usado por seguridad
+                        await deleteDoc(docRef);
+
+                        alert("¡Cuenta verificada exitosamente!");
+                        entrarAlSistema();
+                    } else {
+                        showError('verify-error', 'Código incorrecto o expirado (vence a los 15 min).');
+                    }
+                } else {
+                    showError('verify-error', 'No se encontró un código activo. Solicita uno nuevo.');
+                }
+            } catch (error) {
+                console.error(error);
+                showError('verify-error', 'Error en la verificación.');
+            }
+        };
+
+        window.resendCode = async () => {
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            await setDoc(doc(db, "verificaciones", currentAuthUid), {
+                codigo: otp,
+                email: currentAuthEmail,
+                createdAt: serverTimestamp()
+            }, { merge: true });
+            document.getElementById('demo-otp').innerText = otp;
+            document.getElementById('verify-otp-input').value = '';
+            showError('verify-error', 'Nuevo código generado. (Revísalo arriba)');
+        };
+
+        // --- 3. INICIO DE SESIÓN CON VALIDACIÓN 2FA ---
+        window.login = async () => {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                const user = userCredential.user;
+
+                // Verificar si el usuario ya está marcado como "verificado" en Firestore
+                const docRef = doc(db, "usuarios", user.uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists() && docSnap.data().verificado === true) {
+                    // Acceso concedido directamente
+                    currentAuthUid = user.uid;
+                    currentAuthEmail = user.email;
+                    entrarAlSistema();
+                } else {
+                    // Cuenta creada pero no verificada, o verificación pendiente
+                    await signOut(auth); // Cerrar sesión temporalmente por seguridad
+                    currentAuthUid = user.uid;
+                    currentAuthEmail = email;
+
+                    // Generar nuevo código de verificación
+                    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+                    await setDoc(doc(db, "verificaciones", user.uid), {
+                        codigo: otp,
+                        email: email,
+                        createdAt: serverTimestamp()
+                    }, { merge: true });
+
+                    document.getElementById('verify-email-display').innerText = email;
+                    document.getElementById('demo-otp').innerText = otp;
+                    showAuthState('verify');
+                }
+            } catch (error) {
+                showError('login-error', 'Correo o contraseña incorrectos.');
+            }
+        };
+
+        window.logout = () => {
+            signOut(auth);
+            location.reload();
+        };
+
+        // --- UTILIDADES ---
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.innerText = message;
+            el.style.display = 'block';
+        }
+
+        function entrarAlSistema() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+            // Aquí llamarías a cargarConfiguracion() y cargarDatosIniciales()
+        }
+
+        window.showSection = (sectionId) => {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+        };
+
+        // --- ESTADO DE AUTENTICACIÓN ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Si recarga la página y ya está logueado, verificamos su estado
+                getDoc(doc(db, "usuarios", user.uid)).then(docSnap => {
+                    if (docSnap.exists() && docSnap.data().verificado) {
+                        currentAuthUid = user.uid;
+                        currentAuthEmail = user.email;
+                        entrarAlSistema();
+                    } else {
+                        signOut(auth);
+                        showAuthState('login');
+                    }
+                });
+            } else {
+                document.getElementById('auth-screen').style.display = 'flex';
+                document.getElementById('app-screen').style.display = 'none';
+                showAuthState('login');
+            }
+        });
+    </script>
+</body>
+</html>
