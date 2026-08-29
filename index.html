@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finca Los Robles - Sistema Seguro</title>
+    <title>Finca Los Robles - Sistema de Gestión</title>
+    <!-- Librerías para PDF y QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary: #2C5E2E; --secondary: #8B5A2B; --accent: #D4AF37;
@@ -16,16 +19,16 @@
         #auth-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(rgba(44,94,46,0.85), rgba(139,90,43,0.85)), url('https://images.unsplash.com/photo-1511537632536-b7a575805d75?auto=format&fit=crop&w=1920') center/cover; }
         .auth-box { background: var(--white); padding: 2.5rem; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); width: 100%; max-width: 420px; text-align: center; }
         .auth-box img { max-width: 120px; margin-bottom: 1rem; border-radius: 50%; }
-        .auth-box input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
+        .auth-box input, .auth-box select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
         .btn { background: var(--primary); color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; font-size: 1rem; margin-top: 10px; transition: 0.3s; }
         .btn:hover { background: #1e4220; }
         .btn-secondary { background: var(--secondary); margin-top: 5px; }
+        .btn-small { width: auto; padding: 6px 12px; font-size: 0.85rem; margin-top: 0; }
         .link { color: var(--primary); text-decoration: none; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: inline-block; margin-top: 15px; }
-        .link:hover { text-decoration: underline; }
         .error-msg { color: #d32f2f; margin-top: 10px; font-size: 0.9rem; display: none; }
         .otp-display { background: #fff9c4; padding: 10px; border-radius: 6px; border: 1px dashed #fbc02d; font-size: 1.5rem; font-weight: bold; color: var(--secondary); letter-spacing: 3px; margin: 10px 0; }
         
-        /* Main App (Hidden by default) */
+        /* Main App */
         #app-screen { display: none; min-height: 100vh; }
         .sidebar { width: 250px; background: var(--primary); color: white; position: fixed; height: 100%; padding: 1rem; overflow-y: auto; }
         .sidebar h2 { text-align: center; margin-bottom: 2rem; color: var(--accent); }
@@ -41,11 +44,16 @@
         .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; }
         .form-group input, .form-group select, .form-group textarea { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
         .yellow-input { background-color: #fff9c4 !important; border: 1px solid #fbc02d !important; }
-        table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.9rem; }
         th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
         th { background-color: var(--primary); color: white; }
         .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 1rem; border-left: 4px solid var(--accent); }
         .logout-btn { background: #d32f2f; margin-top: 2rem; }
+
+        /* Modal para PDF y QR */
+        #modal-qr { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 2rem; border-radius: 10px; text-align: center; max-width: 400px; width: 90%; }
+        #qrcode { margin: 20px auto; display: flex; justify-content: center; }
     </style>
 </head>
 <body>
@@ -54,8 +62,6 @@
     <div id="auth-screen">
         <div class="auth-box">
             <img id="auth-logo" src="https://via.placeholder.com/150/2C5E2E/FFFFFF?text=FLR" alt="Logo">
-            
-            <!-- 1. Formulario de Login -->
             <div id="form-login">
                 <h2>Iniciar Sesión</h2>
                 <input type="email" id="login-email" placeholder="Correo electrónico">
@@ -64,8 +70,6 @@
                 <p class="error-msg" id="login-error">Credenciales incorrectas</p>
                 <a class="link" onclick="showAuthState('register')">¿No tienes cuenta? Crear una nueva</a>
             </div>
-
-            <!-- 2. Formulario de Registro -->
             <div id="form-register" style="display:none;">
                 <h2>Crear Cuenta</h2>
                 <input type="email" id="reg-email" placeholder="Correo electrónico">
@@ -75,26 +79,20 @@
                 <p class="error-msg" id="reg-error"></p>
                 <a class="link" onclick="showAuthState('login')">¿Ya tienes cuenta? Iniciar Sesión</a>
             </div>
-
-            <!-- 3. Formulario de Verificación OTP -->
             <div id="form-verify" style="display:none;">
                 <h2>Verificación de Seguridad</h2>
-                <p style="font-size:0.9rem; margin: 15px 0; color: #555;">Se ha generado un código de 6 dígitos para <strong id="verify-email-display"></strong>.</p>
-                
-                <!-- NOTA: En producción, este código se envía por correo. Se muestra aquí solo para que puedas probar la app inmediatamente sin configurar un servidor de correo. -->
-                <p style="font-size:0.85rem; color: #666;">Código de prueba actual:</p>
+                <p style="font-size:0.9rem; margin: 15px 0; color: #555;">Código para: <strong id="verify-email-display"></strong></p>
                 <div class="otp-display" id="demo-otp">------</div>
-                
-                <input type="text" id="verify-otp-input" placeholder="Ingresa el código de 6 dígitos" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:5px; margin-top:15px;">
+                <input type="text" id="verify-otp-input" placeholder="Código de 6 dígitos" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:5px; margin-top:15px;">
                 <button class="btn" onclick="verifyCode()">Verificar e Ingresar</button>
-                <button class="btn btn-secondary" onclick="resendCode()">Reenviar / Generar nuevo código</button>
+                <button class="btn btn-secondary" onclick="resendCode()">Reenviar código</button>
                 <p class="error-msg" id="verify-error"></p>
-                <a class="link" onclick="showAuthState('login')">Volver al inicio de sesión</a>
+                <a class="link" onclick="showAuthState('login')">Volver al inicio</a>
             </div>
         </div>
     </div>
 
-    <!-- PANTALLA PRINCIPAL DE LA APP (Mismo contenido que antes, resumido para brevedad) -->
+    <!-- PANTALLA PRINCIPAL -->
     <div id="app-screen">
         <div class="sidebar">
             <img id="sidebar-logo" src="https://via.placeholder.com/150/2C5E2E/FFFFFF?text=FLR" alt="Logo">
@@ -107,14 +105,194 @@
             <div class="menu-item" onclick="showSection('config')">⚙️ Configuración</div>
             <button class="btn logout-btn" onclick="logout()">Cerrar Sesión</button>
         </div>
+
         <div class="main-content">
-            <div id="dashboard" class="section active"><h2>Bienvenido al Sistema de Gestión</h2><div class="card"><h3>Estado</h3><p>Sesión verificada y activa.</p></div></div>
-            <!-- (El resto de las secciones de ventas, inventario, etc., se mantienen igual que en el código anterior) -->
-            <div id="ventas" class="section"><h2>Ventas</h2><p>Contenido de ventas...</p></div>
-            <div id="inventario" class="section"><h2>Inventario</h2><p>Contenido de inventario...</p></div>
-            <div id="costos" class="section"><h2>Costos</h2><p>Contenido de costos...</p></div>
-            <div id="muestreo" class="section"><h2>Muestreo</h2><p>Contenido de muestreo...</p></div>
-            <div id="config" class="section"><h2>Configuración</h2><p>Contenido de configuración...</p></div>
+            <!-- DASHBOARD -->
+            <div id="dashboard" class="section active">
+                <h2>Dashboard General</h2>
+                <div class="form-grid">
+                    <div class="card"><h3>Ventas del Mes</h3><p id="dash-ventas">0 libras</p></div>
+                    <div class="card"><h3>Inventario Tostado</h3><p id="dash-tostado">0 libras</p></div>
+                    <div class="card"><h3>Inventario Oro</h3><p id="dash-oro">0 libras</p></div>
+                    <div class="card"><h3>Inventario Pergamino</h3><p id="dash-pergamino">0 libras</p></div>
+                </div>
+            </div>
+
+            <!-- VENTAS -->
+            <div id="ventas" class="section">
+                <h2>Registro de Ventas</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Tipo de Café</label>
+                        <select id="venta-tipo" onchange="toggleVentaPresentacion()">
+                            <option value="Tostado">Tostado</option>
+                            <option value="Oro">Verde (Oro)</option>
+                            <option value="Pergamino">Pergamino</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="venta-presentacion-group" style="display:none;">
+                        <label>Presentación</label>
+                        <select id="venta-presentacion">
+                            <option value="Entero">Grano Entero</option>
+                            <option value="Molido">Molido</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad (Libras)</label>
+                        <input type="number" id="venta-cantidad" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio por Libra (Q)</label>
+                        <input type="number" id="venta-precio" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <select id="venta-pago">
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Pendiente">Pendiente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cliente / Notas</label>
+                        <input type="text" id="venta-notas" class="yellow-input">
+                    </div>
+                </div>
+                <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
+                <h3 style="margin-top: 2rem;">Historial de Ventas</h3>
+                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Tipo</th><th>Presentación</th><th>Libras</th><th>Total</th><th>Pago</th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <!-- INVENTARIO -->
+            <div id="inventario" class="section">
+                <h2>Gestión de Inventario</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Estado del Café</label>
+                        <select id="inv-estado" onchange="toggleInvFields()">
+                            <option value="Pergamino">Pergamino</option>
+                            <option value="Oro">Oro (Verde)</option>
+                            <option value="Tostado">Tostado</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad (Libras)</label>
+                        <input type="number" id="inv-cantidad" class="yellow-input">
+                    </div>
+                    <div class="form-group" id="inv-presentacion-group" style="display:none;">
+                        <label>Presentación</label>
+                        <select id="inv-presentacion">
+                            <option value="Entero">Grano Entero</option>
+                            <option value="Molido">Molido</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Finca / Origen</label>
+                        <input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Variedad</label>
+                        <input type="text" id="inv-variedad" value="Catimor" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Proceso</label>
+                        <select id="inv-proceso"><option>Lavado</option><option>Honey</option><option>Natural</option></select>
+                    </div>
+                    <div class="form-group" id="field-tostado" style="display:none;">
+                        <label>Fecha de Tostado</label>
+                        <input type="date" id="inv-fecha-tostado" class="yellow-input">
+                    </div>
+                </div>
+                <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
+                
+                <h3 style="margin-top: 2rem;">Inventario Actual Disponible</h3>
+                <table id="tabla-inventario"><thead><tr><th>Fecha Ingreso</th><th>Estado</th><th>Presentación</th><th>Variedad</th><th>Libras Disponibles</th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <!-- COSTOS -->
+            <div id="costos" class="section">
+                <h2>Calculadora de Costos y Precio Sugerido</h2>
+                <div class="form-grid">
+                    <div class="form-group"><label>Costo Café Verde por Libra (Q)</label><input type="number" id="costo-verde" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
+                    <div class="form-group"><label>Costo Tostado por Libra (Q)</label><input type="number" id="costo-tostado" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
+                    <div class="form-group"><label>Costo Empaque por Libra (Q)</label><input type="number" id="costo-empaque" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
+                    <div class="form-group"><label>Margen de Ganancia Deseado (%)</label><input type="number" id="costo-margen" value="30" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
+                </div>
+                <div class="card" style="background: var(--primary); color: white; text-align: center;">
+                    <h3>Precio Sugerido de Venta por Libra</h3>
+                    <h1 id="precio-sugerido">Q 0.00</h1>
+                    <p>Costo Total de Producción: <span id="costo-total">Q 0.00</span></p>
+                </div>
+            </div>
+
+            <!-- MUESTREO DE LABORATORIO -->
+            <div id="muestreo" class="section">
+                <h2>Ficha de Muestreo - Café Oro</h2>
+                <div class="form-grid">
+                    <div class="form-group"><label>Nombre</label><input type="text" id="m-nombre" class="yellow-input"></div>
+                    <div class="form-group"><label>Fecha</label><input type="date" id="m-fecha" class="yellow-input"></div>
+                    <div class="form-group"><label>Finca</label><input type="text" id="m-finca" value="Finca Los Robles" class="yellow-input"></div>
+                    <div class="form-group"><label>Altitud (msnm)</label><input type="text" id="m-altitud" value="1600" class="yellow-input"></div>
+                    <div class="form-group"><label>Variedad</label><input type="text" id="m-variedad" value="Catimor" class="yellow-input"></div>
+                    <div class="form-group"><label>Proceso</label><input type="text" id="m-proceso" value="Lavado" class="yellow-input"></div>
+                    <div class="form-group"><label>Lote</label><input type="text" id="m-lote" class="yellow-input"></div>
+                    <div class="form-group"><label>Muestra #</label><input type="text" id="m-muestra" class="yellow-input"></div>
+                </div>
+                <h3 style="margin-top:1rem; color: var(--secondary);">Pesos y Mediciones Físicas</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Peso Inicial (Pergamino) g</label><input type="number" id="m-peso-perg" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Peso Final (Oro) g</label><input type="number" id="m-peso-oro" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Humedad %</label><input type="number" step="0.1" id="m-humedad" class="yellow-input"></div>
+                    <div class="form-group"><label>Densidad g/ml</label><input type="number" step="0.01" id="m-densidad" class="yellow-input"></div>
+                    <div class="form-group"><label>Muestra para zarandas g</label><input type="number" id="m-muestra-zaranda" class="yellow-input"></div>
+                </div>
+                <h3 style="margin-top:1rem; color: var(--secondary);">Análisis por Zarandas</h3>
+                <div class="form-grid">
+                    <div class="form-group"><label>Zaranda 18 (g)</label><input type="number" id="m-z18" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 16 (g)</label><input type="number" id="m-z16" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 15 (g)</label><input type="number" id="m-z15" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 14 (g)</label><input type="number" id="m-z14" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Residuo (g)</label><input type="number" id="m-residuo" class="yellow-input" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Total (g)</label><input type="number" id="m-total" readonly></div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><label>% Z18</label><input type="text" id="m-pct-z18" readonly></div>
+                    <div class="form-group"><label>% Z16</label><input type="text" id="m-pct-z16" readonly></div>
+                    <div class="form-group"><label>% Z15</label><input type="text" id="m-pct-z15" readonly></div>
+                    <div class="form-group"><label>% Z14</label><input type="text" id="m-pct-z14" readonly></div>
+                    <div class="form-group"><label>% Residuo</label><input type="text" id="m-pct-residuo" readonly></div>
+                    <div class="form-group"><label style="color:var(--primary); font-size:1.1rem;">Rendimiento %</label><input type="text" id="m-rendimiento" readonly style="font-weight:bold; color:var(--primary); font-size:1.1rem;"></div>
+                </div>
+                <div class="form-grid" style="margin-top:1rem;">
+                    <div class="form-group"><label>Defectos (/ 300g)</label><input type="text" id="m-defectos" class="yellow-input"></div>
+                    <div class="form-group"><label>Observaciones</label><textarea id="m-observaciones" class="yellow-input" rows="2"></textarea></div>
+                </div>
+                <button class="btn" style="margin-top:1rem;" onclick="guardarMuestreo()">Guardar Ficha, Generar PDF y QR</button>
+
+                <h3 style="margin-top: 2rem;">Historial de Análisis de Laboratorio</h3>
+                <table id="tabla-muestreos"><thead><tr><th>Fecha</th><th>Nombre</th><th>Lote</th><th>Rendimiento</th><th>Humedad</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <!-- CONFIGURACIÓN -->
+            <div id="config" class="section">
+                <h2>Configuración de la App</h2>
+                <div class="form-grid">
+                    <div class="form-group"><label>URL del Logo</label><input type="text" id="conf-logo" class="yellow-input"></div>
+                    <div class="form-group"><label>URL de Imagen de Fondo</label><input type="text" id="conf-fondo" class="yellow-input"></div>
+                </div>
+                <button class="btn" onclick="guardarConfiguracion()">Aplicar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PARA QR Y PDF -->
+    <div id="modal-qr">
+        <div class="modal-content">
+            <h3 style="color: var(--primary);">Ficha Técnica Generada</h3>
+            <p>Escanea este código QR para descargar el PDF de la ficha de muestreo.</p>
+            <div id="qrcode"></div>
+            <a id="pdf-download-link" href="#" target="_blank" class="btn" style="display:inline-block; text-decoration:none; margin-top:10px;">Descargar PDF Directamente</a>
+            <button class="btn btn-secondary" onclick="document.getElementById('modal-qr').style.display='none'">Cerrar</button>
         </div>
     </div>
 
@@ -122,7 +300,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, serverTimestamp, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, deleteDoc, serverTimestamp, updateDoc, increment, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
@@ -136,11 +315,12 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         let currentAuthUid = null;
         let currentAuthEmail = null;
 
-        // --- NAVEGACIÓN DE AUTH ---
+        // --- AUTH ---
         window.showAuthState = (state) => {
             document.getElementById('form-login').style.display = state === 'login' ? 'block' : 'none';
             document.getElementById('form-register').style.display = state === 'register' ? 'block' : 'none';
@@ -148,189 +328,94 @@
             document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
         };
 
-        // --- 1. REGISTRO CON GENERACIÓN DE OTP ---
         window.register = async () => {
             const email = document.getElementById('reg-email').value.trim();
             const pass = document.getElementById('reg-password').value;
             const pass2 = document.getElementById('reg-password2').value;
-
-            if (!email || !pass) { showError('reg-error', 'Completa todos los campos'); return; }
-            if (pass !== pass2) { showError('reg-error', 'Las contraseñas no coinciden'); return; }
-            if (pass.length < 6) { showError('reg-error', 'La contraseña debe tener al menos 6 caracteres'); return; }
+            if (!email || !pass) return showError('reg-error', 'Completa todos los campos');
+            if (pass !== pass2) return showError('reg-error', 'Las contraseñas no coinciden');
+            if (pass.length < 6) return showError('reg-error', 'Mínimo 6 caracteres');
 
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
                 currentAuthUid = userCredential.user.uid;
                 currentAuthEmail = email;
-
-                // Generar código OTP de 6 dígitos
                 const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
-                // Guardar en Firestore con marca de tiempo
-                await setDoc(doc(db, "verificaciones", currentAuthUid), {
-                    codigo: otp,
-                    email: email,
-                    createdAt: serverTimestamp()
-                });
-
-                // Mostrar pantalla de verificación
+                await setDoc(doc(db, "verificaciones", currentAuthUid), { codigo: otp, email, createdAt: serverTimestamp() });
                 document.getElementById('verify-email-display').innerText = email;
-                document.getElementById('demo-otp').innerText = otp; // Visible para pruebas
-                
-                /* 
-                   ==========================================================
-                   PARA ENVIAR EL CORREO REAL (Descomenta y configura EmailJS):
-                   1. Ve a https://www.emailjs.com/ y crea una cuenta gratuita.
-                   2. Crea un "Email Service" (ej. Gmail) y un "Email Template".
-                   3. En el template, usa la variable {{code}} para el código.
-                   4. Descomenta las siguientes líneas y pon tus claves:
-                   
-                   emailjs.init("TU_PUBLIC_KEY");
-                   emailjs.send("TU_SERVICE_ID", "TU_TEMPLATE_ID", {
-                       to_email: email,
-                       code: otp
-                   }).then(() => console.log("Correo enviado"));
-                   ==========================================================
-                */
-
+                document.getElementById('demo-otp').innerText = otp;
                 showAuthState('verify');
-            } catch (error) {
-                showError('reg-error', error.message.replace('Firebase:', ''));
-            }
+            } catch (error) { showError('reg-error', error.message); }
         };
 
-        // --- 2. VERIFICACIÓN DEL CÓDIGO ---
         window.verifyCode = async () => {
             const inputOtp = document.getElementById('verify-otp-input').value.trim();
-            if (inputOtp.length !== 6) { showError('verify-error', 'El código debe tener 6 dígitos'); return; }
-
+            if (inputOtp.length !== 6) return showError('verify-error', 'El código debe tener 6 dígitos');
             try {
                 const docRef = doc(db, "verificaciones", currentAuthUid);
                 const docSnap = await getDoc(docRef);
-
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    const now = new Date();
-                    const createdAt = data.createdAt.toDate();
-                    const diffMinutes = (now - createdAt) / 60000;
-
-                    if (data.codigo === inputOtp && diffMinutes < 15) { // Válido por 15 minutos
-                        // Marcar usuario como verificado en la colección "usuarios"
-                        await setDoc(doc(db, "usuarios", currentAuthUid), {
-                            email: currentAuthEmail,
-                            verificado: true,
-                            rol: 'admin',
-                            createdAt: serverTimestamp()
-                        }, { merge: true });
-
-                        // Eliminar el código usado por seguridad
+                    const diffMinutes = (new Date() - data.createdAt.toDate()) / 60000;
+                    if (data.codigo === inputOtp && diffMinutes < 15) {
+                        await setDoc(doc(db, "usuarios", currentAuthUid), { email: currentAuthEmail, verificado: true, rol: 'admin', createdAt: serverTimestamp() }, { merge: true });
                         await deleteDoc(docRef);
-
                         alert("¡Cuenta verificada exitosamente!");
                         entrarAlSistema();
-                    } else {
-                        showError('verify-error', 'Código incorrecto o expirado (vence a los 15 min).');
-                    }
-                } else {
-                    showError('verify-error', 'No se encontró un código activo. Solicita uno nuevo.');
-                }
-            } catch (error) {
-                console.error(error);
-                showError('verify-error', 'Error en la verificación.');
-            }
+                    } else { showError('verify-error', 'Código incorrecto o expirado.'); }
+                } else { showError('verify-error', 'Solicita un código nuevo.'); }
+            } catch (error) { showError('verify-error', 'Error en la verificación.'); }
         };
 
         window.resendCode = async () => {
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            await setDoc(doc(db, "verificaciones", currentAuthUid), {
-                codigo: otp,
-                email: currentAuthEmail,
-                createdAt: serverTimestamp()
-            }, { merge: true });
+            await setDoc(doc(db, "verificaciones", currentAuthUid), { codigo: otp, email: currentAuthEmail, createdAt: serverTimestamp() }, { merge: true });
             document.getElementById('demo-otp').innerText = otp;
             document.getElementById('verify-otp-input').value = '';
-            showError('verify-error', 'Nuevo código generado. (Revísalo arriba)');
         };
 
-        // --- 3. INICIO DE SESIÓN CON VALIDACIÓN 2FA ---
         window.login = async () => {
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
-
             try {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
-
-                // Verificar si el usuario ya está marcado como "verificado" en Firestore
-                const docRef = doc(db, "usuarios", user.uid);
-                const docSnap = await getDoc(docRef);
-
+                const docSnap = await getDoc(doc(db, "usuarios", user.uid));
                 if (docSnap.exists() && docSnap.data().verificado === true) {
-                    // Acceso concedido directamente
-                    currentAuthUid = user.uid;
-                    currentAuthEmail = user.email;
+                    currentAuthUid = user.uid; currentAuthEmail = user.email;
                     entrarAlSistema();
                 } else {
-                    // Cuenta creada pero no verificada, o verificación pendiente
-                    await signOut(auth); // Cerrar sesión temporalmente por seguridad
-                    currentAuthUid = user.uid;
-                    currentAuthEmail = email;
-
-                    // Generar nuevo código de verificación
+                    await signOut(auth);
+                    currentAuthUid = user.uid; currentAuthEmail = email;
                     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-                    await setDoc(doc(db, "verificaciones", user.uid), {
-                        codigo: otp,
-                        email: email,
-                        createdAt: serverTimestamp()
-                    }, { merge: true });
-
+                    await setDoc(doc(db, "verificaciones", user.uid), { codigo: otp, email, createdAt: serverTimestamp() }, { merge: true });
                     document.getElementById('verify-email-display').innerText = email;
                     document.getElementById('demo-otp').innerText = otp;
                     showAuthState('verify');
                 }
-            } catch (error) {
-                showError('login-error', 'Correo o contraseña incorrectos.');
-            }
+            } catch (error) { showError('login-error', 'Correo o contraseña incorrectos.'); }
         };
 
-        window.logout = () => {
-            signOut(auth);
-            location.reload();
-        };
+        window.logout = () => { signOut(auth); location.reload(); };
 
-        // --- UTILIDADES ---
         function showError(elementId, message) {
             const el = document.getElementById(elementId);
-            el.innerText = message;
-            el.style.display = 'block';
+            el.innerText = message; el.style.display = 'block';
         }
 
         function entrarAlSistema() {
             document.getElementById('auth-screen').style.display = 'none';
             document.getElementById('app-screen').style.display = 'block';
-            // Aquí llamarías a cargarConfiguracion() y cargarDatosIniciales()
+            cargarDatosIniciales();
         }
 
-        window.showSection = (sectionId) => {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-            document.getElementById(sectionId).classList.add('active');
-            event.target.classList.add('active');
-        };
-
-        // --- ESTADO DE AUTENTICACIÓN ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // Si recarga la página y ya está logueado, verificamos su estado
                 getDoc(doc(db, "usuarios", user.uid)).then(docSnap => {
                     if (docSnap.exists() && docSnap.data().verificado) {
-                        currentAuthUid = user.uid;
-                        currentAuthEmail = user.email;
+                        currentAuthUid = user.uid; currentAuthEmail = user.email;
                         entrarAlSistema();
-                    } else {
-                        signOut(auth);
-                        showAuthState('login');
-                    }
+                    } else { signOut(auth); showAuthState('login'); }
                 });
             } else {
                 document.getElementById('auth-screen').style.display = 'flex';
@@ -338,6 +423,318 @@
                 showAuthState('login');
             }
         });
+
+        // --- NAVEGACIÓN Y UI ---
+        window.showSection = (sectionId) => {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            event.target.classList.add('active');
+        };
+
+        window.toggleVentaPresentacion = () => {
+            const tipo = document.getElementById('venta-tipo').value;
+            document.getElementById('venta-presentacion-group').style.display = (tipo === 'Tostado') ? 'flex' : 'none';
+        };
+
+        window.toggleInvFields = () => {
+            const estado = document.getElementById('inv-estado').value;
+            const isTostado = estado === 'Tostado';
+            document.getElementById('inv-presentacion-group').style.display = isTostado ? 'flex' : 'none';
+            document.getElementById('field-tostado').style.display = isTostado ? 'flex' : 'none';
+        };
+
+        // --- CÁLCULOS ---
+        window.calcularMuestreo = () => {
+            const pesoPerg = parseFloat(document.getElementById('m-peso-perg').value) || 0;
+            const pesoOro = parseFloat(document.getElementById('m-peso-oro').value) || 0;
+            const z18 = parseFloat(document.getElementById('m-z18').value) || 0;
+            const z16 = parseFloat(document.getElementById('m-z16').value) || 0;
+            const z15 = parseFloat(document.getElementById('m-z15').value) || 0;
+            const z14 = parseFloat(document.getElementById('m-z14').value) || 0;
+            const residuo = parseFloat(document.getElementById('m-residuo').value) || 0;
+
+            const total = z18 + z16 + z15 + z14 + residuo;
+            document.getElementById('m-total').value = total;
+
+            const rendimiento = pesoPerg > 0 ? (pesoOro / pesoPerg) * 100 : 0;
+            document.getElementById('m-rendimiento').value = rendimiento.toFixed(2) + '%';
+
+            const calcPct = (val) => total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+            document.getElementById('m-pct-z18').value = calcPct(z18);
+            document.getElementById('m-pct-z16').value = calcPct(z16);
+            document.getElementById('m-pct-z15').value = calcPct(z15);
+            document.getElementById('m-pct-z14').value = calcPct(z14);
+            document.getElementById('m-pct-residuo').value = calcPct(residuo);
+        };
+
+        window.calcularPrecioSugerido = () => {
+            const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
+            const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
+            const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
+            const margen = parseFloat(document.getElementById('costo-margen').value) || 0;
+            const costoTotal = verde + tostado + empaque;
+            const precioSugerido = costoTotal * (1 + (margen / 100));
+            document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
+            document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
+        };
+
+        // --- GESTIÓN DE INVENTARIO Y VENTAS ---
+        window.guardarInventario = async () => {
+            const estado = document.getElementById('inv-estado').value;
+            const data = {
+                estado: estado,
+                presentacion: estado === 'Tostado' ? document.getElementById('inv-presentacion').value : 'N/A',
+                cantidad: parseFloat(document.getElementById('inv-cantidad').value) || 0,
+                finca: document.getElementById('inv-finca').value,
+                variedad: document.getElementById('inv-variedad').value,
+                proceso: document.getElementById('inv-proceso').value,
+                fechaTostado: document.getElementById('inv-fecha-tostado').value,
+                fecha: serverTimestamp()
+            };
+            await addDoc(collection(db, "inventario"), data);
+            alert("Inventario actualizado correctamente");
+            cargarDatosIniciales();
+        };
+
+        window.guardarVenta = async () => {
+            const tipo = document.getElementById('venta-tipo').value;
+            const presentacion = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
+            const cantidad = parseFloat(document.getElementById('venta-cantidad').value) || 0;
+            const precio = parseFloat(document.getElementById('venta-precio').value) || 0;
+
+            if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0");
+
+            const ventaData = {
+                tipo, presentacion, cantidad, precio,
+                pago: document.getElementById('venta-pago').value,
+                notas: document.getElementById('venta-notas').value,
+                fecha: serverTimestamp()
+            };
+
+            try {
+                // 1. Guardar venta
+                await addDoc(collection(db, "ventas"), ventaData);
+                
+                // 2. Descontar de inventario (Lógica FIFO simple)
+                let cantidadPendiente = cantidad;
+                const qInv = query(collection(db, "inventario"), where("estado", "==", tipo));
+                // Nota: Para 'Tostado', idealmente filtraríamos también por presentacion, pero Firestore requiere índices compuestos. 
+                // Haremos la validación en el cliente para mantenerlo simple y funcional.
+                const snapshotInv = await getDocs(qInv);
+                
+                for (const docInv of snapshotInv.docs) {
+                    if (cantidadPendiente <= 0) break;
+                    const invData = docInv.data();
+                    
+                    // Si es tostado, verificar que la presentación coincida
+                    if (tipo === 'Tostado' && invData.presentacion !== presentacion) continue;
+
+                    if (invData.cantidad >= cantidadPendiente) {
+                        // Hay suficiente en este lote, restamos y terminamos
+                        await updateDoc(doc(db, "inventario", docInv.id), {
+                            cantidad: invData.cantidad - cantidadPendiente
+                        });
+                        cantidadPendiente = 0;
+                    } else {
+                        // No hay suficiente, agotamos este lote y seguimos con el siguiente
+                        const resto = cantidadPendiente - invData.cantidad;
+                        await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
+                        cantidadPendiente = resto;
+                    }
+                }
+
+                if (cantidadPendiente > 0) {
+                    alert(`Venta registrada, pero el inventario quedó en negativo por ${cantidadPendiente} libras. Por favor, ajusta el inventario.`);
+                } else {
+                    alert("Venta registrada e inventario descontado correctamente.");
+                }
+                
+                cargarDatosIniciales();
+                // Limpiar formulario
+                document.getElementById('venta-cantidad').value = '';
+                document.getElementById('venta-precio').value = '';
+                document.getElementById('venta-notas').value = '';
+            } catch (error) {
+                console.error(error);
+                alert("Error al registrar la venta: " + error.message);
+            }
+        };
+
+        // --- MUESTREO, PDF Y QR ---
+        window.guardarMuestreo = async () => {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Generando PDF y subiendo...";
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const docPdf = new jsPDF();
+                
+                // Diseño del PDF
+                docPdf.setFillColor(44, 94, 46);
+                docPdf.rect(0, 0, 210, 40, 'F');
+                docPdf.setTextColor(255, 255, 255);
+                docPdf.setFontSize(22);
+                docPdf.text("Finca Los Robles", 105, 20, null, null, "center");
+                docPdf.setFontSize(16);
+                docPdf.text("FICHA DE MUESTREO - CAFÉ ORO", 105, 30, null, null, "center");
+
+                docPdf.setTextColor(0, 0, 0);
+                docPdf.setFontSize(12);
+                let y = 50;
+                const addLine = (label, value) => {
+                    docPdf.setFont("helvetica", "bold");
+                    docPdf.text(label, 20, y);
+                    docPdf.setFont("helvetica", "normal");
+                    docPdf.text(value || "N/A", 70, y);
+                    y += 10;
+                };
+
+                addLine("Nombre:", document.getElementById('m-nombre').value);
+                addLine("Fecha:", document.getElementById('m-fecha').value);
+                addLine("Finca:", document.getElementById('m-finca').value);
+                addLine("Altitud:", document.getElementById('m-altitud').value + " msnm");
+                addLine("Variedad:", document.getElementById('m-variedad').value);
+                addLine("Proceso:", document.getElementById('m-proceso').value);
+                addLine("Lote:", document.getElementById('m-lote').value);
+                addLine("Muestra #:", document.getElementById('m-muestra').value);
+                
+                y += 5;
+                docPdf.setDrawColor(212, 175, 55);
+                docPdf.line(20, y, 190, y);
+                y += 10;
+                docPdf.setFont("helvetica", "bold");
+                docPdf.text("RESULTADOS DE LABORATORIO", 20, y);
+                y += 10;
+                docPdf.setFont("helvetica", "normal");
+                addLine("Peso Pergamino:", document.getElementById('m-peso-perg').value + " g");
+                addLine("Peso Oro:", document.getElementById('m-peso-oro').value + " g");
+                addLine("Rendimiento:", document.getElementById('m-rendimiento').value);
+                addLine("Humedad:", document.getElementById('m-humedad').value + " %");
+                addLine("Densidad:", document.getElementById('m-densidad').value + " g/ml");
+                addLine("Defectos:", document.getElementById('m-defectos').value + " / 300g");
+                addLine("Observaciones:", document.getElementById('m-observaciones').value);
+
+                // Generar Blob del PDF
+                const pdfBlob = docPdf.output('blob');
+                const fileName = `Muestra_${document.getElementById('m-lote').value || 'SinLote'}_${Date.now()}.pdf`;
+                
+                // Subir a Firebase Storage
+                const storageRef = ref(storage, `muestreos/${fileName}`);
+                await uploadBytes(storageRef, pdfBlob);
+                const downloadURL = await getDownloadURL(storageRef);
+
+                // Guardar en Firestore
+                const muestraData = {
+                    nombre: document.getElementById('m-nombre').value,
+                    fecha: document.getElementById('m-fecha').value,
+                    lote: document.getElementById('m-lote').value,
+                    rendimiento: document.getElementById('m-rendimiento').value,
+                    humedad: document.getElementById('m-humedad').value,
+                    pdfUrl: downloadURL,
+                    fechaRegistro: serverTimestamp()
+                };
+                const docRef = await addDoc(collection(db, "muestreos"), muestraData);
+
+                // Mostrar Modal con QR
+                document.getElementById('qrcode').innerHTML = ""; // Limpiar anterior
+                new QRCode(document.getElementById("qrcode"), {
+                    text: downloadURL,
+                    width: 200,
+                    height: 200
+                });
+                document.getElementById('pdf-download-link').href = downloadURL;
+                document.getElementById('modal-qr').style.display = 'flex';
+
+                alert("Ficha guardada, PDF generado y QR listo.");
+                cargarDatosIniciales();
+                
+                // Limpiar campos
+                document.getElementById('m-nombre').value = '';
+                document.getElementById('m-lote').value = '';
+                document.getElementById('m-peso-perg').value = '';
+                document.getElementById('m-peso-oro').value = '';
+            } catch (error) {
+                console.error(error);
+                alert("Error al guardar el muestreo: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Guardar Ficha, Generar PDF y QR";
+            }
+        };
+
+        // --- CARGA DE DATOS ---
+        async function cargarDatosIniciales() {
+            // 1. Ventas
+            const qVentas = query(collection(db, "ventas"), orderBy("fecha", "desc"));
+            const snapVentas = await getDocs(qVentas);
+            const tbodyVentas = document.querySelector('#tabla-ventas tbody');
+            tbodyVentas.innerHTML = '';
+            let totalLibras = 0;
+            snapVentas.forEach(doc => {
+                const v = doc.data();
+                totalLibras += v.cantidad;
+                const fecha = v.fecha ? new Date(v.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
+                tbodyVentas.innerHTML += `<tr><td>${fecha}</td><td>${v.tipo}</td><td>${v.presentacion !== 'N/A' ? v.presentacion : '-'}</td><td>${v.cantidad}</td><td>Q${(v.cantidad * v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
+            });
+            document.getElementById('dash-ventas').innerText = totalLibras.toFixed(1) + " libras";
+
+            // 2. Inventario
+            const snapInv = await getDocs(collection(db, "inventario"));
+            const tbodyInv = document.querySelector('#tabla-inventario tbody');
+            tbodyInv.innerHTML = '';
+            let oro = 0, tostado = 0, pergamino = 0;
+            snapInv.forEach(doc => {
+                const d = doc.data();
+                if (d.estado === 'Oro') oro += d.cantidad;
+                if (d.estado === 'Tostado') tostado += d.cantidad;
+                if (d.estado === 'Pergamino') pergamino += d.cantidad;
+                
+                const fecha = d.fecha ? new Date(d.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
+                tbodyInv.innerHTML += `<tr><td>${fecha}</td><td>${d.estado}</td><td>${d.presentacion !== 'N/A' ? d.presentacion : '-'}</td><td>${d.variedad}</td><td>${d.cantidad.toFixed(1)}</td></tr>`;
+            });
+            document.getElementById('dash-oro').innerText = oro.toFixed(1) + " libras";
+            document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
+            document.getElementById('dash-pergamino').innerText = pergamino.toFixed(1) + " libras";
+
+            // 3. Muestreos
+            const qMuestras = query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc"));
+            const snapMuestras = await getDocs(qMuestras);
+            const tbodyMuestras = document.querySelector('#tabla-muestreos tbody');
+            tbodyMuestras.innerHTML = '';
+            snapMuestras.forEach(doc => {
+                const m = doc.data();
+                const fecha = m.fecha || (m.fechaRegistro ? new Date(m.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
+                tbodyMuestras.innerHTML += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td>${m.nombre}</td>
+                        <td>${m.lote}</td>
+                        <td>${m.rendimiento}</td>
+                        <td>${m.humedad}%</td>
+                        <td>
+                            <button class="btn btn-small" onclick="verMuestraQR('${m.pdfUrl}')">Ver PDF / QR</button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        window.verMuestraQR = (url) => {
+            document.getElementById('qrcode').innerHTML = "";
+            new QRCode(document.getElementById("qrcode"), { text: url, width: 200, height: 200 });
+            document.getElementById('pdf-download-link').href = url;
+            document.getElementById('modal-qr').style.display = 'flex';
+        };
+
+        window.guardarConfiguracion = async () => {
+            const config = {
+                logo: document.getElementById('conf-logo').value,
+                fondo: document.getElementById('conf-fondo').value
+            };
+            await setDoc(doc(db, "config", "principal"), config, { merge: true });
+            alert("Configuración guardada. Recarga la página.");
+        };
     </script>
 </body>
 </html>
