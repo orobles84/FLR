@@ -33,6 +33,7 @@
         .btn-small { width: auto; padding: 8px 14px; font-size: 0.85rem; margin-top: 0; min-height: 36px; display: inline-block; margin: 3px; }
         .btn-view { background: #1976d2; }
         .btn-pdf { background: var(--secondary); }
+        .btn-save { background: var(--accent); color: var(--primary); margin-top: 1rem; }
         .link { color: var(--primary); text-decoration: none; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: inline-block; margin-top: 15px; padding: 8px; }
         .error-msg { color: var(--danger); margin-top: 10px; font-size: 0.9rem; display: none; }
         .otp-display { background: #fff9c4; padding: 12px; border-radius: 8px; border: 2px dashed #fbc02d; font-size: 1.8rem; font-weight: bold; color: var(--secondary); letter-spacing: 5px; margin: 10px 0; }
@@ -80,7 +81,6 @@
         .card h3 { color: var(--primary); margin: 0 0 0.5rem; font-size: 1rem; }
         .card p { font-size: 1.5rem; font-weight: bold; color: var(--secondary); margin: 0; }
         
-        /* Cotizador Cards */
         .cmarket-banner { background: linear-gradient(135deg, #1a3d1c 0%, #2C5E2E 100%); color: white; padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; border: 2px solid var(--accent); }
         .cmarket-banner h3 { color: var(--accent); margin: 0 0 0.5rem; font-size: 1rem; }
         .cmarket-banner .price { font-size: 2.5rem; font-weight: bold; color: white; margin: 0.25rem 0; }
@@ -100,7 +100,7 @@
         .info-box { background: #fff9c4; border-left: 4px solid #fbc02d; padding: 0.75rem 1rem; border-radius: 6px; margin: 1rem 0; font-size: 0.85rem; color: #555; }
         .info-box strong { color: var(--primary); }
         
-        #modal-ver-muestra { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; overflow-y: auto; }
+        #modal-ver-muestra, #modal-ver-costo { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; overflow-y: auto; }
         .modal-content-large { background: white; padding: 1.5rem; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; margin: auto; }
         .modal-content-large h3 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1rem; }
         .detail-grid { display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-bottom: 1rem; }
@@ -194,7 +194,7 @@
             <div class="menu-item active" onclick="showSection('dashboard', this)"><span class="icon">📊</span> Dashboard</div>
             <div class="menu-item" onclick="showSection('ventas', this)"><span class="icon">💰</span> Ventas</div>
             <div class="menu-item" onclick="showSection('inventario', this)"><span class="icon">📦</span> Inventario</div>
-            <div class="menu-item" onclick="showSection('costos', this)"><span class="icon">🧮</span> Costos</div>
+            <div class="menu-item" onclick="showSection('costos', this)"><span class="icon">🧮</span> Costos Tostado</div>
             <div class="menu-item" onclick="showSection('cotizador', this)"><span class="icon">💵</span> Cotizador Verde</div>
             <div class="menu-item" onclick="showSection('muestreo', this)"><span class="icon">🔬</span> Muestreo Lab</div>
             <button class="btn logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
@@ -278,32 +278,79 @@
                 </div>
             </div>
 
-            <!-- COSTOS (FÓRMULA CORREGIDA) -->
+            <!-- COSTOS TOSTADO CON HISTORIAL -->
             <div id="costos" class="section">
-                <h2>🧮 Calculadora de Costos y Precio Sugerido</h2>
+                <h2>🧮 Calculadora de Costos - Café Tostado</h2>
                 <div class="info-box">
                     <strong>📐 Fórmula aplicada:</strong> Precio de Venta = Costo Total ÷ (1 - % Ganancia)<br>
                     <small>Esta fórmula calcula el margen sobre el precio final de venta, no sobre el costo.</small>
                 </div>
+                
+                <h3>📋 Datos del Lote</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Nombre del Lote</label>
+                        <input type="text" id="costo-lote" class="yellow-input" placeholder="Ej: COE0726, FAT CAT, etc.">
+                    </div>
+                    <div class="form-group">
+                        <label>Variedad de Café</label>
+                        <input type="text" id="costo-variedad" class="yellow-input" value="Catimor">
+                    </div>
+                    <div class="form-group">
+                        <label>Proceso</label>
+                        <select id="costo-proceso">
+                            <option value="Lavado">Lavado</option>
+                            <option value="Honey">Honey</option>
+                            <option value="Natural">Natural</option>
+                            <option value="Anaeróbico">Anaeróbico</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Tostado</label>
+                        <input type="date" id="costo-fecha-tostado" class="yellow-input">
+                    </div>
+                </div>
+
+                <h3>💰 Costos por Libra</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>Costo Café Verde/Libra (Q)</label><input type="number" id="costo-verde" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
                     <div class="form-group"><label>Costo Tostado/Libra (Q)</label><input type="number" id="costo-tostado" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
                     <div class="form-group"><label>Costo Empaque/Libra (Q)</label><input type="number" id="costo-empaque" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
                     <div class="form-group"><label>Margen Ganancia (%)</label><input type="number" id="costo-margen" value="30" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
                 </div>
+                
                 <div class="card" style="background: var(--primary); color: white; text-align: center; border-left-color: var(--accent);">
                     <h3 style="color: white;">Precio Sugerido por Libra</h3>
                     <p style="color: var(--accent); font-size: 2rem;" id="precio-sugerido">Q 0.00</p>
                     <p style="color: white; font-size: 1rem;">Costo Total: <span id="costo-total">Q 0.00</span></p>
                     <p style="color: white; font-size: 0.9rem; margin-top: 0.5rem;">Ganancia neta por libra: <span id="ganancia-neta">Q 0.00</span></p>
                 </div>
+
+                <button class="btn btn-save" onclick="guardarCosto()">💾 Guardar Costo de este Lote</button>
+
+                <h3>📊 Historial de Costos por Lote</h3>
+                <div class="table-wrapper">
+                    <table id="tabla-costos">
+                        <thead>
+                            <tr>
+                                <th>Fecha Tostado</th>
+                                <th>Lote</th>
+                                <th>Variedad</th>
+                                <th>Proceso</th>
+                                <th>Costo/Lb</th>
+                                <th>Precio Venta</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
             </div>
 
-            <!-- COTIZADOR DE CAFÉ VERDE (NUEVO) -->
+            <!-- COTIZADOR DE CAFÉ VERDE -->
             <div id="cotizador" class="section">
                 <h2>💵 Cotizador de Café Verde / Pergamino / Oro</h2>
                 
-                <!-- C-Market NY Banner -->
                 <div class="cmarket-banner">
                     <h3>📈 ICE C-Market (Bolsa de NY)</h3>
                     <div class="price" id="cmarket-price">385.00 ¢/lb</div>
@@ -457,7 +504,7 @@
                 <h3>Pesos y Mediciones</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>Peso Inicial (Pergamino) g</label><input type="number" id="m-peso-perg" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
-                    <div class="form-group"><label>Peso Final (Oro) g</label><input type="number" id="m-peso-oro" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Peso Final (Oro) g</label><input type="number" id="m-peso-oro" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
                     <div class="form-group"><label>Humedad %</label><input type="number" step="0.1" id="m-humedad" class="yellow-input"></div>
                     <div class="form-group"><label>Densidad g/ml</label><input type="number" step="0.01" id="m-densidad" class="yellow-input"></div>
                     <div class="form-group"><label>ATW (1000 granos) g</label><input type="number" step="0.01" id="m-atw" class="yellow-input"></div>
@@ -466,10 +513,10 @@
                 <h3>Análisis por Zarandas</h3>
                 <div class="form-grid">
                     <div class="form-group"><label>Zaranda 18 (g)</label><input type="number" id="m-z18" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
-                    <div class="form-group"><label>Zaranda 16 (g)</label><input type="number" id="m-z16" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
-                    <div class="form-group"><label>Zaranda 15 (g)</label><input type="number" id="m-z15" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
-                    <div class="form-group"><label>Zaranda 14 (g)</label><input type="number" id="m-z14" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
-                    <div class="form-group"><label>Residuo (g)</label><input type="number" id="m-residuo" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 16 (g)</label><input type="number" id="m-z16" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 15 (g)</label><input type="number" id="m-z15" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
+                    <div class="form-group"><label>Zaranda 14 (g)</label><input type="number" id="m-z14" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
+                    <div class="form-group"><label>Residuo (g)</label><input type="number" id="m-residuo" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
                     <div class="form-group"><label>Total (g)</label><input type="number" id="m-total" readonly></div>
                 </div>
                 <div class="form-grid">
@@ -505,7 +552,7 @@
         </div>
     </div>
 
-    <!-- MODAL VER DATOS COMPLETOS -->
+    <!-- MODAL VER DATOS COMPLETOS MUESTREO -->
     <div id="modal-ver-muestra">
         <div class="modal-content-large">
             <h3 id="modal-titulo">Ficha de Muestreo</h3>
@@ -514,6 +561,15 @@
                 <button class="btn btn-pdf" style="flex:1; min-width: 150px;" onclick="generarPDFDesdeModal()">📄 Descargar PDF</button>
                 <button class="btn btn-secondary" style="flex:1; min-width: 150px;" onclick="cerrarModalVer()">Cerrar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL VER COSTO DETALLADO -->
+    <div id="modal-ver-costo">
+        <div class="modal-content-large">
+            <h3 id="modal-costo-titulo">Detalle de Costo</h3>
+            <div id="modal-costo-contenido"></div>
+            <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('modal-ver-costo').style.display='none'">Cerrar</button>
         </div>
     </div>
 
@@ -540,8 +596,6 @@
         let currentAuthEmail = null;
         let muestraActualEnModal = null;
 
-        // ===== FLETES ESTIMADOS DESDE GUATEMALA (USD por tonelada métrica) =====
-        // Valores de referencia agosto 2026. Ajustables según mercado real.
         const FLETES_POR_TONELADA = {
             "usa-golfo": 90,
             "usa-este": 110,
@@ -678,8 +732,6 @@
             
             const costoTotal = verde + tostado + empaque;
             
-            // Fórmula correcta: PV = Costo / (1 - %ganancia)
-            // Si margen = 30%, entonces 1 - 0.30 = 0.70
             let precioSugerido = 0;
             let gananciaNeta = 0;
             
@@ -701,6 +753,101 @@
             document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
             document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
             document.getElementById('ganancia-neta').innerText = 'Q ' + gananciaNeta.toFixed(2);
+        };
+
+        // ===== GUARDAR COSTO DE LOTE =====
+        window.guardarCosto = async () => {
+            const lote = document.getElementById('costo-lote').value.trim();
+            if (!lote) return alert("Por favor ingresa un nombre para el lote");
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Guardando...";
+
+            try {
+                const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
+                const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
+                const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
+                const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
+                const costoTotal = verde + tostado + empaque;
+                const precioSugerido = margenPorc < 100 ? costoTotal / (1 - (margenPorc / 100)) : 0;
+
+                const datosCosto = {
+                    lote: lote,
+                    variedad: document.getElementById('costo-variedad').value,
+                    proceso: document.getElementById('costo-proceso').value,
+                    fechaTostado: document.getElementById('costo-fecha-tostado').value,
+                    costoVerde: verde,
+                    costoTostado: tostado,
+                    costoEmpaque: empaque,
+                    costoTotal: costoTotal,
+                    margenPorc: margenPorc,
+                    precioSugerido: precioSugerido,
+                    gananciaNeta: precioSugerido - costoTotal,
+                    fechaRegistro: serverTimestamp()
+                };
+
+                await addDoc(collection(db, "costosTostado"), datosCosto);
+                alert("✅ Costo del lote guardado correctamente");
+                cargarDatosIniciales();
+
+                // Limpiar formulario
+                document.getElementById('costo-lote').value = '';
+                document.getElementById('costo-verde').value = '';
+                document.getElementById('costo-tostado').value = '';
+                document.getElementById('costo-empaque').value = '';
+                document.getElementById('costo-fecha-tostado').value = '';
+                calcularPrecioSugerido();
+
+            } catch (error) {
+                console.error(error);
+                alert("Error al guardar: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "💾 Guardar Costo de este Lote";
+            }
+        };
+
+        // ===== VER COSTO DETALLADO =====
+        window.verCostoDetalle = async (docId) => {
+            try {
+                const docRef = doc(db, "costosTostado", docId);
+                const docSnap = await getDoc(docRef);
+                if (!docSnap.exists()) { alert("No se encontró el registro"); return; }
+                
+                const c = docSnap.data();
+                document.getElementById('modal-costo-titulo').innerText = `Lote: ${c.lote || 'Sin nombre'}`;
+                
+                const contenido = document.getElementById('modal-costo-contenido');
+                contenido.innerHTML = `
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📋 Información del Lote</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Nombre del Lote</div><div class="value">${c.lote || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Fecha de Tostado</div><div class="value">${c.fechaTostado || 'N/A'}</div></div>
+                    </div>
+                    
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">💰 Desglose de Costos (por Libra)</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Costo Café Verde</div><div class="value">Q ${c.costoVerde.toFixed(2)}</div></div>
+                        <div class="detail-item"><div class="label">Costo Tostado</div><div class="value">Q ${c.costoTostado.toFixed(2)}</div></div>
+                        <div class="detail-item"><div class="label">Costo Empaque</div><div class="value">Q ${c.costoEmpaque.toFixed(2)}</div></div>
+                        <div class="detail-item highlight"><div class="label">Costo Total</div><div class="value">Q ${c.costoTotal.toFixed(2)}</div></div>
+                    </div>
+                    
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📊 Precio de Venta</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Margen de Ganancia</div><div class="value">${c.margenPorc}%</div></div>
+                        <div class="detail-item highlight"><div class="label">Precio Sugerido</div><div class="value">Q ${c.precioSugerido.toFixed(2)}</div></div>
+                        <div class="detail-item"><div class="label">Ganancia Neta/Libra</div><div class="value">Q ${c.gananciaNeta.toFixed(2)}</div></div>
+                    </div>
+                `;
+                
+                document.getElementById('modal-ver-costo').style.display = 'flex';
+            } catch (error) {
+                alert("Error al cargar el detalle: " + error.message);
+            }
         };
 
         // ===== C-MARKET (BOLSA DE NY) =====
@@ -726,24 +873,20 @@
             const cantidadKg = parseFloat(document.getElementById('cot-cantidad-kg').value) || 0;
             const seguroPorc = parseFloat(document.getElementById('cot-seguro').value) || 0.3;
             
-            // Si es pergamino, convertir a equivalente en oro
             let precioOroQLb = precioQLb;
             if (estado === 'pergamino' && rendimiento > 0) {
                 precioOroQLb = precioQLb * (100 / rendimiento);
             }
             
-            // Conversiones
             const precioQKg = precioOroQLb / 0.453592;
             const precioUSDLibra = precioOroQLb / tipoCambio;
             const precioUSDKg = precioUSDLibra / 0.453592;
             
-            // Mostrar conversiones
             document.getElementById('conv-qlb').innerText = 'Q ' + precioOroQLb.toFixed(2);
             document.getElementById('conv-qkg').innerText = 'Q ' + precioQKg.toFixed(2);
             document.getElementById('conv-usdlb').innerText = 'US$ ' + precioUSDLibra.toFixed(2);
             document.getElementById('conv-usdkg').innerText = 'US$ ' + precioUSDKg.toFixed(2);
             
-            // Diferencial vs C-Market
             const cmarketCents = parseFloat(document.getElementById('cmarket-input').value) || 385;
             const cmarketUSDLibra = cmarketCents / 100;
             const diferencial = precioUSDLibra - cmarketUSDLibra;
@@ -755,27 +898,20 @@
                 diferencialBox.innerHTML = `<strong>📉 Diferencial vs C-Market:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${diferencial.toFixed(2)}/lb</span> (tu café cotiza por debajo del mercado)`;
             }
             
-            // ===== CÁLCULO FOB / CIF =====
-            // FOB = Precio del café en origen (lo que vale tu café puesto en puerto)
-            // Asumimos que el precio que ingresaste es el precio FOB base
             const fobUSDLibra = precioUSDLibra;
             const fobUSDKg = precioUSDKg;
             const fobTotalUSD = fobUSDKg * cantidadKg;
             
-            // Flete internacional
             const fletePorTonelada = FLETES_POR_TONELADA[pais] || 120;
             const toneladas = cantidadKg / 1000;
             const fleteTotalUSD = fletePorTonelada * toneladas;
             
-            // Seguro (típicamente 0.3% del valor FOB)
             const seguroTotalUSD = fobTotalUSD * (seguroPorc / 100);
             
-            // CIF = FOB + Flete + Seguro
             const cifTotalUSD = fobTotalUSD + fleteTotalUSD + seguroTotalUSD;
             const cifUSDKg = cantidadKg > 0 ? cifTotalUSD / cantidadKg : 0;
             const cifUSDLibra = cifUSDKg * 0.453592;
             
-            // Mostrar resultados
             document.getElementById('fob-usdlb').innerText = 'US$ ' + fobUSDLibra.toFixed(2);
             document.getElementById('fob-usdkg').innerText = 'US$ ' + fobUSDKg.toFixed(2);
             document.getElementById('cif-usdlb').innerText = 'US$ ' + cifUSDLibra.toFixed(2);
@@ -837,7 +973,7 @@
                 const invData = docInv.data();
                 if (tipo === 'Tostado' && invData.presentacion !== presentacion) continue;
                 if (invData.cantidad >= cantidadPendiente) {
-                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: invData.cantidad - cantidadPendiente });
+                    await updateDoc(doc(db, "inventario"), docInv.id), { cantidad: invData.cantidad - cantidadPendiente });
                     cantidadPendiente = 0;
                 } else {
                     await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
@@ -1155,6 +1291,26 @@
             document.getElementById('dash-oro').innerText = oro.toFixed(1) + " libras";
             document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
             document.getElementById('dash-pergamino').innerText = pergamino.toFixed(1) + " libras";
+
+            // ===== HISTORIAL DE COSTOS TOSTADO =====
+            const snapCostos = await getDocs(query(collection(db, "costosTostado"), orderBy("fechaRegistro", "desc")));
+            const tbodyCostos = document.querySelector('#tabla-costos tbody'); tbodyCostos.innerHTML = '';
+            snapCostos.forEach(docSnap => {
+                const c = docSnap.data();
+                const fecha = c.fechaTostado || (c.fechaRegistro ? new Date(c.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
+                tbodyCostos.innerHTML += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td>${c.lote || 'N/A'}</td>
+                        <td>${c.variedad || 'N/A'}</td>
+                        <td>${c.proceso || 'N/A'}</td>
+                        <td>Q${c.costoTotal.toFixed(2)}</td>
+                        <td>Q${c.precioSugerido.toFixed(2)}</td>
+                        <td style="white-space: nowrap;">
+                            <button class="btn btn-small btn-view" onclick="verCostoDetalle('${docSnap.id}')">👁️ Ver</button>
+                        </td>
+                    </tr>`;
+            });
 
             const snapMuestras = await getDocs(query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc")));
             const tbodyMuestras = document.querySelector('#tabla-muestreos tbody'); tbodyMuestras.innerHTML = '';
