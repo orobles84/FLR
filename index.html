@@ -80,6 +80,26 @@
         .card h3 { color: var(--primary); margin: 0 0 0.5rem; font-size: 1rem; }
         .card p { font-size: 1.5rem; font-weight: bold; color: var(--secondary); margin: 0; }
         
+        /* Cotizador Cards */
+        .cmarket-banner { background: linear-gradient(135deg, #1a3d1c 0%, #2C5E2E 100%); color: white; padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; border: 2px solid var(--accent); }
+        .cmarket-banner h3 { color: var(--accent); margin: 0 0 0.5rem; font-size: 1rem; }
+        .cmarket-banner .price { font-size: 2.5rem; font-weight: bold; color: white; margin: 0.25rem 0; }
+        .cmarket-banner .subtitle { font-size: 0.85rem; opacity: 0.9; }
+        .cmarket-banner .source { font-size: 0.75rem; opacity: 0.7; margin-top: 0.5rem; }
+        .cmarket-banner .source a { color: var(--accent); }
+        
+        .conversion-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin: 1rem 0; }
+        .conversion-card { background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%); padding: 1rem; border-radius: 10px; text-align: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .conversion-card .currency { font-size: 0.8rem; color: #666; font-weight: bold; text-transform: uppercase; }
+        .conversion-card .value { font-size: 1.8rem; font-weight: bold; color: var(--primary); margin: 0.25rem 0; }
+        .conversion-card .unit { font-size: 0.75rem; color: #888; }
+        .conversion-card.highlight { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-color: var(--accent); }
+        .conversion-card.highlight .currency, .conversion-card.highlight .unit { color: var(--accent); }
+        .conversion-card.highlight .value { color: white; }
+        
+        .info-box { background: #fff9c4; border-left: 4px solid #fbc02d; padding: 0.75rem 1rem; border-radius: 6px; margin: 1rem 0; font-size: 0.85rem; color: #555; }
+        .info-box strong { color: var(--primary); }
+        
         #modal-ver-muestra { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; overflow-y: auto; }
         .modal-content-large { background: white; padding: 1.5rem; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; margin: auto; }
         .modal-content-large h3 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1rem; }
@@ -98,6 +118,7 @@
             .section { padding: 2rem; }
             .form-grid { grid-template-columns: repeat(2, 1fr); }
             .detail-grid { grid-template-columns: repeat(2, 1fr); }
+            .conversion-grid { grid-template-columns: repeat(4, 1fr); }
             h2 { font-size: 1.6rem; }
             .card p { font-size: 1.8rem; }
         }
@@ -174,6 +195,7 @@
             <div class="menu-item" onclick="showSection('ventas', this)"><span class="icon">💰</span> Ventas</div>
             <div class="menu-item" onclick="showSection('inventario', this)"><span class="icon">📦</span> Inventario</div>
             <div class="menu-item" onclick="showSection('costos', this)"><span class="icon">🧮</span> Costos</div>
+            <div class="menu-item" onclick="showSection('cotizador', this)"><span class="icon">💵</span> Cotizador Verde</div>
             <div class="menu-item" onclick="showSection('muestreo', this)"><span class="icon">🔬</span> Muestreo Lab</div>
             <button class="btn logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
         </div>
@@ -256,8 +278,13 @@
                 </div>
             </div>
 
+            <!-- COSTOS (FÓRMULA CORREGIDA) -->
             <div id="costos" class="section">
-                <h2>🧮 Calculadora de Costos</h2>
+                <h2>🧮 Calculadora de Costos y Precio Sugerido</h2>
+                <div class="info-box">
+                    <strong>📐 Fórmula aplicada:</strong> Precio de Venta = Costo Total ÷ (1 - % Ganancia)<br>
+                    <small>Esta fórmula calcula el margen sobre el precio final de venta, no sobre el costo.</small>
+                </div>
                 <div class="form-grid">
                     <div class="form-group"><label>Costo Café Verde/Libra (Q)</label><input type="number" id="costo-verde" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
                     <div class="form-group"><label>Costo Tostado/Libra (Q)</label><input type="number" id="costo-tostado" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
@@ -268,6 +295,150 @@
                     <h3 style="color: white;">Precio Sugerido por Libra</h3>
                     <p style="color: var(--accent); font-size: 2rem;" id="precio-sugerido">Q 0.00</p>
                     <p style="color: white; font-size: 1rem;">Costo Total: <span id="costo-total">Q 0.00</span></p>
+                    <p style="color: white; font-size: 0.9rem; margin-top: 0.5rem;">Ganancia neta por libra: <span id="ganancia-neta">Q 0.00</span></p>
+                </div>
+            </div>
+
+            <!-- COTIZADOR DE CAFÉ VERDE (NUEVO) -->
+            <div id="cotizador" class="section">
+                <h2>💵 Cotizador de Café Verde / Pergamino / Oro</h2>
+                
+                <!-- C-Market NY Banner -->
+                <div class="cmarket-banner">
+                    <h3>📈 ICE C-Market (Bolsa de NY)</h3>
+                    <div class="price" id="cmarket-price">385.00 ¢/lb</div>
+                    <div class="subtitle">= <span id="cmarket-usdlb">US$ 3.85</span> / libra</div>
+                    <div class="subtitle">= <span id="cmarket-usdkg">US$ 8.49</span> / kg</div>
+                    <div class="source">
+                        Valor de referencia · Actualizar manualmente desde 
+                        <a href="https://www.investing.com/commodities/us-coffee-c" target="_blank">Investing.com</a>
+                        <br>
+                        <input type="number" id="cmarket-input" value="385" step="0.01" style="width: 100px; padding: 4px; margin-top: 5px; border-radius: 4px; border: 1px solid var(--accent); text-align: center;" oninput="actualizarCMarket()">
+                        <small style="display:block; margin-top:3px;">¢/lb (centavos por libra)</small>
+                    </div>
+                </div>
+
+                <h3>💱 Tipo de Cambio</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Q por US$1 (Tipo de cambio)</label>
+                        <input type="number" id="tipo-cambio" value="7.80" step="0.01" class="yellow-input" oninput="calcularCotizador()">
+                    </div>
+                    <div class="form-group">
+                        <label>1 libra = 0.453592 kg (fijo)</label>
+                        <input type="text" value="0.453592 kg" readonly style="background:#e9ecef;">
+                    </div>
+                </div>
+
+                <h3>🌱 Precio Base de tu Café</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Estado del café a cotizar</label>
+                        <select id="cot-estado" onchange="calcularCotizador()">
+                            <option value="pergamino">Pergamino</option>
+                            <option value="oro" selected>Oro (Verde)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Rendimiento Pergamino → Oro (%)</label>
+                        <input type="number" id="cot-rendimiento" value="81" step="0.1" class="yellow-input" oninput="calcularCotizador()">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio en Quetzales por Libra (Q/lb)</label>
+                        <input type="number" id="cot-precio-qlb" value="25" step="0.01" class="yellow-input" oninput="calcularCotizador()">
+                    </div>
+                </div>
+
+                <h3>📊 Conversiones Automáticas</h3>
+                <div class="conversion-grid">
+                    <div class="conversion-card highlight">
+                        <div class="currency">Quetzales</div>
+                        <div class="value" id="conv-qlb">Q 25.00</div>
+                        <div class="unit">por libra</div>
+                    </div>
+                    <div class="conversion-card">
+                        <div class="currency">Quetzales</div>
+                        <div class="value" id="conv-qkg">Q 55.12</div>
+                        <div class="unit">por kilogramo</div>
+                    </div>
+                    <div class="conversion-card">
+                        <div class="currency">Dólares</div>
+                        <div class="value" id="conv-usdlb">US$ 3.21</div>
+                        <div class="unit">por libra</div>
+                    </div>
+                    <div class="conversion-card">
+                        <div class="currency">Dólares</div>
+                        <div class="value" id="conv-usdkg">US$ 7.07</div>
+                        <div class="unit">por kilogramo</div>
+                    </div>
+                </div>
+
+                <div class="info-box" id="cot-diferencial-box">
+                    <strong>📈 Diferencial vs C-Market:</strong> <span id="cot-diferencial">Calculando...</span>
+                </div>
+
+                <h3>🚢 Cálculo de Precio FOB / CIF</h3>
+                <div class="info-box">
+                    <strong>FOB</strong> = Free On Board (precio puesto en puerto de Guatemala, sin flete internacional)<br>
+                    <strong>CIF</strong> = Cost, Insurance & Freight (precio llegado al país destino, con flete y seguro incluidos)
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>País / Puerto de destino</label>
+                        <select id="cot-pais" onchange="calcularCotizador()">
+                            <option value="usa-golfo">🇺🇸 USA - Golfo (N. Orleans/Houston)</option>
+                            <option value="usa-este">🇺🇸 USA - Costa Este (NY/Savannah)</option>
+                            <option value="canada">🇨🇦 Canadá (Vancouver)</option>
+                            <option value="europa" selected>🇪🇺 Europa (Hamburgo/Rotterdam)</option>
+                            <option value="japon">🇯🇵 Japón (Yokohama)</option>
+                            <option value="corea">🇰🇷 Corea del Sur (Busan)</option>
+                            <option value="australia">🇦🇺 Australia (Sydney)</option>
+                            <option value="china">🇨🇳 China (Shanghai)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad a embarcar (kg)</label>
+                        <input type="number" id="cot-cantidad-kg" value="18000" step="60" class="yellow-input" oninput="calcularCotizador()">
+                        <small style="color:#666; margin-top:3px;">Contenedor 20' = ~18,000 kg (270 sacos de 66.14kg)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Seguro internacional (%)</label>
+                        <input type="number" id="cot-seguro" value="0.3" step="0.05" class="yellow-input" oninput="calcularCotizador()">
+                    </div>
+                </div>
+
+                <h3>💼 Resultados FOB / CIF</h3>
+                <div class="conversion-grid">
+                    <div class="conversion-card">
+                        <div class="currency">FOB</div>
+                        <div class="value" id="fob-usdlb">US$ 0.00</div>
+                        <div class="unit">por libra</div>
+                    </div>
+                    <div class="conversion-card">
+                        <div class="currency">FOB</div>
+                        <div class="value" id="fob-usdkg">US$ 0.00</div>
+                        <div class="unit">por kilogramo</div>
+                    </div>
+                    <div class="conversion-card highlight">
+                        <div class="currency">CIF</div>
+                        <div class="value" id="cif-usdlb">US$ 0.00</div>
+                        <div class="unit">por libra</div>
+                    </div>
+                    <div class="conversion-card highlight">
+                        <div class="currency">CIF</div>
+                        <div class="value" id="cif-usdkg">US$ 0.00</div>
+                        <div class="unit">por kilogramo</div>
+                    </div>
+                </div>
+
+                <div class="card" style="background: var(--primary); color: white; text-align: center; border-left-color: var(--accent);">
+                    <h3 style="color: white;">Total Contenedor CIF</h3>
+                    <p style="color: var(--accent); font-size: 1.8rem;" id="cif-total">US$ 0.00</p>
+                    <p style="color: white; font-size: 0.9rem;">Flete: <span id="flete-total">US$ 0.00</span> · Seguro: <span id="seguro-total">US$ 0.00</span></p>
+                </div>
+
+                <div class="info-box">
+                    <strong>⚠️ Nota:</strong> Los fletes son valores estimados de referencia (agosto 2026). Para cotizaciones reales, consulta con tu agente de carga (forwarder). Los fletes pueden variar según temporada, disponibilidad de contenedores y tipo (estándar vs refrigerado).
                 </div>
             </div>
 
@@ -369,6 +540,19 @@
         let currentAuthEmail = null;
         let muestraActualEnModal = null;
 
+        // ===== FLETES ESTIMADOS DESDE GUATEMALA (USD por tonelada métrica) =====
+        // Valores de referencia agosto 2026. Ajustables según mercado real.
+        const FLETES_POR_TONELADA = {
+            "usa-golfo": 90,
+            "usa-este": 110,
+            "canada": 105,
+            "europa": 120,
+            "japon": 160,
+            "corea": 155,
+            "australia": 200,
+            "china": 170
+        };
+
         window.toggleSidebar = () => {
             document.getElementById('sidebar').classList.toggle('open');
             document.getElementById('overlay').classList.toggle('show');
@@ -450,7 +634,7 @@
 
         window.logout = () => { signOut(auth); location.reload(); };
         function showError(elementId, message) { const el = document.getElementById(elementId); el.innerText = message; el.style.display = 'block'; }
-        function entrarAlSistema() { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; cargarDatosIniciales(); }
+        function entrarAlSistema() { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; cargarDatosIniciales(); calcularCotizador(); }
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
@@ -485,6 +669,122 @@
             document.getElementById('field-tostado').style.display = isTostado ? 'flex' : 'none';
         };
 
+        // ===== CÁLCULO DE COSTOS (FÓRMULA CORREGIDA) =====
+        window.calcularPrecioSugerido = () => {
+            const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
+            const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
+            const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
+            const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
+            
+            const costoTotal = verde + tostado + empaque;
+            
+            // Fórmula correcta: PV = Costo / (1 - %ganancia)
+            // Si margen = 30%, entonces 1 - 0.30 = 0.70
+            let precioSugerido = 0;
+            let gananciaNeta = 0;
+            
+            if (margenPorc >= 100) {
+                document.getElementById('precio-sugerido').innerText = '∞ (margen ≥ 100%)';
+                document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
+                document.getElementById('ganancia-neta').innerText = 'N/A';
+                return;
+            }
+            
+            if (margenPorc > 0) {
+                precioSugerido = costoTotal / (1 - (margenPorc / 100));
+                gananciaNeta = precioSugerido - costoTotal;
+            } else {
+                precioSugerido = costoTotal;
+                gananciaNeta = 0;
+            }
+            
+            document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
+            document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
+            document.getElementById('ganancia-neta').innerText = 'Q ' + gananciaNeta.toFixed(2);
+        };
+
+        // ===== C-MARKET (BOLSA DE NY) =====
+        window.actualizarCMarket = () => {
+            const centsLibra = parseFloat(document.getElementById('cmarket-input').value) || 0;
+            const usdLibra = centsLibra / 100;
+            const usdKg = usdLibra / 0.453592;
+            
+            document.getElementById('cmarket-price').innerText = centsLibra.toFixed(2) + ' ¢/lb';
+            document.getElementById('cmarket-usdlb').innerText = 'US$ ' + usdLibra.toFixed(2);
+            document.getElementById('cmarket-usdkg').innerText = 'US$ ' + usdKg.toFixed(2);
+            
+            calcularCotizador();
+        };
+
+        // ===== COTIZADOR DE CAFÉ VERDE =====
+        window.calcularCotizador = () => {
+            const tipoCambio = parseFloat(document.getElementById('tipo-cambio').value) || 7.80;
+            const estado = document.getElementById('cot-estado').value;
+            const rendimiento = parseFloat(document.getElementById('cot-rendimiento').value) || 81;
+            const precioQLb = parseFloat(document.getElementById('cot-precio-qlb').value) || 0;
+            const pais = document.getElementById('cot-pais').value;
+            const cantidadKg = parseFloat(document.getElementById('cot-cantidad-kg').value) || 0;
+            const seguroPorc = parseFloat(document.getElementById('cot-seguro').value) || 0.3;
+            
+            // Si es pergamino, convertir a equivalente en oro
+            let precioOroQLb = precioQLb;
+            if (estado === 'pergamino' && rendimiento > 0) {
+                precioOroQLb = precioQLb * (100 / rendimiento);
+            }
+            
+            // Conversiones
+            const precioQKg = precioOroQLb / 0.453592;
+            const precioUSDLibra = precioOroQLb / tipoCambio;
+            const precioUSDKg = precioUSDLibra / 0.453592;
+            
+            // Mostrar conversiones
+            document.getElementById('conv-qlb').innerText = 'Q ' + precioOroQLb.toFixed(2);
+            document.getElementById('conv-qkg').innerText = 'Q ' + precioQKg.toFixed(2);
+            document.getElementById('conv-usdlb').innerText = 'US$ ' + precioUSDLibra.toFixed(2);
+            document.getElementById('conv-usdkg').innerText = 'US$ ' + precioUSDKg.toFixed(2);
+            
+            // Diferencial vs C-Market
+            const cmarketCents = parseFloat(document.getElementById('cmarket-input').value) || 385;
+            const cmarketUSDLibra = cmarketCents / 100;
+            const diferencial = precioUSDLibra - cmarketUSDLibra;
+            const diferencialBox = document.getElementById('cot-diferencial-box');
+            
+            if (diferencial >= 0) {
+                diferencialBox.innerHTML = `<strong>📈 Diferencial vs C-Market:</strong> <span style="color:#2C5E2E; font-weight:bold;">+US$ ${diferencial.toFixed(2)}/lb</span> (tu café cotiza por encima del mercado)`;
+            } else {
+                diferencialBox.innerHTML = `<strong>📉 Diferencial vs C-Market:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${diferencial.toFixed(2)}/lb</span> (tu café cotiza por debajo del mercado)`;
+            }
+            
+            // ===== CÁLCULO FOB / CIF =====
+            // FOB = Precio del café en origen (lo que vale tu café puesto en puerto)
+            // Asumimos que el precio que ingresaste es el precio FOB base
+            const fobUSDLibra = precioUSDLibra;
+            const fobUSDKg = precioUSDKg;
+            const fobTotalUSD = fobUSDKg * cantidadKg;
+            
+            // Flete internacional
+            const fletePorTonelada = FLETES_POR_TONELADA[pais] || 120;
+            const toneladas = cantidadKg / 1000;
+            const fleteTotalUSD = fletePorTonelada * toneladas;
+            
+            // Seguro (típicamente 0.3% del valor FOB)
+            const seguroTotalUSD = fobTotalUSD * (seguroPorc / 100);
+            
+            // CIF = FOB + Flete + Seguro
+            const cifTotalUSD = fobTotalUSD + fleteTotalUSD + seguroTotalUSD;
+            const cifUSDKg = cantidadKg > 0 ? cifTotalUSD / cantidadKg : 0;
+            const cifUSDLibra = cifUSDKg * 0.453592;
+            
+            // Mostrar resultados
+            document.getElementById('fob-usdlb').innerText = 'US$ ' + fobUSDLibra.toFixed(2);
+            document.getElementById('fob-usdkg').innerText = 'US$ ' + fobUSDKg.toFixed(2);
+            document.getElementById('cif-usdlb').innerText = 'US$ ' + cifUSDLibra.toFixed(2);
+            document.getElementById('cif-usdkg').innerText = 'US$ ' + cifUSDKg.toFixed(2);
+            document.getElementById('cif-total').innerText = 'US$ ' + cifTotalUSD.toFixed(2);
+            document.getElementById('flete-total').innerText = 'US$ ' + fleteTotalUSD.toFixed(2);
+            document.getElementById('seguro-total').innerText = 'US$ ' + seguroTotalUSD.toFixed(2);
+        };
+
         window.calcularMuestreo = () => {
             const pesoPerg = parseFloat(document.getElementById('m-peso-perg').value) || 0;
             const pesoOro = parseFloat(document.getElementById('m-peso-oro').value) || 0;
@@ -503,16 +803,6 @@
             document.getElementById('m-pct-z15').value = calcPct(z15);
             document.getElementById('m-pct-z14').value = calcPct(z14);
             document.getElementById('m-pct-residuo').value = calcPct(residuo);
-        };
-
-        window.calcularPrecioSugerido = () => {
-            const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
-            const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
-            const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
-            const margen = parseFloat(document.getElementById('costo-margen').value) || 0;
-            const costoTotal = verde + tostado + empaque;
-            document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
-            document.getElementById('precio-sugerido').innerText = 'Q ' + (costoTotal * (1 + (margen / 100))).toFixed(2);
         };
 
         window.guardarInventario = async () => {
