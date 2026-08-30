@@ -12,7 +12,6 @@
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/751/751621.png">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary: #2C5E2E; --primary-dark: #1e4220; --secondary: #8B5A2B;
@@ -81,7 +80,6 @@
         .card h3 { color: var(--primary); margin: 0 0 0.5rem; font-size: 1rem; }
         .card p { font-size: 1.5rem; font-weight: bold; color: var(--secondary); margin: 0; }
         
-        /* Modal Ver Datos Completo */
         #modal-ver-muestra { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; overflow-y: auto; }
         .modal-content-large { background: white; padding: 1.5rem; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; margin: auto; }
         .modal-content-large h3 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1rem; }
@@ -369,7 +367,7 @@
 
         let currentAuthUid = null;
         let currentAuthEmail = null;
-        let muestraActualEnModal = null; // Para guardar los datos de la muestra que se está viendo
+        let muestraActualEnModal = null;
 
         window.toggleSidebar = () => {
             document.getElementById('sidebar').classList.toggle('open');
@@ -563,14 +561,12 @@
             document.getElementById('venta-notas').value = '';
         };
 
-        // ===== MUESTREO: SOLO GUARDAR DATOS (RÁPIDO) =====
         window.guardarMuestreo = async () => {
             const btn = event.target;
             btn.disabled = true;
             btn.innerText = "Guardando...";
             
             try {
-                // Recopilar TODOS los datos del formulario
                 const datosMuestra = {
                     nombre: document.getElementById('m-nombre').value,
                     fecha: document.getElementById('m-fecha').value,
@@ -603,13 +599,11 @@
                     fechaRegistro: serverTimestamp()
                 };
 
-                // Guardar en Firestore (rápido, sin PDF)
                 await addDoc(collection(db, "muestreos"), datosMuestra);
                 
-                alert("✅ Ficha de muestreo guardada correctamente. Ya puedes verla en el historial y generar el PDF cuando quieras.");
+                alert("✅ Ficha de muestreo guardada correctamente.");
                 cargarDatosIniciales();
                 
-                // Limpiar formulario
                 document.querySelectorAll('#muestreo input:not([readonly]), #muestreo textarea').forEach(el => {
                     if (el.id !== 'm-finca' && el.id !== 'm-altitud' && el.id !== 'm-variedad' && el.id !== 'm-proceso') {
                         el.value = '';
@@ -628,7 +622,6 @@
             }
         };
 
-        // ===== VER DATOS COMPLETOS EN MODAL =====
         window.verMuestraCompleta = async (docId) => {
             try {
                 const docRef = doc(db, "muestreos", docId);
@@ -697,7 +690,6 @@
             muestraActualEnModal = null;
         };
 
-        // ===== GENERAR PDF CON QR INTERNO (BAJO DEMANDA) =====
         window.generarPDFDesdeModal = async () => {
             if (!muestraActualEnModal) { alert("No hay datos para generar el PDF"); return; }
             
@@ -710,7 +702,6 @@
                 const { jsPDF } = window.jspdf;
                 const docPdf = new jsPDF();
                 
-                // Encabezado con colores de la finca
                 docPdf.setFillColor(44, 94, 46);
                 docPdf.rect(0, 0, 210, 35, 'F');
                 docPdf.setTextColor(255, 255, 255);
@@ -719,7 +710,6 @@
                 docPdf.setFontSize(14);
                 docPdf.text("FICHA DE MUESTREO - CAFÉ ORO", 105, 27, null, null, "center");
                 
-                // Datos generales
                 docPdf.setTextColor(0, 0, 0);
                 docPdf.setFontSize(11);
                 let y = 45;
@@ -775,7 +765,6 @@
                 docPdf.setTextColor(0, 0, 0);
                 y += 5;
                 
-                // Tabla de zarandas
                 docPdf.setFont("helvetica", "bold");
                 docPdf.setFillColor(44, 94, 46);
                 docPdf.rect(15, y - 4, 180, 7, 'F');
@@ -809,7 +798,6 @@
                 docPdf.line(15, y, 195, y);
                 y += 8;
                 
-                // Resultados destacados
                 docPdf.setFont("helvetica", "bold");
                 docPdf.setTextColor(139, 90, 43);
                 docPdf.text("RESULTADOS", 15, y);
@@ -831,58 +819,17 @@
                     docPdf.setFont("helvetica", "normal");
                     const lines = docPdf.splitTextToSize(m.observaciones, 140);
                     docPdf.text(lines, 15, y + 6);
-                    y += 6 + (lines.length * 5);
                 }
                 
-                // ===== GENERAR QR Y INSERTARLO EN EL PDF =====
-                y = Math.max(y + 15, 230);
-                
-                // Crear QR con datos de la muestra
-                const qrData = `FLR|Lote:${m.lote || 'N/A'}|Nombre:${m.nombre || 'N/A'}|Rend:${m.rendimiento || '0%'}`;
-                
-                // Crear canvas temporal para el QR
-                const tempDiv = document.createElement('div');
-                tempDiv.style.position = 'absolute';
-                tempDiv.style.left = '-9999px';
-                document.body.appendChild(tempDiv);
-                
-                await new Promise((resolve) => {
-                    new QRCode(tempDiv, {
-                        text: qrData,
-                        width: 128,
-                        height: 128,
-                        correctLevel: QRCode.CorrectLevel.M
-                    });
-                    setTimeout(resolve, 300);
-                });
-                
-                const qrCanvas = tempDiv.querySelector('canvas');
-                if (qrCanvas) {
-                    const qrDataUrl = qrCanvas.toDataURL('image/png');
-                    
-                    // Insertar QR en el PDF
-                    docPdf.setFillColor(245, 245, 220);
-                    docPdf.rect(150, y - 5, 50, 55, 'F');
-                    docPdf.addImage(qrDataUrl, 'PNG', 155, y, 40, 40);
-                    docPdf.setFont("helvetica", "bold");
-                    docPdf.setFontSize(8);
-                    docPdf.setTextColor(44, 94, 46);
-                    docPdf.text("Escanea para verificar", 175, y + 45, null, null, "center");
-                }
-                
-                document.body.removeChild(tempDiv);
-                
-                // Pie de página
                 docPdf.setFontSize(8);
                 docPdf.setTextColor(100, 100, 100);
                 docPdf.text(`Generado: ${new Date().toLocaleString('es-GT')}`, 105, 290, null, null, "center");
                 docPdf.text("Finca Los Robles - Café de Especialidad", 105, 295, null, null, "center");
                 
-                // Descargar el PDF
                 const fileName = `Ficha_${m.lote || 'SinLote'}_${m.nombre || 'Muestra'}_${m.fecha || Date.now()}.pdf`;
                 docPdf.save(fileName);
                 
-                alert("✅ PDF descargado correctamente en tu dispositivo.");
+                alert("✅ PDF descargado correctamente.");
                 
             } catch (error) {
                 console.error(error);
@@ -893,7 +840,6 @@
             }
         };
 
-        // ===== CARGAR DATOS =====
         async function cargarDatosIniciales() {
             const snapVentas = await getDocs(query(collection(db, "ventas"), orderBy("fecha", "desc")));
             const tbodyVentas = document.querySelector('#tabla-ventas tbody'); tbodyVentas.innerHTML = '';
@@ -920,7 +866,6 @@
             document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
             document.getElementById('dash-pergamino').innerText = pergamino.toFixed(1) + " libras";
 
-            // ===== TABLA DE MUESTREOS CON 2 BOTONES =====
             const snapMuestras = await getDocs(query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc")));
             const tbodyMuestras = document.querySelector('#tabla-muestreos tbody'); tbodyMuestras.innerHTML = '';
             snapMuestras.forEach(docSnap => {
@@ -941,7 +886,6 @@
             });
         }
 
-        // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(err => console.log('SW no registrado', err));
         }
