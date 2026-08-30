@@ -10,7 +10,6 @@
     <meta name="apple-mobile-web-app-title" content="Finca Los Robles">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/751/751621.png">
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
@@ -21,7 +20,8 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
         html, body { overflow-x: hidden; }
         body { background-color: var(--bg-color); color: var(--text-color); background-size: cover; background-attachment: fixed; min-height: 100vh; }
-        
+
+        /* AUTH */
         #auth-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; background: linear-gradient(rgba(44,94,46,0.85), rgba(139,90,43,0.85)), url('https://images.unsplash.com/photo-1511537632536-b7a575805d75?auto=format&fit=crop&w=1920') center/cover; }
         .auth-box { background: var(--white); padding: 1.5rem; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); width: 100%; max-width: 420px; text-align: center; }
         .auth-logo { width: 100px; height: 100px; margin-bottom: 1rem; }
@@ -35,35 +35,38 @@
         .btn-pdf { background: var(--secondary); }
         .btn-save { background: var(--accent); color: var(--primary); margin-top: 1rem; }
         .link { color: var(--primary); text-decoration: none; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: inline-block; margin-top: 15px; padding: 8px; }
-        .error-msg { color: var(--danger); margin-top: 10px; font-size: 0.9rem; display: none; }
+        .error-msg { color: var(--danger); margin-top: 10px; font-size: 0.9rem; display: none; text-align: left; padding: 8px; background: #ffebee; border-radius: 6px; }
         .otp-display { background: #fff9c4; padding: 12px; border-radius: 8px; border: 2px dashed #fbc02d; font-size: 1.8rem; font-weight: bold; color: var(--secondary); letter-spacing: 5px; margin: 10px 0; }
-        
+
+        /* APP */
         #app-screen { display: none; min-height: 100vh; }
         .top-bar { position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--primary); color: white; display: flex; align-items: center; padding: 0 1rem; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
         .hamburger { background: none; border: none; color: white; font-size: 1.8rem; cursor: pointer; padding: 8px 12px; border-radius: 6px; display: flex; align-items: center; justify-content: center; min-width: 48px; min-height: 48px; }
         .hamburger:active { background: rgba(255,255,255,0.1); }
         .top-bar-title { flex: 1; font-size: 1.1rem; font-weight: bold; color: var(--accent); text-align: center; margin-right: 48px; }
-        .top-bar-logo { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; object-fit: cover; background: white; padding: 2px; }
-        
+        .top-bar-logo { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; background: white; padding: 2px; }
+        .version-tag { position: fixed; bottom: 8px; right: 12px; font-size: 0.7rem; color: rgba(0,0,0,0.35); z-index: 50; font-family: monospace; }
+
+        /* SIDEBAR */
         .sidebar { position: fixed; top: 0; left: 0; width: var(--sidebar-width); max-width: 85vw; height: 100vh; background: var(--primary); color: white; padding: 1rem; overflow-y: auto; transform: translateX(-100%); transition: transform 0.3s ease; z-index: 200; box-shadow: 2px 0 10px rgba(0,0,0,0.3); }
         .sidebar.open { transform: translateX(0); }
         .sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.2); }
         .sidebar-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 8px; min-width: 40px; min-height: 40px; }
-        .sidebar-logo { width: 90px; height: 90px; border-radius: 50%; display: block; margin: 0 auto 1rem; border: 3px solid var(--accent); object-fit: cover; background: white; padding: 5px; }
+        .sidebar-logo { width: 90px; height: 90px; border-radius: 50%; display: block; margin: 0 auto 1rem; border: 3px solid var(--accent); background: white; padding: 5px; }
         .sidebar h2 { text-align: center; color: var(--accent); font-size: 1.2rem; margin-bottom: 1.5rem; }
         .menu-item { padding: 14px 16px; cursor: pointer; border-radius: 8px; margin-bottom: 6px; transition: 0.3s; font-size: 1rem; display: flex; align-items: center; min-height: 48px; }
         .menu-item:active, .menu-item.active { background: var(--secondary); }
         .menu-item .icon { margin-right: 12px; font-size: 1.2rem; }
         .logout-btn { background: var(--danger); margin-top: 1.5rem; }
-        
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 150; opacity: 0; visibility: hidden; transition: opacity 0.3s; }
         .overlay.show { opacity: 1; visibility: visible; }
+
+        /* MAIN */
         .main-content { padding: 70px 1rem 2rem 1rem; max-width: 1200px; margin: 0 auto; }
         .section { display: none; background: rgba(255,255,255,0.97); padding: 1.25rem; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 2rem; }
         .section.active { display: block; }
         h2 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1.25rem; font-size: 1.3rem; }
         h3 { color: var(--secondary); margin: 1.5rem 0 0.75rem; font-size: 1.1rem; }
-        
         .form-grid { display: grid; grid-template-columns: 1fr; gap: 0.75rem; margin-bottom: 1rem; }
         .form-group { display: flex; flex-direction: column; }
         .form-group label { font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #555; }
@@ -76,31 +79,30 @@
         th, td { border: 1px solid #ddd; padding: 10px 8px; text-align: left; vertical-align: middle; }
         th { background-color: var(--primary); color: white; position: sticky; top: 0; }
         tr:nth-child(even) { background-color: #f9f9f9; }
-        
         .card { background: white; padding: 1.25rem; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.08); margin-bottom: 1rem; border-left: 4px solid var(--accent); }
         .card h3 { color: var(--primary); margin: 0 0 0.5rem; font-size: 1rem; }
         .card p { font-size: 1.5rem; font-weight: bold; color: var(--secondary); margin: 0; }
-        
+        .info-box { background: #fff9c4; border-left: 4px solid #fbc02d; padding: 0.75rem 1rem; border-radius: 6px; margin: 1rem 0; font-size: 0.85rem; color: #555; }
+        .info-box strong { color: var(--primary); }
+
+        /* COTIZADOR */
         .cmarket-banner { background: linear-gradient(135deg, #1a3d1c 0%, #2C5E2E 100%); color: white; padding: 1.25rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; border: 2px solid var(--accent); }
         .cmarket-banner h3 { color: var(--accent); margin: 0 0 0.5rem; font-size: 1rem; }
-        .cmarket-banner .price { font-size: 2.5rem; font-weight: bold; color: white; margin: 0.25rem 0; }
+        .cmarket-banner .price { font-size: 2.2rem; font-weight: bold; color: white; margin: 0.25rem 0; }
         .cmarket-banner .subtitle { font-size: 0.85rem; opacity: 0.9; }
         .cmarket-banner .source { font-size: 0.75rem; opacity: 0.7; margin-top: 0.5rem; }
         .cmarket-banner .source a { color: var(--accent); }
-        
         .conversion-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin: 1rem 0; }
         .conversion-card { background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%); padding: 1rem; border-radius: 10px; text-align: center; border: 2px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
         .conversion-card .currency { font-size: 0.8rem; color: #666; font-weight: bold; text-transform: uppercase; }
-        .conversion-card .value { font-size: 1.8rem; font-weight: bold; color: var(--primary); margin: 0.25rem 0; }
+        .conversion-card .value { font-size: 1.6rem; font-weight: bold; color: var(--primary); margin: 0.25rem 0; }
         .conversion-card .unit { font-size: 0.75rem; color: #888; }
         .conversion-card.highlight { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); border-color: var(--accent); }
         .conversion-card.highlight .currency, .conversion-card.highlight .unit { color: var(--accent); }
         .conversion-card.highlight .value { color: white; }
-        
-        .info-box { background: #fff9c4; border-left: 4px solid #fbc02d; padding: 0.75rem 1rem; border-radius: 6px; margin: 1rem 0; font-size: 0.85rem; color: #555; }
-        .info-box strong { color: var(--primary); }
-        
-        #modal-ver-muestra, #modal-ver-costo { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; overflow-y: auto; }
+
+        /* MODALES */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; overflow-y: auto; }
         .modal-content-large { background: white; padding: 1.5rem; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; margin: auto; }
         .modal-content-large h3 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1rem; }
         .detail-grid { display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-bottom: 1rem; }
@@ -112,7 +114,7 @@
         .detail-item.highlight .value { color: white; font-size: 1.3rem; font-weight: bold; }
         .zarandas-table { width: 100%; margin-top: 1rem; }
         .zarandas-table th { background: var(--secondary); }
-        
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -129,1886 +131,775 @@
 </head>
 <body>
 
-    <!-- AUTH SCREEN -->
-    <div id="auth-screen">
-        <div class="auth-box">
-            <svg class="auth-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
-                <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Arial">FLR</text>
-                <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
-            </svg>
-            <div id="form-login">
-                <h2>Iniciar Sesión</h2>
-                <input type="email" id="login-email" placeholder="Correo electrónico">
-                <input type="password" id="login-password" placeholder="Contraseña">
-                <button class="btn" onclick="login()">Ingresar</button>
-                <p class="error-msg" id="login-error">Credenciales incorrectas</p>
-                <a class="link" onclick="showAuthState('register')">¿No tienes cuenta? Crear una nueva</a>
+<!-- ==================== AUTH ==================== -->
+<div id="auth-screen">
+    <div class="auth-box">
+        <svg class="auth-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
+            <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFF" text-anchor="middle" font-family="Arial">FLR</text>
+            <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
+        </svg>
+
+        <div id="form-login">
+            <h2>Iniciar Sesión</h2>
+            <input type="email" id="login-email" placeholder="Correo electrónico">
+            <input type="password" id="login-password" placeholder="Contraseña">
+            <button class="btn" id="btn-login" onclick="login()">Ingresar</button>
+            <p class="error-msg" id="login-error"></p>
+            <a class="link" onclick="showAuthState('register')">¿No tienes cuenta? Crear una nueva</a>
+        </div>
+
+        <div id="form-register" style="display:none;">
+            <h2>Crear Cuenta</h2>
+            <input type="email" id="reg-email" placeholder="Correo electrónico">
+            <input type="password" id="reg-password" placeholder="Contraseña (mín. 6 caracteres)">
+            <input type="password" id="reg-password2" placeholder="Confirmar Contraseña">
+            <button class="btn" id="btn-register" onclick="register()">Registrarse</button>
+            <p class="error-msg" id="reg-error"></p>
+            <a class="link" onclick="showAuthState('login')">¿Ya tienes cuenta? Iniciar Sesión</a>
+        </div>
+
+        <div id="form-verify" style="display:none;">
+            <h2>Verificación de Seguridad</h2>
+            <p style="font-size:0.9rem; margin:15px 0; color:#555;">Código para: <strong id="verify-email-display"></strong></p>
+            <div class="otp-display" id="demo-otp">------</div>
+            <input type="text" id="verify-otp-input" placeholder="Código de 6 dígitos" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:5px; margin-top:15px;">
+            <button class="btn" id="btn-verify" onclick="verifyCode()">Verificar e Ingresar</button>
+            <button class="btn btn-secondary" onclick="resendCode()">Reenviar código</button>
+            <p class="error-msg" id="verify-error"></p>
+            <a class="link" onclick="showAuthState('login')">Volver al inicio</a>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app-screen">
+    <div class="top-bar">
+        <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
+        <svg class="top-bar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
+            <text x="50" y="58" font-size="28" font-weight="bold" fill="#FFF" text-anchor="middle" font-family="Arial">FLR</text>
+        </svg>
+        <div class="top-bar-title">Finca Los Robles</div>
+    </div>
+
+    <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <span style="color:var(--accent); font-weight:bold;">Menú</span>
+            <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+        </div>
+        <svg class="sidebar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
+            <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFF" text-anchor="middle" font-family="Arial">FLR</text>
+            <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
+        </svg>
+        <h2>Finca Los Robles</h2>
+        <div class="menu-item active" onclick="showSection('dashboard',this)"><span class="icon">📊</span> Dashboard</div>
+        <div class="menu-item" onclick="showSection('ventas',this)"><span class="icon">💰</span> Ventas</div>
+        <div class="menu-item" onclick="showSection('inventario',this)"><span class="icon">📦</span> Inventario</div>
+        <div class="menu-item" onclick="showSection('costos',this)"><span class="icon">🧮</span> Costos Tostado</div>
+        <div class="menu-item" onclick="showSection('cotizador',this)"><span class="icon">💵</span> Cotizador Verde</div>
+        <div class="menu-item" onclick="showSection('muestreo',this)"><span class="icon">🔬</span> Muestreo Lab</div>
+        <button class="btn logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
+    </div>
+
+    <div class="main-content">
+
+        <!-- DASHBOARD -->
+        <div id="dashboard" class="section active">
+            <h2>📊 Dashboard General</h2>
+            <div class="form-grid">
+                <div class="card"><h3>Ventas del Mes</h3><p id="dash-ventas">0 libras</p></div>
+                <div class="card"><h3>Inventario Tostado</h3><p id="dash-tostado">0 libras</p></div>
+                <div class="card"><h3>Inventario Oro</h3><p id="dash-oro">0 libras</p></div>
+                <div class="card"><h3>Inventario Pergamino</h3><p id="dash-pergamino">0 libras</p></div>
             </div>
-            <div id="form-register" style="display:none;">
-                <h2>Crear Cuenta</h2>
-                <input type="email" id="reg-email" placeholder="Correo electrónico">
-                <input type="password" id="reg-password" placeholder="Contraseña (mín. 6 caracteres)">
-                <input type="password" id="reg-password2" placeholder="Confirmar Contraseña">
-                <button class="btn" onclick="register()">Registrarse</button>
-                <p class="error-msg" id="reg-error"></p>
-                <a class="link" onclick="showAuthState('login')">¿Ya tienes cuenta? Iniciar Sesión</a>
+        </div>
+
+        <!-- VENTAS -->
+        <div id="ventas" class="section">
+            <h2>💰 Registro de Ventas</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Tipo de Café</label>
+                    <select id="venta-tipo" onchange="toggleVentaPresentacion()">
+                        <option value="Tostado">Tostado</option>
+                        <option value="Oro">Verde (Oro)</option>
+                        <option value="Pergamino">Pergamino</option>
+                    </select>
+                </div>
+                <div class="form-group" id="venta-presentacion-group" style="display:none;">
+                    <label>Presentación</label>
+                    <select id="venta-presentacion">
+                        <option value="Entero">Grano Entero</option>
+                        <option value="Molido">Molido</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="venta-cantidad" class="yellow-input" step="0.01"></div>
+                <div class="form-group"><label>Precio por Libra (Q)</label><input type="number" id="venta-precio" class="yellow-input" step="0.01"></div>
+                <div class="form-group">
+                    <label>Método de Pago</label>
+                    <select id="venta-pago"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Pendiente">Pendiente</option></select>
+                </div>
+                <div class="form-group"><label>Cliente / Notas</label><input type="text" id="venta-notas" class="yellow-input"></div>
             </div>
-            <div id="form-verify" style="display:none;">
-                <h2>Verificación de Seguridad</h2>
-                <p style="font-size:0.9rem; margin: 15px 0; color: #555;">Código para: <strong id="verify-email-display"></strong></p>
-                <div class="otp-display" id="demo-otp">------</div>
-                <input type="text" id="verify-otp-input" placeholder="Código de 6 dígitos" maxlength="6" style="text-align:center; font-size:1.5rem; letter-spacing:5px; margin-top:15px;">
-                <button class="btn" onclick="verifyCode()">Verificar e Ingresar</button>
-                <button class="btn btn-secondary" onclick="resendCode()">Reenviar código</button>
-                <p class="error-msg" id="verify-error"></p>
-                <a class="link" onclick="showAuthState('login')">Volver al inicio</a>
+            <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
+            <h3>Historial de Ventas</h3>
+            <div class="table-wrapper">
+                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Tipo</th><th>Pres.</th><th>Libras</th><th>Total</th><th>Pago</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+
+        <!-- INVENTARIO -->
+        <div id="inventario" class="section">
+            <h2>📦 Gestión de Inventario</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Estado del Café</label>
+                    <select id="inv-estado" onchange="toggleInvFields()">
+                        <option value="Pergamino">Pergamino</option>
+                        <option value="Oro">Oro (Verde)</option>
+                        <option value="Tostado">Tostado</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="inv-cantidad" class="yellow-input" step="0.01"></div>
+                <div class="form-group" id="inv-presentacion-group" style="display:none;">
+                    <label>Presentación</label>
+                    <select id="inv-presentacion"><option value="Entero">Grano Entero</option><option value="Molido">Molido</option></select>
+                </div>
+                <div class="form-group"><label>Finca / Origen</label><input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input"></div>
+                <div class="form-group"><label>Variedad</label><input type="text" id="inv-variedad" value="Catimor" class="yellow-input"></div>
+                <div class="form-group">
+                    <label>Proceso</label>
+                    <select id="inv-proceso"><option>Lavado</option><option>Honey</option><option>Natural</option></select>
+                </div>
+                <div class="form-group" id="field-tostado" style="display:none;">
+                    <label>Fecha de Tostado</label>
+                    <input type="date" id="inv-fecha-tostado" class="yellow-input">
+                </div>
+            </div>
+            <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
+            <h3>Inventario Actual Disponible</h3>
+            <div class="table-wrapper">
+                <table id="tabla-inventario"><thead><tr><th>Fecha</th><th>Estado</th><th>Pres.</th><th>Variedad</th><th>Libras</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+
+        <!-- COSTOS TOSTADO -->
+        <div id="costos" class="section">
+            <h2>🧮 Calculadora de Costos - Café Tostado</h2>
+            <div class="info-box">
+                <strong>📐 Fórmula:</strong> Precio de Venta = Costo Total ÷ (1 - % Ganancia)<br>
+                <small>El margen se calcula sobre el precio final de venta, no sobre el costo.</small>
+            </div>
+            <h3>📋 Datos del Lote</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Nombre del Lote</label><input type="text" id="costo-lote" class="yellow-input" placeholder="Ej: COE0726, FAT CAT"></div>
+                <div class="form-group"><label>Variedad de Café</label><input type="text" id="costo-variedad" class="yellow-input" value="Catimor"></div>
+                <div class="form-group">
+                    <label>Proceso</label>
+                    <select id="costo-proceso"><option value="Lavado">Lavado</option><option value="Honey">Honey</option><option value="Natural">Natural</option><option value="Anaeróbico">Anaeróbico</option></select>
+                </div>
+                <div class="form-group"><label>Fecha de Tostado</label><input type="date" id="costo-fecha-tostado" class="yellow-input"></div>
+            </div>
+            <h3>💰 Costos por Libra</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Costo Café Verde/Libra (Q)</label><input type="number" id="costo-verde" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
+                <div class="form-group"><label>Costo Tostado/Libra (Q)</label><input type="number" id="costo-tostado" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
+                <div class="form-group"><label>Costo Empaque/Libra (Q)</label><input type="number" id="costo-empaque" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
+                <div class="form-group"><label>Margen Ganancia (%)</label><input type="number" id="costo-margen" value="30" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
+            </div>
+            <div class="card" style="background:var(--primary); color:white; text-align:center; border-left-color:var(--accent);">
+                <h3 style="color:white;">Precio Sugerido por Libra</h3>
+                <p style="color:var(--accent); font-size:2rem;" id="precio-sugerido">Q 0.00</p>
+                <p style="color:white; font-size:1rem;">Costo Total: <span id="costo-total">Q 0.00</span></p>
+                <p style="color:white; font-size:0.9rem; margin-top:0.5rem;">Ganancia neta/libra: <span id="ganancia-neta">Q 0.00</span></p>
+            </div>
+            <button class="btn btn-save" onclick="guardarCosto()">💾 Guardar Costo de este Lote</button>
+            <h3>📊 Historial de Costos por Lote</h3>
+            <div class="table-wrapper">
+                <table id="tabla-costos"><thead><tr><th>Fecha Tostado</th><th>Lote</th><th>Variedad</th><th>Proceso</th><th>Costo/Lb</th><th>Precio Venta</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+
+        <!-- COTIZADOR VERDE -->
+        <div id="cotizador" class="section">
+            <h2>💵 Cotizador de Café Verde / Pergamino / Oro</h2>
+            <div class="cmarket-banner">
+                <h3>📈 ICE C-Market (Bolsa de NY)</h3>
+                <div class="price" id="cmarket-price">385.00 ¢/lb</div>
+                <div class="subtitle">= <span id="cmarket-usdlb">US$ 3.85</span>/lb · <span id="cmarket-usdkg">US$ 8.49</span>/kg</div>
+                <div class="source">
+                    Actualizar desde <a href="https://www.investing.com/commodities/us-coffee-c" target="_blank">Investing.com</a><br>
+                    <input type="number" id="cmarket-input" value="385" step="0.01" style="width:100px; padding:4px; margin-top:5px; border-radius:4px; border:1px solid var(--accent); text-align:center;" oninput="actualizarCMarket()">
+                    <small style="display:block; margin-top:3px;">¢/lb</small>
+                </div>
+            </div>
+            <h3>💱 Tipo de Cambio</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Q por US$1</label><input type="number" id="tipo-cambio" value="7.80" step="0.01" class="yellow-input" oninput="calcularCotizador()"></div>
+                <div class="form-group"><label>1 lb = 0.453592 kg</label><input type="text" value="0.453592 kg" readonly style="background:#e9ecef;"></div>
+            </div>
+            <h3>🌱 Precio Base</h3>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Estado del café</label>
+                    <select id="cot-estado" onchange="calcularCotizador()"><option value="pergamino">Pergamino</option><option value="oro" selected>Oro (Verde)</option></select>
+                </div>
+                <div class="form-group"><label>Rendimiento Perg→Oro (%)</label><input type="number" id="cot-rendimiento" value="81" step="0.1" class="yellow-input" oninput="calcularCotizador()"></div>
+                <div class="form-group"><label>Precio Q/Libra</label><input type="number" id="cot-precio-qlb" value="25" step="0.01" class="yellow-input" oninput="calcularCotizador()"></div>
+            </div>
+            <h3>📊 Conversiones</h3>
+            <div class="conversion-grid">
+                <div class="conversion-card highlight"><div class="currency">Quetzales</div><div class="value" id="conv-qlb">Q 25.00</div><div class="unit">por libra</div></div>
+                <div class="conversion-card"><div class="currency">Quetzales</div><div class="value" id="conv-qkg">Q 55.12</div><div class="unit">por kg</div></div>
+                <div class="conversion-card"><div class="currency">Dólares</div><div class="value" id="conv-usdlb">US$ 3.21</div><div class="unit">por libra</div></div>
+                <div class="conversion-card"><div class="currency">Dólares</div><div class="value" id="conv-usdkg">US$ 7.07</div><div class="unit">por kg</div></div>
+            </div>
+            <div class="info-box" id="cot-diferencial-box"><strong>📈 Diferencial vs C-Market:</strong> <span id="cot-diferencial">...</span></div>
+            <h3>🚢 FOB / CIF</h3>
+            <div class="info-box"><strong>FOB</strong> = Puesto en puerto GT · <strong>CIF</strong> = Llegado a destino con flete y seguro</div>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>País destino</label>
+                    <select id="cot-pais" onchange="calcularCotizador()">
+                        <option value="usa-golfo">🇺🇸 USA Golfo</option><option value="usa-este">🇺🇸 USA Costa Este</option>
+                        <option value="canada">🇨🇦 Canadá</option><option value="europa" selected>🇪🇺 Europa</option>
+                        <option value="japon">🇯🇵 Japón</option><option value="corea">🇰🇷 Corea</option>
+                        <option value="australia">🇦🇺 Australia</option><option value="china">🇨🇳 China</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Cantidad (kg)</label><input type="number" id="cot-cantidad-kg" value="18000" step="60" class="yellow-input" oninput="calcularCotizador()"><small style="color:#666;">Contenedor 20' ≈ 18,000 kg</small></div>
+                <div class="form-group"><label>Seguro (%)</label><input type="number" id="cot-seguro" value="0.3" step="0.05" class="yellow-input" oninput="calcularCotizador()"></div>
+            </div>
+            <h3>💼 Resultados</h3>
+            <div class="conversion-grid">
+                <div class="conversion-card"><div class="currency">FOB</div><div class="value" id="fob-usdlb">US$ 0.00</div><div class="unit">/libra</div></div>
+                <div class="conversion-card"><div class="currency">FOB</div><div class="value" id="fob-usdkg">US$ 0.00</div><div class="unit">/kg</div></div>
+                <div class="conversion-card highlight"><div class="currency">CIF</div><div class="value" id="cif-usdlb">US$ 0.00</div><div class="unit">/libra</div></div>
+                <div class="conversion-card highlight"><div class="currency">CIF</div><div class="value" id="cif-usdkg">US$ 0.00</div><div class="unit">/kg</div></div>
+            </div>
+            <div class="card" style="background:var(--primary); color:white; text-align:center; border-left-color:var(--accent);">
+                <h3 style="color:white;">Total Contenedor CIF</h3>
+                <p style="color:var(--accent); font-size:1.8rem;" id="cif-total">US$ 0.00</p>
+                <p style="color:white; font-size:0.9rem;">Flete: <span id="flete-total">US$ 0</span> · Seguro: <span id="seguro-total">US$ 0</span></p>
+            </div>
+            <div class="info-box"><strong>⚠️</strong> Fletes estimados (ago 2026). Consulta tu forwarder para cotizaciones reales.</div>
+        </div>
+
+        <!-- MUESTREO -->
+        <div id="muestreo" class="section">
+            <h2>🔬 Ficha de Muestreo - Café Oro</h2>
+            <div class="form-grid">
+                <div class="form-group"><label>Nombre</label><input type="text" id="m-nombre" class="yellow-input"></div>
+                <div class="form-group"><label>Fecha</label><input type="date" id="m-fecha" class="yellow-input"></div>
+                <div class="form-group"><label>Finca</label><input type="text" id="m-finca" value="Finca Los Robles" class="yellow-input"></div>
+                <div class="form-group"><label>Altitud (msnm)</label><input type="text" id="m-altitud" value="1600" class="yellow-input"></div>
+                <div class="form-group"><label>Variedad</label><input type="text" id="m-variedad" value="Catimor" class="yellow-input"></div>
+                <div class="form-group"><label>Proceso</label><input type="text" id="m-proceso" value="Lavado" class="yellow-input"></div>
+                <div class="form-group"><label>Lote</label><input type="text" id="m-lote" class="yellow-input"></div>
+                <div class="form-group"><label>Muestra #</label><input type="text" id="m-muestra" class="yellow-input"></div>
+            </div>
+            <h3>Pesos y Mediciones</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Peso Inicial (Pergamino) g</label><input type="number" id="m-peso-perg" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                <div class="form-group"><label>Peso Final (Oro) g</label><input type="number" id="m-peso-oro" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                <div class="form-group"><label>Humedad %</label><input type="number" step="0.1" id="m-humedad" class="yellow-input"></div>
+                <div class="form-group"><label>Densidad g/ml</label><input type="number" step="0.01" id="m-densidad" class="yellow-input"></div>
+                <div class="form-group"><label>ATW (1000 granos) g</label><input type="number" step="0.01" id="m-atw" class="yellow-input"></div>
+                <div class="form-group"><label>Muestra zarandas g</label><input type="number" id="m-muestra-zaranda" class="yellow-input"></div>
+            </div>
+            <h3>Análisis por Zarandas</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Zaranda 18 (g)</label><input type="number" id="m-z18" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                <div class="form-group"><label>Zaranda 16 (g)</label><input type="number" id="m-z16" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                <div class="form-group"><label>Zaranda 15 (g)</label><input type="number" id="m-z15" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                <div class="form-group"><label>Zaranda 14 (g)</label><input type="number" id="m-z14" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                <div class="form-group"><label>Residuo (g)</label><input type="number" id="m-residuo" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
+                <div class="form-group"><label>Total (g)</label><input type="number" id="m-total" readonly></div>
+            </div>
+            <div class="form-grid">
+                <div class="form-group"><label>% Z18</label><input type="text" id="m-pct-z18" readonly></div>
+                <div class="form-group"><label>% Z16</label><input type="text" id="m-pct-z16" readonly></div>
+                <div class="form-group"><label>% Z15</label><input type="text" id="m-pct-z15" readonly></div>
+                <div class="form-group"><label>% Z14</label><input type="text" id="m-pct-z14" readonly></div>
+                <div class="form-group"><label>% Residuo</label><input type="text" id="m-pct-residuo" readonly></div>
+                <div class="form-group"><label style="color:var(--primary); font-weight:bold;">Rendimiento %</label><input type="text" id="m-rendimiento" readonly style="font-weight:bold; color:var(--primary); font-size:1.1rem;"></div>
+            </div>
+            <div class="form-grid" style="margin-top:1rem;">
+                <div class="form-group"><label>Defectos (/ 300g)</label><input type="text" id="m-defectos" class="yellow-input"></div>
+                <div class="form-group"><label>Observaciones</label><textarea id="m-observaciones" class="yellow-input" rows="2"></textarea></div>
+            </div>
+            <button class="btn" style="margin-top:1rem;" onclick="guardarMuestreo()">💾 Guardar Ficha de Muestreo</button>
+            <h3>Historial de Análisis</h3>
+            <div class="table-wrapper">
+                <table id="tabla-muestreos"><thead><tr><th>Fecha</th><th>Nombre</th><th>Lote</th><th>Rend.</th><th>Humedad</th><th>Acciones</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- APP SCREEN -->
-    <div id="app-screen">
-        <div class="top-bar">
-            <button class="hamburger" onclick="toggleSidebar()" aria-label="Menú">☰</button>
-            <svg class="top-bar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
-                <text x="50" y="58" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Arial">FLR</text>
-            </svg>
-            <div class="top-bar-title">Finca Los Robles</div>
-        </div>
-
-        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
-
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <span style="color: var(--accent); font-weight: bold;">Menú</span>
-                <button class="sidebar-close" onclick="toggleSidebar()" aria-label="Cerrar">✕</button>
-            </div>
-            <svg class="sidebar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
-                <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFFFFF" text-anchor="middle" font-family="Arial">FLR</text>
-                <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
-            </svg>
-            <h2>Finca Los Robles</h2>
-            <div class="menu-item active" onclick="showSection('dashboard', this)"><span class="icon">📊</span> Dashboard</div>
-            <div class="menu-item" onclick="showSection('ventas', this)"><span class="icon">💰</span> Ventas</div>
-            <div class="menu-item" onclick="showSection('inventario', this)"><span class="icon">📦</span> Inventario</div>
-            <div class="menu-item" onclick="showSection('costos', this)"><span class="icon">🧮</span> Costos Tostado</div>
-            <div class="menu-item" onclick="showSection('cotizador', this)"><span class="icon">💵</span> Cotizador Verde</div>
-            <div class="menu-item" onclick="showSection('muestreo', this)"><span class="icon">🔬</span> Muestreo Lab</div>
-            <button class="btn logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
-        </div>
-
-        <div class="main-content">
-            <div id="dashboard" class="section active">
-                <h2>📊 Dashboard General</h2>
-                <div class="form-grid">
-                    <div class="card"><h3>Ventas del Mes</h3><p id="dash-ventas">0 libras</p></div>
-                    <div class="card"><h3>Inventario Tostado</h3><p id="dash-tostado">0 libras</p></div>
-                    <div class="card"><h3>Inventario Oro</h3><p id="dash-oro">0 libras</p></div>
-                    <div class="card"><h3>Inventario Pergamino</h3><p id="dash-pergamino">0 libras</p></div>
-                </div>
-            </div>
-
-            <div id="ventas" class="section">
-                <h2>💰 Registro de Ventas</h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Tipo de Café</label>
-                        <select id="venta-tipo" onchange="toggleVentaPresentacion()">
-                            <option value="Tostado">Tostado</option>
-                            <option value="Oro">Verde (Oro)</option>
-                            <option value="Pergamino">Pergamino</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="venta-presentacion-group" style="display:none;">
-                        <label>Presentación</label>
-                        <select id="venta-presentacion">
-                            <option value="Entero">Grano Entero</option>
-                            <option value="Molido">Molido</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="venta-cantidad" class="yellow-input" step="0.01"></div>
-                    <div class="form-group"><label>Precio por Libra (Q)</label><input type="number" id="venta-precio" class="yellow-input" step="0.01"></div>
-                    <div class="form-group">
-                        <label>Método de Pago</label>
-                        <select id="venta-pago"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Pendiente">Pendiente</option></select>
-                    </div>
-                    <div class="form-group"><label>Cliente / Notas</label><input type="text" id="venta-notas" class="yellow-input"></div>
-                </div>
-                <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
-                <h3>Historial de Ventas</h3>
-                <div class="table-wrapper">
-                    <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Tipo</th><th>Pres.</th><th>Libras</th><th>Total</th><th>Pago</th></tr></thead><tbody></tbody></table>
-                </div>
-            </div>
-
-            <div id="inventario" class="section">
-                <h2>📦 Gestión de Inventario</h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Estado del Café</label>
-                        <select id="inv-estado" onchange="toggleInvFields()">
-                            <option value="Pergamino">Pergamino</option>
-                            <option value="Oro">Oro (Verde)</option>
-                            <option value="Tostado">Tostado</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="inv-cantidad" class="yellow-input" step="0.01"></div>
-                    <div class="form-group" id="inv-presentacion-group" style="display:none;">
-                        <label>Presentación</label>
-                        <select id="inv-presentacion"><option value="Entero">Grano Entero</option><option value="Molido">Molido</option></select>
-                    </div>
-                    <div class="form-group"><label>Finca / Origen</label><input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input"></div>
-                    <div class="form-group"><label>Variedad</label><input type="text" id="inv-variedad" value="Catimor" class="yellow-input"></div>
-                    <div class="form-group">
-                        <label>Proceso</label>
-                        <select id="inv-proceso"><option>Lavado</option><option>Honey</option><option>Natural</option></select>
-                    </div>
-                    <div class="form-group" id="field-tostado" style="display:none;">
-                        <label>Fecha de Tostado</label>
-                        <input type="date" id="inv-fecha-tostado" class="yellow-input">
-                    </div>
-                </div>
-                <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
-                <h3>Inventario Actual Disponible</h3>
-                <div class="table-wrapper">
-                    <table id="tabla-inventario"><thead><tr><th>Fecha</th><th>Estado</th><th>Pres.</th><th>Variedad</th><th>Libras</th></tr></thead><tbody></tbody></table>
-                </div>
-            </div>
-
-            <!-- COSTOS TOSTADO CON HISTORIAL -->
-            <div id="costos" class="section">
-                <h2>🧮 Calculadora de Costos - Café Tostado</h2>
-                <div class="info-box">
-                    <strong>📐 Fórmula aplicada:</strong> Precio de Venta = Costo Total ÷ (1 - % Ganancia)<br>
-                    <small>Esta fórmula calcula el margen sobre el precio final de venta, no sobre el costo.</small>
-                </div>
-                
-                <h3>📋 Datos del Lote</h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Nombre del Lote</label>
-                        <input type="text" id="costo-lote" class="yellow-input" placeholder="Ej: COE0726, FAT CAT, etc.">
-                    </div>
-                    <div class="form-group">
-                        <label>Variedad de Café</label>
-                        <input type="text" id="costo-variedad" class="yellow-input" value="Catimor">
-                    </div>
-                    <div class="form-group">
-                        <label>Proceso</label>
-                        <select id="costo-proceso">
-                            <option value="Lavado">Lavado</option>
-                            <option value="Honey">Honey</option>
-                            <option value="Natural">Natural</option>
-                            <option value="Anaeróbico">Anaeróbico</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Fecha de Tostado</label>
-                        <input type="date" id="costo-fecha-tostado" class="yellow-input">
-                    </div>
-                </div>
-
-                <h3>💰 Costos por Libra</h3>
-                <div class="form-grid">
-                    <div class="form-group"><label>Costo Café Verde/Libra (Q)</label><input type="number" id="costo-verde" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
-                    <div class="form-group"><label>Costo Tostado/Libra (Q)</label><input type="number" id="costo-tostado" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
-                    <div class="form-group"><label>Costo Empaque/Libra (Q)</label><input type="number" id="costo-empaque" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
-                    <div class="form-group"><label>Margen Ganancia (%)</label><input type="number" id="costo-margen" value="30" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
-                </div>
-                
-                <div class="card" style="background: var(--primary); color: white; text-align: center; border-left-color: var(--accent);">
-                    <h3 style="color: white;">Precio Sugerido por Libra</h3>
-                    <p style="color: var(--accent); font-size: 2rem;" id="precio-sugerido">Q 0.00</p>
-                    <p style="color: white; font-size: 1rem;">Costo Total: <span id="costo-total">Q 0.00</span></p>
-                    <p style="color: white; font-size: 0.9rem; margin-top: 0.5rem;">Ganancia neta por libra: <span id="ganancia-neta">Q 0.00</span></p>
-                </div>
-
-                <button class="btn btn-save" onclick="guardarCosto()">💾 Guardar Costo de este Lote</button>
-
-                <h3>📊 Historial de Costos por Lote</h3>
-                <div class="table-wrapper">
-                    <table id="tabla-costos">
-                        <thead>
-                            <tr>
-                                <th>Fecha Tostado</th>
-                                <th>Lote</th>
-                                <th>Variedad</th>
-                                <th>Proceso</th>
-                                <th>Costo/Lb</th>
-                                <th>Precio Venta</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- COTIZADOR DE CAFÉ VERDE -->
-            <div id="cotizador" class="section">
-                <h2>💵 Cotizador de Café Verde / Pergamino / Oro</h2>
-                
-                <div class="cmarket-banner">
-                    <h3>📈 ICE C-Market (Bolsa de NY)</h3>
-                    <div class="price" id="cmarket-price">385.00 ¢/lb</div>
-                    <div class="subtitle">= <span id="cmarket-usdlb">US$ 3.85</span> / libra</div>
-                    <div class="subtitle">= <span id="cmarket-usdkg">US$ 8.49</span> / kg</div>
-                    <div class="source">
-                        Valor de referencia · Actualizar manualmente desde 
-                        <a href="https://www.investing.com/commodities/us-coffee-c" target="_blank">Investing.com</a>
-                        <br>
-                        <input type="number" id="cmarket-input" value="385" step="0.01" style="width: 100px; padding: 4px; margin-top: 5px; border-radius: 4px; border: 1px solid var(--accent); text-align: center;" oninput="actualizarCMarket()">
-                        <small style="display:block; margin-top:3px;">¢/lb (centavos por libra)</small>
-                    </div>
-                </div>
-
-                <h3>💱 Tipo de Cambio</h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Q por US$1 (Tipo de cambio)</label>
-                        <input type="number" id="tipo-cambio" value="7.80" step="0.01" class="yellow-input" oninput="calcularCotizador()">
-                    </div>
-                    <div class="form-group">
-                        <label>1 libra = 0.453592 kg (fijo)</label>
-                        <input type="text" value="0.453592 kg" readonly style="background:#e9ecef;">
-                    </div>
-                </div>
-
-                <h3>🌱 Precio Base de tu Café</h3>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Estado del café a cotizar</label>
-                        <select id="cot-estado" onchange="calcularCotizador()">
-                            <option value="pergamino">Pergamino</option>
-                            <option value="oro" selected>Oro (Verde)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Rendimiento Pergamino → Oro (%)</label>
-                        <input type="number" id="cot-rendimiento" value="81" step="0.1" class="yellow-input" oninput="calcularCotizador()">
-                    </div>
-                    <div class="form-group">
-                        <label>Precio en Quetzales por Libra (Q/lb)</label>
-                        <input type="number" id="cot-precio-qlb" value="25" step="0.01" class="yellow-input" oninput="calcularCotizador()">
-                    </div>
-                </div>
-
-                <h3>📊 Conversiones Automáticas</h3>
-                <div class="conversion-grid">
-                    <div class="conversion-card highlight">
-                        <div class="currency">Quetzales</div>
-                        <div class="value" id="conv-qlb">Q 25.00</div>
-                        <div class="unit">por libra</div>
-                    </div>
-                    <div class="conversion-card">
-                        <div class="currency">Quetzales</div>
-                        <div class="value" id="conv-qkg">Q 55.12</div>
-                        <div class="unit">por kilogramo</div>
-                    </div>
-                    <div class="conversion-card">
-                        <div class="currency">Dólares</div>
-                        <div class="value" id="conv-usdlb">US$ 3.21</div>
-                        <div class="unit">por libra</div>
-                    </div>
-                    <div class="conversion-card">
-                        <div class="currency">Dólares</div>
-                        <div class="value" id="conv-usdkg">US$ 7.07</div>
-                        <div class="unit">por kilogramo</div>
-                    </div>
-                </div>
-
-                <div class="info-box" id="cot-diferencial-box">
-                    <strong>📈 Diferencial vs C-Market:</strong> <span id="cot-diferencial">Calculando...</span>
-                </div>
-
-                <h3>🚢 Cálculo de Precio FOB / CIF</h3>
-                <div class="info-box">
-                    <strong>FOB</strong> = Free On Board (precio puesto en puerto de Guatemala, sin flete internacional)<br>
-                    <strong>CIF</strong> = Cost, Insurance & Freight (precio llegado al país destino, con flete y seguro incluidos)
-                </div>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>País / Puerto de destino</label>
-                        <select id="cot-pais" onchange="calcularCotizador()">
-                            <option value="usa-golfo">🇺🇸 USA - Golfo (N. Orleans/Houston)</option>
-                            <option value="usa-este">🇺🇸 USA - Costa Este (NY/Savannah)</option>
-                            <option value="canada">🇨🇦 Canadá (Vancouver)</option>
-                            <option value="europa" selected>🇪🇺 Europa (Hamburgo/Rotterdam)</option>
-                            <option value="japon">🇯🇵 Japón (Yokohama)</option>
-                            <option value="corea">🇰🇷 Corea del Sur (Busan)</option>
-                            <option value="australia">🇦🇺 Australia (Sydney)</option>
-                            <option value="china">🇨🇳 China (Shanghai)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Cantidad a embarcar (kg)</label>
-                        <input type="number" id="cot-cantidad-kg" value="18000" step="60" class="yellow-input" oninput="calcularCotizador()">
-                        <small style="color:#666; margin-top:3px;">Contenedor 20' = ~18,000 kg (270 sacos de 66.14kg)</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Seguro internacional (%)</label>
-                        <input type="number" id="cot-seguro" value="0.3" step="0.05" class="yellow-input" oninput="calcularCotizador()">
-                    </div>
-                </div>
-
-                <h3>💼 Resultados FOB / CIF</h3>
-                <div class="conversion-grid">
-                    <div class="conversion-card">
-                        <div class="currency">FOB</div>
-                        <div class="value" id="fob-usdlb">US$ 0.00</div>
-                        <div class="unit">por libra</div>
-                    </div>
-                    <div class="conversion-card">
-                        <div class="currency">FOB</div>
-                        <div class="value" id="fob-usdkg">US$ 0.00</div>
-                        <div class="unit">por kilogramo</div>
-                    </div>
-                    <div class="conversion-card highlight">
-                        <div class="currency">CIF</div>
-                        <div class="value" id="cif-usdlb">US$ 0.00</div>
-                        <div class="unit">por libra</div>
-                    </div>
-                    <div class="conversion-card highlight">
-                        <div class="currency">CIF</div>
-                        <div class="value" id="cif-usdkg">US$ 0.00</div>
-                        <div class="unit">por kilogramo</div>
-                    </div>
-                </div>
-
-                <div class="card" style="background: var(--primary); color: white; text-align: center; border-left-color: var(--accent);">
-                    <h3 style="color: white;">Total Contenedor CIF</h3>
-                    <p style="color: var(--accent); font-size: 1.8rem;" id="cif-total">US$ 0.00</p>
-                    <p style="color: white; font-size: 0.9rem;">Flete: <span id="flete-total">US$ 0.00</span> · Seguro: <span id="seguro-total">US$ 0.00</span></p>
-                </div>
-
-                <div class="info-box">
-                    <strong>⚠️ Nota:</strong> Los fletes son valores estimados de referencia (agosto 2026). Para cotizaciones reales, consulta con tu agente de carga (forwarder). Los fletes pueden variar según temporada, disponibilidad de contenedores y tipo (estándar vs refrigerado).
-                </div>
-            </div>
-
-            <div id="muestreo" class="section">
-                <h2>🔬 Ficha de Muestreo - Café Oro</h2>
-                <div class="form-grid">
-                    <div class="form-group"><label>Nombre</label><input type="text" id="m-nombre" class="yellow-input"></div>
-                    <div class="form-group"><label>Fecha</label><input type="date" id="m-fecha" class="yellow-input"></div>
-                    <div class="form-group"><label>Finca</label><input type="text" id="m-finca" value="Finca Los Robles" class="yellow-input"></div>
-                    <div class="form-group"><label>Altitud (msnm)</label><input type="text" id="m-altitud" value="1600" class="yellow-input"></div>
-                    <div class="form-group"><label>Variedad</label><input type="text" id="m-variedad" value="Catimor" class="yellow-input"></div>
-                    <div class="form-group"><label>Proceso</label><input type="text" id="m-proceso" value="Lavado" class="yellow-input"></div>
-                    <div class="form-group"><label>Lote</label><input type="text" id="m-lote" class="yellow-input"></div>
-                    <div class="form-group"><label>Muestra #</label><input type="text" id="m-muestra" class="yellow-input"></div>
-                </div>
-                <h3>Pesos y Mediciones</h3>
-                <div class="form-grid">
-                    <div class="form-group"><label>Peso Inicial (Pergamino) g</label><input type="number" id="m-peso-perg" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
-                    <div class="form-group"><label>Peso Final (Oro) g</label><input type="number" id="m-peso-oro" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
-                    <div class="form-group"><label>Humedad %</label><input type="number" step="0.1" id="m-humedad" class="yellow-input"></div>
-                    <div class="form-group"><label>Densidad g/ml</label><input type="number" step="0.01" id="m-densidad" class="yellow-input"></div>
-                    <div class="form-group"><label>ATW (1000 granos) g</label><input type="number" step="0.01" id="m-atw" class="yellow-input"></div>
-                    <div class="form-group"><label>Muestra zarandas g</label><input type="number" id="m-muestra-zaranda" class="yellow-input"></div>
-                </div>
-                <h3>Análisis por Zarandas</h3>
-                <div class="form-grid">
-                    <div class="form-group"><label>Zaranda 18 (g)</label><input type="number" id="m-z18" class="yellow-input" step="0.01" oninput="calcularMuestreo()"></div>
-                    <div class="form-group"><label>Zaranda 16 (g)</label><input type="number" id="m-z16" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
-                    <div class="form-group"><label>Zaranda 15 (g)</label><input type="number" id="m-z15" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
-                    <div class="form-group"><label>Zaranda 14 (g)</label><input type="number" id="m-z14" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
-                    <div class="form-group"><label>Residuo (g)</label><input type="number" id="m-residuo" class="yellow-input" step="0.01" oninput("calcularMuestreo()"></div>
-                    <div class="form-group"><label>Total (g)</label><input type="number" id="m-total" readonly></div>
-                </div>
-                <div class="form-grid">
-                    <div class="form-group"><label>% Z18</label><input type="text" id="m-pct-z18" readonly></div>
-                    <div class="form-group"><label>% Z16</label><input type="text" id="m-pct-z16" readonly></div>
-                    <div class="form-group"><label>% Z15</label><input type="text" id="m-pct-z15" readonly></div>
-                    <div class="form-group"><label>% Z14</label><input type="text" id="m-pct-z14" readonly></div>
-                    <div class="form-group"><label>% Residuo</label><input type="text" id="m-pct-residuo" readonly></div>
-                    <div class="form-group"><label style="color:var(--primary); font-weight:bold;">Rendimiento %</label><input type="text" id="m-rendimiento" readonly style="font-weight:bold; color:var(--primary); font-size:1.1rem;"></div>
-                </div>
-                <div class="form-grid" style="margin-top:1rem;">
-                    <div class="form-group"><label>Defectos (/ 300g)</label><input type="text" id="m-defectos" class="yellow-input"></div>
-                    <div class="form-group"><label>Observaciones</label><textarea id="m-observaciones" class="yellow-input" rows="2"></textarea></div>
-                </div>
-                <button class="btn" style="margin-top:1rem;" onclick="guardarMuestreo()">💾 Guardar Ficha de Muestreo</button>
-                <h3>Historial de Análisis</h3>
-                <div class="table-wrapper">
-                    <table id="tabla-muestreos">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Nombre</th>
-                                <th>Lote</th>
-                                <th>Rend.</th>
-                                <th>Humedad</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
+<!-- MODAL MUESTREO -->
+<div class="modal-overlay" id="modal-ver-muestra">
+    <div class="modal-content-large">
+        <h3 id="modal-titulo">Ficha de Muestreo</h3>
+        <div id="modal-contenido"></div>
+        <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
+            <button class="btn btn-pdf" style="flex:1; min-width:150px;" onclick="generarPDFDesdeModal()">📄 Descargar PDF</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-ver-muestra')">Cerrar</button>
         </div>
     </div>
+</div>
 
-    <!-- MODAL VER DATOS COMPLETOS MUESTREO -->
-    <div id="modal-ver-muestra">
-        <div class="modal-content-large">
-            <h3 id="modal-titulo">Ficha de Muestreo</h3>
-            <div id="modal-contenido"></div>
-            <div style="display: flex; gap: 10px; margin-top: 1rem; flex-wrap: wrap;">
-                <button class="btn btn-pdf" style="flex:1; min-width: 150px;" onclick="generarPDFDesdeModal()">📄 Descargar PDF</button>
-                <button class="btn btn-secondary" style="flex:1; min-width: 150px;" onclick="cerrarModalVer()">Cerrar</button>
-            </div>
-        </div>
+<!-- MODAL COSTO -->
+<div class="modal-overlay" id="modal-ver-costo">
+    <div class="modal-content-large">
+        <h3 id="modal-costo-titulo">Detalle de Costo</h3>
+        <div id="modal-costo-contenido"></div>
+        <button class="btn btn-secondary" style="margin-top:1rem;" onclick="cerrarModal('modal-ver-costo')">Cerrar</button>
     </div>
+</div>
 
-    <!-- MODAL VER COSTO DETALLADO -->
-    <div id="modal-ver-costo">
-        <div class="modal-content-large">
-            <h3 id="modal-costo-titulo">Detalle de Costo</h3>
-            <div id="modal-costo-contenido"></div>
-            <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('modal-ver-costo').style.display='none'">Cerrar</button>
-        </div>
-    </div>
+<!-- VERSION -->
+<div class="version-tag">v2026.08.1</div>
 
-        <!-- FIREBASE & LOGIC -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, deleteDoc, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+<!-- ==================== FIREBASE & LOGIC ==================== -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, deleteDoc, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
-            authDomain: "flr-db.firebaseapp.com",
-            projectId: "flr-db",
-            storageBucket: "flr-db.firebasestorage.app",
-            messagingSenderId: "778387910304",
-            appId: "1:778387910304:web:cff24e43422477f9bee3c5"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
+        authDomain: "flr-db.firebaseapp.com",
+        projectId: "flr-db",
+        storageBucket: "flr-db.firebasestorage.app",
+        messagingSenderId: "778387910304",
+        appId: "1:778387910304:web:cff24e43422477f9bee3c5"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
-        let currentAuthUid = null;
-        let currentAuthEmail = null;
-        let muestraActualEnModal = null;
-        let isManualLogin = false; // 🔑 Bandera para evitar que onAuthStateChanged interfiera
+    let currentAuthUid = null;
+    let currentAuthEmail = null;
+    let muestraActualEnModal = null;
+    let isManualLogin = false;
 
-        const FLETES_POR_TONELADA = {
-            "usa-golfo": 90, "usa-este": 110, "canada": 105, "europa": 120,
-            "japon": 160, "corea": 155, "australia": 200, "china": 170
-        };
+    const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
-        window.toggleSidebar = () => {
-            document.getElementById('sidebar').classList.toggle('open');
-            document.getElementById('overlay').classList.toggle('show');
-        };
+    // ===== UI =====
+    window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); };
+    window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; muestraActualEnModal = null; };
 
-        window.showAuthState = (state) => {
-            document.getElementById('form-login').style.display = state === 'login' ? 'block' : 'none';
-            document.getElementById('form-register').style.display = state === 'register' ? 'block' : 'none';
-            document.getElementById('form-verify').style.display = state === 'verify' ? 'block' : 'none';
-            document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
-        };
+    window.showAuthState = (state) => {
+        document.getElementById('form-login').style.display = state === 'login' ? 'block' : 'none';
+        document.getElementById('form-register').style.display = state === 'register' ? 'block' : 'none';
+        document.getElementById('form-verify').style.display = state === 'verify' ? 'block' : 'none';
+        document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
+    };
 
-        // ===== REGISTRO =====
-        window.register = async () => {
-            const email = document.getElementById('reg-email').value.trim();
-            const pass = document.getElementById('reg-password').value;
-            const pass2 = document.getElementById('reg-password2').value;
-            if (!email || !pass) return showError('reg-error', 'Completa todos los campos');
-            if (pass !== pass2) return showError('reg-error', 'Las contraseñas no coinciden');
-            if (pass.length < 6) return showError('reg-error', 'Mínimo 6 caracteres');
-            
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Registrando...";
-            
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-                currentAuthUid = userCredential.user.uid;
-                currentAuthEmail = email;
-                const otp = Math.floor(100000 + Math.random() * 900000).toString();
-                await setDoc(doc(db, "verificaciones", currentAuthUid), { codigo: otp, email, createdAt: serverTimestamp() });
-                document.getElementById('verify-email-display').innerText = email;
-                document.getElementById('demo-otp').innerText = otp;
-                showAuthState('verify');
-            } catch (error) {
-                console.error("Error en registro:", error);
-                if (error.code === 'auth/email-already-in-use') {
-                    showError('reg-error', 'Este correo ya está registrado. Intenta iniciar sesión.');
-                } else if (error.code === 'auth/invalid-email') {
-                    showError('reg-error', 'El formato del correo no es válido.');
-                } else if (error.code === 'auth/weak-password') {
-                    showError('reg-error', 'La contraseña es muy débil. Usa al menos 6 caracteres.');
-                } else {
-                    showError('reg-error', 'Error: ' + error.message);
-                }
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Registrarse";
-            }
-        };
+    function showError(id, msg) { const el = document.getElementById(id); if(el){ el.innerText = msg; el.style.display = 'block'; } else { alert(msg); } }
 
-        // ===== VERIFICACIÓN OTP =====
-        window.verifyCode = async () => {
-            const inputOtp = document.getElementById('verify-otp-input').value.trim();
-            if (inputOtp.length !== 6) return showError('verify-error', 'El código debe tener 6 dígitos');
-            
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Verificando...";
-            
-            try {
-                const docRef = doc(db, "verificaciones", currentAuthUid);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const diffMinutes = (new Date() - data.createdAt.toDate()) / 60000;
-                    if (data.codigo === inputOtp && diffMinutes < 15) {
-                        await setDoc(doc(db, "usuarios", currentAuthUid), { 
-                            email: currentAuthEmail, 
-                            verificado: true, 
-                            rol: 'admin', 
-                            createdAt: serverTimestamp() 
-                        }, { merge: true });
-                        await deleteDoc(docRef);
-                        alert("✅ ¡Cuenta verificada exitosamente! Bienvenido.");
-                        entrarAlSistema();
-                    } else if (diffMinutes >= 15) {
-                        showError('verify-error', 'El código expiró. Solicita uno nuevo.');
-                    } else {
-                        showError('verify-error', 'Código incorrecto. Verifica e intenta de nuevo.');
-                    }
-                } else {
-                    showError('verify-error', 'No se encontró un código activo. Solicita uno nuevo.');
-                }
-            } catch (error) {
-                console.error("Error en verificación:", error);
-                showError('verify-error', 'Error al verificar: ' + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "Verificar e Ingresar";
-            }
-        };
+    function entrarAlSistema() {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+        cargarDatosIniciales();
+        calcularCotizador();
+    }
 
-        window.resendCode = async () => {
+    // ===== AUTH =====
+    window.register = async () => {
+        const email = document.getElementById('reg-email').value.trim();
+        const pass = document.getElementById('reg-password').value;
+        const pass2 = document.getElementById('reg-password2').value;
+        if (!email || !pass) return showError('reg-error', '⚠️ Completa todos los campos.');
+        if (pass !== pass2) return showError('reg-error', '⚠️ Las contraseñas no coinciden.');
+        if (pass.length < 6) return showError('reg-error', '⚠️ Mínimo 6 caracteres.');
+        const btn = document.getElementById('btn-register');
+        btn.disabled = true; btn.innerText = "Registrando...";
+        try {
+            const cred = await createUserWithEmailAndPassword(auth, email, pass);
+            currentAuthUid = cred.user.uid; currentAuthEmail = email;
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            await setDoc(doc(db, "verificaciones", currentAuthUid), { 
-                codigo: otp, 
-                email: currentAuthEmail, 
-                createdAt: serverTimestamp() 
-            }, { merge: true });
+            await setDoc(doc(db, "verificaciones", currentAuthUid), { codigo: otp, email, createdAt: serverTimestamp() });
+            document.getElementById('verify-email-display').innerText = email;
             document.getElementById('demo-otp').innerText = otp;
-            document.getElementById('verify-otp-input').value = '';
-            alert("✅ Nuevo código generado. Revísalo arriba.");
-        };
+            showAuthState('verify');
+        } catch (e) {
+            console.error(e);
+            const msgs = { 'auth/email-already-in-use':'Este correo ya está registrado.', 'auth/invalid-email':'Correo no válido.', 'auth/weak-password':'Contraseña muy débil.' };
+            showError('reg-error', '❌ ' + (msgs[e.code] || e.message));
+        } finally { btn.disabled = false; btn.innerText = "Registrarse"; }
+    };
 
-        // ===== LOGIN MEJORADO =====
-        window.login = async () => {
-            const email = document.getElementById('login-email').value.trim();
-            const password = document.getElementById('login-password').value;
-            
-            // Validaciones básicas
-            if (!email || !password) {
-                return showError('login-error', '⚠️ Por favor ingresa tu correo y contraseña.');
-            }
-            
-            const btn = event.target;
-            btn.disabled = true;
-            const textoOriginal = btn.innerText;
-            btn.innerText = "Ingresando...";
-            
-            // Ocultar mensajes previos
-            document.getElementById('login-error').style.display = 'none';
-            
-            // 🔑 Marcar que es un login manual para que onAuthStateChanged no interfiera
-            isManualLogin = true;
-            
-            try {
-                console.log("🔄 Intentando iniciar sesión con:", email);
-                
-                // 1. Autenticar en Firebase Auth
-                const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                const user = userCredential.user;
-                console.log("✅ Autenticado en Firebase Auth. UID:", user.uid);
-                
-                // 2. Verificar si existe el documento de usuario en Firestore
-                const docRef = doc(db, "usuarios", user.uid);
-                const docSnap = await getDoc(docRef);
-                
-                if (!docSnap.exists()) {
-                    // El usuario existe en Auth pero NO en Firestore
-                    console.warn("⚠️ Usuario existe en Auth pero no en Firestore");
-                    await signOut(auth);
-                    showError('login-error', 
-                        '⚠️ Tu cuenta existe pero no está registrada en el sistema. ' +
-                        'Por favor, regístrate de nuevo o contacta al administrador.');
-                    isManualLogin = false;
-                    return;
-                }
-                
-                const userData = docSnap.data();
-                
-                if (userData.verificado !== true) {
-                    // El usuario existe pero NO está verificado
-                    console.warn("⚠️ Usuario no verificado");
-                    await signOut(auth);
-                    showError('login-error', 
-                        '⚠️ Tu cuenta aún no ha sido verificada. ' +
-                        'Por favor regístrate nuevamente para recibir tu código de verificación.');
-                    isManualLogin = false;
-                    return;
-                }
-                
-                // 3. Todo correcto - entrar al sistema
-                console.log("✅ Usuario verificado. Entrando al sistema...");
-                currentAuthUid = user.uid;
-                currentAuthEmail = user.email;
-                entrarAlSistema();
-                
-            } catch (error) {
-                console.error("❌ Error en login:", error.code, error.message);
-                
-                // Manejo específico de errores de Firebase Auth
-                let mensajeError = '';
-                switch (error.code) {
-                    case 'auth/invalid-credential':
-                    case 'auth/wrong-password':
-                    case 'auth/user-not-found':
-                        mensajeError = '❌ Correo o contraseña incorrectos. Verifica e intenta de nuevo.';
-                        break;
-                    case 'auth/invalid-email':
-                        mensajeError = '❌ El formato del correo no es válido.';
-                        break;
-                    case 'auth/user-disabled':
-                        mensajeError = '❌ Esta cuenta ha sido deshabilitada. Contacta al administrador.';
-                        break;
-                    case 'auth/too-many-requests':
-                        mensajeError = '❌ Demasiados intentos. Espera unos minutos e intenta de nuevo.';
-                        break;
-                    case 'auth/network-request-failed':
-                        mensajeError = '❌ Error de conexión. Verifica tu internet e intenta de nuevo.';
-                        break;
-                    case 'auth/missing-password':
-                        mensajeError = '❌ Por favor ingresa tu contraseña.';
-                        break;
-                    default:
-                        mensajeError = '❌ Error al iniciar sesión: ' + error.message;
-                }
-                
-                showError('login-error', mensajeError);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = textoOriginal;
-                // Resetear bandera después de un tiempo para no afectar otros flujos
-                setTimeout(() => { isManualLogin = false; }, 2000);
-            }
-        };
+    window.verifyCode = async () => {
+        const input = document.getElementById('verify-otp-input').value.trim();
+        if (input.length !== 6) return showError('verify-error', '⚠️ El código debe tener 6 dígitos.');
+        const btn = document.getElementById('btn-verify');
+        btn.disabled = true; btn.innerText = "Verificando...";
+        try {
+            const snap = await getDoc(doc(db, "verificaciones", currentAuthUid));
+            if (snap.exists()) {
+                const d = snap.data();
+                const mins = (new Date() - d.createdAt.toDate()) / 60000;
+                if (d.codigo === input && mins < 15) {
+                    await setDoc(doc(db, "usuarios", currentAuthUid), { email: currentAuthEmail, verificado: true, rol: 'admin', createdAt: serverTimestamp() }, { merge: true });
+                    await deleteDoc(doc(db, "verificaciones", currentAuthUid));
+                    alert("✅ ¡Cuenta verificada! Bienvenido.");
+                    entrarAlSistema();
+                } else if (mins >= 15) { showError('verify-error', '⚠️ Código expirado. Solicita uno nuevo.'); }
+                else { showError('verify-error', '❌ Código incorrecto.'); }
+            } else { showError('verify-error', '⚠️ No hay código activo. Solicita uno nuevo.'); }
+        } catch (e) { showError('verify-error', '❌ Error: ' + e.message); }
+        finally { btn.disabled = false; btn.innerText = "Verificar e Ingresar"; }
+    };
 
-        window.logout = async () => {
-            try {
+    window.resendCode = async () => {
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        await setDoc(doc(db, "verificaciones", currentAuthUid), { codigo: otp, email: currentAuthEmail, createdAt: serverTimestamp() }, { merge: true });
+        document.getElementById('demo-otp').innerText = otp;
+        document.getElementById('verify-otp-input').value = '';
+        alert("✅ Nuevo código generado.");
+    };
+
+    window.login = async () => {
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+        if (!email || !password) return showError('login-error', '⚠️ Ingresa correo y contraseña.');
+        const btn = document.getElementById('btn-login');
+        btn.disabled = true; btn.innerText = "Ingresando...";
+        document.getElementById('login-error').style.display = 'none';
+        isManualLogin = true;
+        try {
+            const cred = await signInWithEmailAndPassword(auth, email, password);
+            const user = cred.user;
+            const snap = await getDoc(doc(db, "usuarios", user.uid));
+            if (!snap.exists()) {
                 await signOut(auth);
-                currentAuthUid = null;
-                currentAuthEmail = null;
-                location.reload();
-            } catch (error) {
-                console.error("Error al cerrar sesión:", error);
-                alert("Error al cerrar sesión: " + error.message);
+                showError('login-error', '⚠️ Tu cuenta existe en Firebase pero no está registrada en el sistema. Elimina tu usuario en Firebase Console → Authentication y regístrate de nuevo desde la app.');
+                isManualLogin = false; return;
             }
-        };
-
-        function showError(elementId, message) {
-            const el = document.getElementById(elementId);
-            if (el) {
-                el.innerText = message;
-                el.style.display = 'block';
-            } else {
-                alert(message);
+            if (snap.data().verificado !== true) {
+                await signOut(auth);
+                showError('login-error', '⚠️ Cuenta no verificada. Elimina tu usuario en Firebase Console y regístrate de nuevo.');
+                isManualLogin = false; return;
             }
+            currentAuthUid = user.uid; currentAuthEmail = user.email;
+            entrarAlSistema();
+        } catch (e) {
+            console.error("Login error:", e.code, e.message);
+            const msgs = {
+                'auth/invalid-credential': '❌ Correo o contraseña incorrectos.',
+                'auth/wrong-password': '❌ Contraseña incorrecta.',
+                'auth/user-not-found': '❌ No existe una cuenta con este correo.',
+                'auth/invalid-email': '❌ Formato de correo no válido.',
+                'auth/user-disabled': '❌ Cuenta deshabilitada.',
+                'auth/too-many-requests': '❌ Demasiados intentos. Espera unos minutos.',
+                'auth/network-request-failed': '❌ Sin conexión a internet.'
+            };
+            showError('login-error', msgs[e.code] || ('❌ Error: ' + e.message));
+        } finally {
+            btn.disabled = false; btn.innerText = "Ingresar";
+            setTimeout(() => { isManualLogin = false; }, 3000);
         }
+    };
 
-        function entrarAlSistema() {
-            document.getElementById('auth-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'block';
-            cargarDatosIniciales();
-            calcularCotizador();
-        }
+    window.logout = async () => { try { await signOut(auth); } catch(e){} location.reload(); };
 
-        // ===== ESTADO DE AUTENTICACIÓN (NO INTERFIERE CON LOGIN MANUAL) =====
-        onAuthStateChanged(auth, (user) => {
-            // 🔑 Si es un login manual, no hacer nada (ya lo manejó la función login)
-            if (isManualLogin) {
-                console.log("⏸️ onAuthStateChanged ignorado (login manual en progreso)");
-                return;
-            }
-            
-            if (user) {
-                // Solo verificar si recargó la página (no es login manual)
-                getDoc(doc(db, "usuarios", user.uid)).then(docSnap => {
-                    if (docSnap.exists() && docSnap.data().verificado) {
-                        currentAuthUid = user.uid;
-                        currentAuthEmail = user.email;
-                        entrarAlSistema();
-                    } else {
-                        // Usuario sin verificar al recargar - cerrar sesión silenciosamente
-                        console.warn("Usuario sin verificar al recargar. Cerrando sesión.");
-                        signOut(auth);
-                        showAuthState('login');
-                    }
-                }).catch(error => {
-                    console.error("Error verificando usuario en onAuthStateChanged:", error);
-                    showAuthState('login');
-                });
-            } else {
-                document.getElementById('auth-screen').style.display = 'flex';
-                document.getElementById('app-screen').style.display = 'none';
-                showAuthState('login');
-            }
+    onAuthStateChanged(auth, (user) => {
+        if (isManualLogin) return;
+        if (user) {
+            getDoc(doc(db, "usuarios", user.uid)).then(s => {
+                if (s.exists() && s.data().verificado) { currentAuthUid = user.uid; currentAuthEmail = user.email; entrarAlSistema(); }
+                else { signOut(auth); showAuthState('login'); }
+            }).catch(() => showAuthState('login'));
+        } else { document.getElementById('auth-screen').style.display = 'flex'; document.getElementById('app-screen').style.display = 'none'; showAuthState('login'); }
+    });
+
+    // ===== NAV =====
+    window.showSection = (id, el) => {
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if (el) el.classList.add('active');
+        if (window.innerWidth < 1024) toggleSidebar();
+    };
+    window.toggleVentaPresentacion = () => { document.getElementById('venta-presentacion-group').style.display = document.getElementById('venta-tipo').value === 'Tostado' ? 'flex' : 'none'; };
+    window.toggleInvFields = () => { const t = document.getElementById('inv-estado').value === 'Tostado'; document.getElementById('inv-presentacion-group').style.display = t ? 'flex' : 'none'; document.getElementById('field-tostado').style.display = t ? 'flex' : 'none'; };
+
+    // ===== COSTOS =====
+    window.calcularPrecioSugerido = () => {
+        const v = parseFloat(document.getElementById('costo-verde').value)||0;
+        const t = parseFloat(document.getElementById('costo-tostado').value)||0;
+        const e = parseFloat(document.getElementById('costo-empaque').value)||0;
+        const m = parseFloat(document.getElementById('costo-margen').value)||0;
+        const ct = v+t+e;
+        if (m >= 100) { document.getElementById('precio-sugerido').innerText='∞'; document.getElementById('costo-total').innerText='Q '+ct.toFixed(2); document.getElementById('ganancia-neta').innerText='N/A'; return; }
+        const pv = m > 0 ? ct/(1-(m/100)) : ct;
+        document.getElementById('costo-total').innerText = 'Q '+ct.toFixed(2);
+        document.getElementById('precio-sugerido').innerText = 'Q '+pv.toFixed(2);
+        document.getElementById('ganancia-neta').innerText = 'Q '+(pv-ct).toFixed(2);
+    };
+
+    window.guardarCosto = async () => {
+        const lote = document.getElementById('costo-lote').value.trim();
+        if (!lote) return alert("Ingresa un nombre de lote.");
+        const btn = event.target; btn.disabled = true; btn.innerText = "Guardando...";
+        try {
+            const v = parseFloat(document.getElementById('costo-verde').value)||0;
+            const t = parseFloat(document.getElementById('costo-tostado').value)||0;
+            const e = parseFloat(document.getElementById('costo-empaque').value)||0;
+            const m = parseFloat(document.getElementById('costo-margen').value)||0;
+            const ct = v+t+e; const pv = m<100 ? ct/(1-(m/100)) : 0;
+            await addDoc(collection(db,"costosTostado"), { lote, variedad:document.getElementById('costo-variedad').value, proceso:document.getElementById('costo-proceso').value, fechaTostado:document.getElementById('costo-fecha-tostado').value, costoVerde:v, costoTostado:t, costoEmpaque:e, costoTotal:ct, margenPorc:m, precioSugerido:pv, gananciaNeta:pv-ct, fechaRegistro:serverTimestamp() });
+            alert("✅ Costo guardado."); cargarDatosIniciales();
+            ['costo-lote','costo-verde','costo-tostado','costo-empaque','costo-fecha-tostado'].forEach(id => document.getElementById(id).value='');
+            calcularPrecioSugerido();
+        } catch(e) { alert("Error: "+e.message); }
+        finally { btn.disabled = false; btn.innerText = "💾 Guardar Costo de este Lote"; }
+    };
+
+    window.verCostoDetalle = async (id) => {
+        try {
+            const s = await getDoc(doc(db,"costosTostado",id));
+            if (!s.exists()) return alert("No encontrado.");
+            const c = s.data();
+            document.getElementById('modal-costo-titulo').innerText = 'Lote: '+c.lote;
+            document.getElementById('modal-costo-contenido').innerHTML = `
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Lote</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Lote</div><div class="value">${c.lote}</div></div>
+                    <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad}</div></div>
+                    <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso}</div></div>
+                    <div class="detail-item"><div class="label">Fecha Tostado</div><div class="value">${c.fechaTostado||'N/A'}</div></div>
+                </div>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">💰 Costos/Libra</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Café Verde</div><div class="value">Q ${(c.costoVerde||0).toFixed(2)}</div></div>
+                    <div class="detail-item"><div class="label">Tostado</div><div class="value">Q ${(c.costoTostado||0).toFixed(2)}</div></div>
+                    <div class="detail-item"><div class="label">Empaque</div><div class="value">Q ${(c.costoEmpaque||0).toFixed(2)}</div></div>
+                    <div class="detail-item highlight"><div class="label">Total</div><div class="value">Q ${(c.costoTotal||0).toFixed(2)}</div></div>
+                </div>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📊 Venta</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Margen</div><div class="value">${c.margenPorc}%</div></div>
+                    <div class="detail-item highlight"><div class="label">Precio Sugerido</div><div class="value">Q ${(c.precioSugerido||0).toFixed(2)}</div></div>
+                    <div class="detail-item"><div class="label">Ganancia Neta</div><div class="value">Q ${(c.gananciaNeta||0).toFixed(2)}</div></div>
+                </div>`;
+            document.getElementById('modal-ver-costo').style.display = 'flex';
+        } catch(e) { alert("Error: "+e.message); }
+    };
+
+    // ===== COTIZADOR =====
+    window.actualizarCMarket = () => {
+        const c = parseFloat(document.getElementById('cmarket-input').value)||0;
+        document.getElementById('cmarket-price').innerText = c.toFixed(2)+' ¢/lb';
+        document.getElementById('cmarket-usdlb').innerText = 'US$ '+(c/100).toFixed(2);
+        document.getElementById('cmarket-usdkg').innerText = 'US$ '+(c/100/0.453592).toFixed(2);
+        calcularCotizador();
+    };
+
+    window.calcularCotizador = () => {
+        const tc = parseFloat(document.getElementById('tipo-cambio').value)||7.80;
+        const est = document.getElementById('cot-estado').value;
+        const rend = parseFloat(document.getElementById('cot-rendimiento').value)||81;
+        const pqlb = parseFloat(document.getElementById('cot-precio-qlb').value)||0;
+        const pais = document.getElementById('cot-pais').value;
+        const kg = parseFloat(document.getElementById('cot-cantidad-kg').value)||0;
+        const seg = parseFloat(document.getElementById('cot-seguro').value)||0.3;
+        let oro = pqlb;
+        if (est==='pergamino' && rend>0) oro = pqlb*(100/rend);
+        const qkg = oro/0.453592, usdlb = oro/tc, usdkg = usdlb/0.453592;
+        document.getElementById('conv-qlb').innerText='Q '+oro.toFixed(2);
+        document.getElementById('conv-qkg').innerText='Q '+qkg.toFixed(2);
+        document.getElementById('conv-usdlb').innerText='US$ '+usdlb.toFixed(2);
+        document.getElementById('conv-usdkg').innerText='US$ '+usdkg.toFixed(2);
+        const cm = (parseFloat(document.getElementById('cmarket-input').value)||385)/100;
+        const dif = usdlb-cm;
+        document.getElementById('cot-diferencial-box').innerHTML = dif>=0
+            ? `<strong>📈 Diferencial:</strong> <span style="color:#2C5E2E; font-weight:bold;">+US$ ${dif.toFixed(2)}/lb</span> (encima del mercado)`
+            : `<strong>📉 Diferencial:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${dif.toFixed(2)}/lb</span> (debajo del mercado)`;
+        const fobT = usdkg*kg, flt = (FLETES[pais]||120)*(kg/1000), segT = fobT*(seg/100), cifT = fobT+flt+segT, cifkg = kg>0?cifT/kg:0;
+        document.getElementById('fob-usdlb').innerText='US$ '+usdlb.toFixed(2);
+        document.getElementById('fob-usdkg').innerText='US$ '+usdkg.toFixed(2);
+        document.getElementById('cif-usdlb').innerText='US$ '+(cifkg*0.453592).toFixed(2);
+        document.getElementById('cif-usdkg').innerText='US$ '+cifkg.toFixed(2);
+        document.getElementById('cif-total').innerText='US$ '+cifT.toFixed(2);
+        document.getElementById('flete-total').innerText='US$ '+flt.toFixed(2);
+        document.getElementById('seguro-total').innerText='US$ '+segT.toFixed(2);
+    };
+
+    // ===== MUESTREO =====
+    window.calcularMuestreo = () => {
+        const pp = parseFloat(document.getElementById('m-peso-perg').value)||0;
+        const po = parseFloat(document.getElementById('m-peso-oro').value)||0;
+        const z = [18,16,15,14].map(n => parseFloat(document.getElementById('m-z'+n).value)||0);
+        const r = parseFloat(document.getElementById('m-residuo').value)||0;
+        const tot = z[0]+z[1]+z[2]+z[3]+r;
+        document.getElementById('m-total').value = tot.toFixed(2);
+        document.getElementById('m-rendimiento').value = (pp>0?(po/pp)*100:0).toFixed(2)+'%';
+        const pct = v => tot>0?((v/tot)*100).toFixed(1)+'%':'0%';
+        document.getElementById('m-pct-z18').value=pct(z[0]);
+        document.getElementById('m-pct-z16').value=pct(z[1]);
+        document.getElementById('m-pct-z15').value=pct(z[2]);
+        document.getElementById('m-pct-z14').value=pct(z[3]);
+        document.getElementById('m-pct-residuo').value=pct(r);
+    };
+
+    window.guardarMuestreo = async () => {
+        const btn = event.target; btn.disabled = true; btn.innerText = "Guardando...";
+        try {
+            const ids = ['m-nombre','m-fecha','m-finca','m-altitud','m-variedad','m-proceso','m-lote','m-muestra','m-peso-perg','m-peso-oro','m-humedad','m-densidad','m-atw','m-muestra-zaranda','m-z18','m-z16','m-z15','m-z14','m-residuo','m-total','m-pct-z18','m-pct-z16','m-pct-z15','m-pct-z14','m-pct-residuo','m-rendimiento','m-defectos','m-observaciones'];
+            const keys = ['nombre','fecha','finca','altitud','variedad','proceso','lote','muestraNum','pesoPerg','pesoOro','humedad','densidad','atw','muestraZaranda','z18','z16','z15','z14','residuo','total','pctZ18','pctZ16','pctZ15','pctZ14','pctResiduo','rendimiento','defectos','observaciones'];
+            const data = {};
+            ids.forEach((id,i) => data[keys[i]] = document.getElementById(id).value);
+            data.fechaRegistro = serverTimestamp();
+            await addDoc(collection(db,"muestreos"), data);
+            alert("✅ Ficha guardada."); cargarDatosIniciales();
+            ids.forEach(id => { if(!['m-finca','m-altitud','m-variedad','m-proceso'].includes(id)) document.getElementById(id).value=''; });
+            ['m-total','m-rendimiento','m-pct-z18','m-pct-z16','m-pct-z15','m-pct-z14','m-pct-residuo'].forEach(id => document.getElementById(id).value='');
+        } catch(e) { alert("Error: "+e.message); }
+        finally { btn.disabled = false; btn.innerText = "💾 Guardar Ficha de Muestreo"; }
+    };
+
+    window.verMuestraCompleta = async (id) => {
+        try {
+            const s = await getDoc(doc(db,"muestreos",id));
+            if (!s.exists()) return alert("No encontrada.");
+            const m = s.data(); muestraActualEnModal = {id,...m};
+            document.getElementById('modal-titulo').innerText = `Ficha: ${m.nombre||'N/A'} - Lote ${m.lote||'N/A'}`;
+            document.getElementById('modal-contenido').innerHTML = `
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Datos Generales</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Nombre</div><div class="value">${m.nombre||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Fecha</div><div class="value">${m.fecha||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Finca</div><div class="value">${m.finca||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Altitud</div><div class="value">${m.altitud||'N/A'} msnm</div></div>
+                    <div class="detail-item"><div class="label">Variedad</div><div class="value">${m.variedad||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Proceso</div><div class="value">${m.proceso||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Lote</div><div class="value">${m.lote||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Muestra #</div><div class="value">${m.muestraNum||'N/A'}</div></div>
+                </div>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">⚖️ Pesos y Mediciones</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Peso Pergamino</div><div class="value">${m.pesoPerg||'0'} g</div></div>
+                    <div class="detail-item"><div class="label">Peso Oro</div><div class="value">${m.pesoOro||'0'} g</div></div>
+                    <div class="detail-item"><div class="label">Humedad</div><div class="value">${m.humedad||'0'}%</div></div>
+                    <div class="detail-item"><div class="label">Densidad</div><div class="value">${m.densidad||'0'} g/ml</div></div>
+                    <div class="detail-item"><div class="label">ATW</div><div class="value">${m.atw||'N/A'} g</div></div>
+                </div>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📊 Zarandas</h4>
+                <table class="zarandas-table"><thead><tr><th>Zaranda</th><th>Gramos</th><th>%</th></tr></thead><tbody>
+                    <tr><td>Z 18</td><td>${m.z18||'0'} g</td><td>${m.pctZ18||'0%'}</td></tr>
+                    <tr><td>Z 16</td><td>${m.z16||'0'} g</td><td>${m.pctZ16||'0%'}</td></tr>
+                    <tr><td>Z 15</td><td>${m.z15||'0'} g</td><td>${m.pctZ15||'0%'}</td></tr>
+                    <tr><td>Z 14</td><td>${m.z14||'0'} g</td><td>${m.pctZ14||'0%'}</td></tr>
+                    <tr><td>Residuo</td><td>${m.residuo||'0'} g</td><td>${m.pctResiduo||'0%'}</td></tr>
+                    <tr style="font-weight:bold; background:#f0f0f0;"><td>Total</td><td>${m.total||'0'} g</td><td>100%</td></tr>
+                </tbody></table>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">🏆 Resultados</h4>
+                <div class="detail-grid">
+                    <div class="detail-item highlight"><div class="label">Rendimiento</div><div class="value">${m.rendimiento||'0%'}</div></div>
+                    <div class="detail-item"><div class="label">Defectos</div><div class="value">${m.defectos||'N/A'} / 300g</div></div>
+                </div>
+                ${m.observaciones?`<h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📝 Observaciones</h4><div class="detail-item"><div class="value">${m.observaciones}</div></div>`:''}`;
+            document.getElementById('modal-ver-muestra').style.display = 'flex';
+        } catch(e) { alert("Error: "+e.message); }
+    };
+
+    window.generarPDFDesdeModal = () => {
+        if (!muestraActualEnModal) return alert("Sin datos.");
+        const m = muestraActualEnModal;
+        const { jsPDF } = window.jspdf;
+        const d = new jsPDF();
+        d.setFillColor(44,94,46); d.rect(0,0,210,35,'F');
+        d.setTextColor(255,255,255); d.setFontSize(20); d.text("Finca Los Robles",105,15,null,null,"center");
+        d.setFontSize(14); d.text("FICHA DE MUESTREO - CAFÉ ORO",105,27,null,null,"center");
+        d.setTextColor(0,0,0); d.setFontSize(11); let y=45;
+        const ln = (l,v) => { d.setFont("helvetica","bold"); d.text(l,15,y); d.setFont("helvetica","normal"); d.text(String(v||"N/A"),75,y); y+=7; };
+        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("DATOS GENERALES",15,y); d.setTextColor(0,0,0); y+=5;
+        ln("Nombre:",m.nombre); ln("Fecha:",m.fecha); ln("Finca:",m.finca); ln("Altitud:",(m.altitud||"N/A")+" msnm");
+        ln("Variedad:",m.variedad); ln("Proceso:",m.proceso); ln("Lote:",m.lote); ln("Muestra #:",m.muestraNum);
+        y+=3; d.setDrawColor(212,175,55); d.line(15,y,195,y); y+=8;
+        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("PESOS Y MEDICIONES",15,y); d.setTextColor(0,0,0); y+=5;
+        ln("Peso Pergamino:",(m.pesoPerg||"0")+" g"); ln("Peso Oro:",(m.pesoOro||"0")+" g");
+        ln("Humedad:",(m.humedad||"0")+"%"); ln("Densidad:",(m.densidad||"0")+" g/ml"); ln("ATW:",(m.atw||"N/A")+" g");
+        y+=3; d.line(15,y,195,y); y+=8;
+        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("ZARANDAS",15,y); d.setTextColor(0,0,0); y+=5;
+        d.setFillColor(44,94,46); d.rect(15,y-4,180,7,'F'); d.setTextColor(255,255,255);
+        d.text("Zaranda",20,y); d.text("Gramos",90,y); d.text("%",150,y); y+=7; d.setTextColor(0,0,0); d.setFont("helvetica","normal");
+        [["Z 18",m.z18,m.pctZ18],["Z 16",m.z16,m.pctZ16],["Z 15",m.z15,m.pctZ15],["Z 14",m.z14,m.pctZ14],["Residuo",m.residuo,m.pctResiduo],["TOTAL",m.total,"100%"]].forEach(([z,g,p],i)=>{
+            if(i===5) d.setFont("helvetica","bold");
+            d.text(z,20,y); d.text((g||"0")+" g",90,y); d.text(p||"0%",150,y); y+=6; d.setFont("helvetica","normal");
         });
+        y+=5; d.setDrawColor(212,175,55); d.line(15,y,195,y); y+=8;
+        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("RESULTADOS",15,y); y+=5;
+        d.setFontSize(14); d.setTextColor(44,94,46); d.text("Rendimiento: "+(m.rendimiento||"0%"),15,y+5);
+        d.setFontSize(11); d.setTextColor(0,0,0); d.text("Defectos: "+(m.defectos||"N/A")+" / 300g",15,y+15);
+        if(m.observaciones){ y+=25; d.setFont("helvetica","bold"); d.text("Observaciones:",15,y); d.setFont("helvetica","normal"); d.text(d.splitTextToSize(m.observaciones,140),15,y+6); }
+        d.setFontSize(8); d.setTextColor(100,100,100);
+        d.text("Generado: "+new Date().toLocaleString('es-GT'),105,290,null,null,"center");
+        d.text("Finca Los Robles - Café de Especialidad",105,295,null,null,"center");
+        d.save(`Ficha_${m.lote||'SinLote'}_${m.fecha||Date.now()}.pdf`);
+        alert("✅ PDF descargado.");
+    };
 
-        window.showSection = (sectionId, element) => {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-            document.getElementById(sectionId).classList.add('active');
-            if (element) element.classList.add('active');
-            if (window.innerWidth < 1024) toggleSidebar();
-        };
+    // ===== INVENTARIO & VENTAS =====
+    window.guardarInventario = async () => {
+        const est = document.getElementById('inv-estado').value;
+        await addDoc(collection(db,"inventario"), { estado:est, presentacion:est==='Tostado'?document.getElementById('inv-presentacion').value:'N/A', cantidad:parseFloat(document.getElementById('inv-cantidad').value)||0, finca:document.getElementById('inv-finca').value, variedad:document.getElementById('inv-variedad').value, proceso:document.getElementById('inv-proceso').value, fechaTostado:document.getElementById('inv-fecha-tostado').value, fecha:serverTimestamp() });
+        alert("Inventario actualizado."); cargarDatosIniciales();
+    };
 
-        window.toggleVentaPresentacion = () => {
-            document.getElementById('venta-presentacion-group').style.display = 
-                (document.getElementById('venta-tipo').value === 'Tostado') ? 'flex' : 'none';
-        };
-
-        window.toggleInvFields = () => {
-            const isTostado = document.getElementById('inv-estado').value === 'Tostado';
-            document.getElementById('inv-presentacion-group').style.display = isTostado ? 'flex' : 'none';
-            document.getElementById('field-tostado').style.display = isTostado ? 'flex' : 'none';
-        };
-
-        window.calcularPrecioSugerido = () => {
-            const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
-            const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
-            const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
-            const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
-            const costoTotal = verde + tostado + empaque;
-            let precioSugerido = 0, gananciaNeta = 0;
-            if (margenPorc >= 100) {
-                document.getElementById('precio-sugerido').innerText = '∞ (margen ≥ 100%)';
-                document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
-                document.getElementById('ganancia-neta').innerText = 'N/A';
-                return;
-            }
-            if (margenPorc > 0) {
-                precioSugerido = costoTotal / (1 - (margenPorc / 100));
-                gananciaNeta = precioSugerido - costoTotal;
-            } else {
-                precioSugerido = costoTotal;
-            }
-            document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
-            document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
-            document.getElementById('ganancia-neta').innerText = 'Q ' + gananciaNeta.toFixed(2);
-        };
-
-        window.guardarCosto = async () => {
-            const lote = document.getElementById('costo-lote').value.trim();
-            if (!lote) return alert("Por favor ingresa un nombre para el lote");
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Guardando...";
-            try {
-                const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
-                const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
-                const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
-                const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
-                const costoTotal = verde + tostado + empaque;
-                const precioSugerido = margenPorc < 100 ? costoTotal / (1 - (margenPorc / 100)) : 0;
-                await addDoc(collection(db, "costosTostado"), {
-                    lote, 
-                    variedad: document.getElementById('costo-variedad').value,
-                    proceso: document.getElementById('costo-proceso').value,
-                    fechaTostado: document.getElementById('costo-fecha-tostado').value,
-                    costoVerde: verde, costoTostado: tostado, costoEmpaque: empaque,
-                    costoTotal, margenPorc, precioSugerido,
-                    gananciaNeta: precioSugerido - costoTotal,
-                    fechaRegistro: serverTimestamp()
-                });
-                alert("✅ Costo del lote guardado correctamente");
-                cargarDatosIniciales();
-                document.getElementById('costo-lote').value = '';
-                document.getElementById('costo-verde').value = '';
-                document.getElementById('costo-tostado').value = '';
-                document.getElementById('costo-empaque').value = '';
-                document.getElementById('costo-fecha-tostado').value = '';
-                calcularPrecioSugerido();
-            } catch (error) {
-                alert("Error al guardar: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "💾 Guardar Costo de este Lote";
-            }
-        };
-
-        window.verCostoDetalle = async (docId) => {
-            try {
-                const docSnap = await getDoc(doc(db, "costosTostado", docId));
-                if (!docSnap.exists()) return alert("No se encontró el registro");
-                const c = docSnap.data();
-                document.getElementById('modal-costo-titulo').innerText = `Lote: ${c.lote || 'Sin nombre'}`;
-                document.getElementById('modal-costo-contenido').innerHTML = `
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📋 Información del Lote</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Nombre del Lote</div><div class="value">${c.lote || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Fecha de Tostado</div><div class="value">${c.fechaTostado || 'N/A'}</div></div>
-                    </div>
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">💰 Desglose de Costos (por Libra)</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Costo Café Verde</div><div class="value">Q ${(c.costoVerde||0).toFixed(2)}</div></div>
-                        <div class="detail-item"><div class="label">Costo Tostado</div><div class="value">Q ${(c.costoTostado||0).toFixed(2)}</div></div>
-                        <div class="detail-item"><div class="label">Costo Empaque</div><div class="value">Q ${(c.costoEmpaque||0).toFixed(2)}</div></div>
-                        <div class="detail-item highlight"><div class="label">Costo Total</div><div class="value">Q ${(c.costoTotal||0).toFixed(2)}</div></div>
-                    </div>
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📊 Precio de Venta</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Margen de Ganancia</div><div class="value">${c.margenPorc}%</div></div>
-                        <div class="detail-item highlight"><div class="label">Precio Sugerido</div><div class="value">Q ${(c.precioSugerido||0).toFixed(2)}</div></div>
-                        <div class="detail-item"><div class="label">Ganancia Neta/Libra</div><div class="value">Q ${(c.gananciaNeta||0).toFixed(2)}</div></div>
-                    </div>
-                `;
-                document.getElementById('modal-ver-costo').style.display = 'flex';
-            } catch (error) {
-                alert("Error al cargar el detalle: " + error.message);
-            }
-        };
-
-        window.actualizarCMarket = () => {
-            const centsLibra = parseFloat(document.getElementById('cmarket-input').value) || 0;
-            const usdLibra = centsLibra / 100;
-            document.getElementById('cmarket-price').innerText = centsLibra.toFixed(2) + ' ¢/lb';
-            document.getElementById('cmarket-usdlb').innerText = 'US$ ' + usdLibra.toFixed(2);
-            document.getElementById('cmarket-usdkg').innerText = 'US$ ' + (usdLibra / 0.453592).toFixed(2);
-            calcularCotizador();
-        };
-
-        window.calcularCotizador = () => {
-            const tipoCambio = parseFloat(document.getElementById('tipo-cambio').value) || 7.80;
-            const estado = document.getElementById('cot-estado').value;
-            const rendimiento = parseFloat(document.getElementById('cot-rendimiento').value) || 81;
-            const precioQLb = parseFloat(document.getElementById('cot-precio-qlb').value) || 0;
-            const pais = document.getElementById('cot-pais').value;
-            const cantidadKg = parseFloat(document.getElementById('cot-cantidad-kg').value) || 0;
-            const seguroPorc = parseFloat(document.getElementById('cot-seguro').value) || 0.3;
-            let precioOroQLb = precioQLb;
-            if (estado === 'pergamino' && rendimiento > 0) precioOroQLb = precioQLb * (100 / rendimiento);
-            const precioQKg = precioOroQLb / 0.453592;
-            const precioUSDLibra = precioOroQLb / tipoCambio;
-            const precioUSDKg = precioUSDLibra / 0.453592;
-            document.getElementById('conv-qlb').innerText = 'Q ' + precioOroQLb.toFixed(2);
-            document.getElementById('conv-qkg').innerText = 'Q ' + precioQKg.toFixed(2);
-            document.getElementById('conv-usdlb').innerText = 'US$ ' + precioUSDLibra.toFixed(2);
-            document.getElementById('conv-usdkg').innerText = 'US$ ' + precioUSDKg.toFixed(2);
-            const cmarketUSDLibra = (parseFloat(document.getElementById('cmarket-input').value) || 385) / 100;
-            const diferencial = precioUSDLibra - cmarketUSDLibra;
-            document.getElementById('cot-diferencial-box').innerHTML = diferencial >= 0 
-                ? `<strong>📈 Diferencial vs C-Market:</strong> <span style="color:#2C5E2E; font-weight:bold;">+US$ ${diferencial.toFixed(2)}/lb</span>`
-                : `<strong>📉 Diferencial vs C-Market:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${diferencial.toFixed(2)}/lb</span>`;
-            const fobTotalUSD = precioUSDKg * cantidadKg;
-            const fleteTotalUSD = (FLETES_POR_TONELADA[pais] || 120) * (cantidadKg / 1000);
-            const seguroTotalUSD = fobTotalUSD * (seguroPorc / 100);
-            const cifTotalUSD = fobTotalUSD + fleteTotalUSD + seguroTotalUSD;
-            const cifUSDKg = cantidadKg > 0 ? cifTotalUSD / cantidadKg : 0;
-            document.getElementById('fob-usdlb').innerText = 'US$ ' + precioUSDLibra.toFixed(2);
-            document.getElementById('fob-usdkg').innerText = 'US$ ' + precioUSDKg.toFixed(2);
-            document.getElementById('cif-usdlb').innerText = 'US$ ' + (cifUSDKg * 0.453592).toFixed(2);
-            document.getElementById('cif-usdkg').innerText = 'US$ ' + cifUSDKg.toFixed(2);
-            document.getElementById('cif-total').innerText = 'US$ ' + cifTotalUSD.toFixed(2);
-            document.getElementById('flete-total').innerText = 'US$ ' + fleteTotalUSD.toFixed(2);
-            document.getElementById('seguro-total').innerText = 'US$ ' + seguroTotalUSD.toFixed(2);
-        };
-
-        window.calcularMuestreo = () => {
-            const pesoPerg = parseFloat(document.getElementById('m-peso-perg').value) || 0;
-            const pesoOro = parseFloat(document.getElementById('m-peso-oro').value) || 0;
-            const z18 = parseFloat(document.getElementById('m-z18').value) || 0;
-            const z16 = parseFloat(document.getElementById('m-z16').value) || 0;
-            const z15 = parseFloat(document.getElementById('m-z15').value) || 0;
-            const z14 = parseFloat(document.getElementById('m-z14').value) || 0;
-            const residuo = parseFloat(document.getElementById('m-residuo').value) || 0;
-            const total = z18 + z16 + z15 + z14 + residuo;
-            document.getElementById('m-total').value = total.toFixed(2);
-            document.getElementById('m-rendimiento').value = (pesoPerg > 0 ? (pesoOro / pesoPerg) * 100 : 0).toFixed(2) + '%';
-            const calcPct = (val) => total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
-            document.getElementById('m-pct-z18').value = calcPct(z18);
-            document.getElementById('m-pct-z16').value = calcPct(z16);
-            document.getElementById('m-pct-z15').value = calcPct(z15);
-            document.getElementById('m-pct-z14').value = calcPct(z14);
-            document.getElementById('m-pct-residuo').value = calcPct(residuo);
-        };
-
-        window.guardarInventario = async () => {
-            const estado = document.getElementById('inv-estado').value;
-            await addDoc(collection(db, "inventario"), {
-                estado, presentacion: estado === 'Tostado' ? document.getElementById('inv-presentacion').value : 'N/A',
-                cantidad: parseFloat(document.getElementById('inv-cantidad').value) || 0,
-                finca: document.getElementById('inv-finca').value,
-                variedad: document.getElementById('inv-variedad').value,
-                proceso: document.getElementById('inv-proceso').value,
-                fechaTostado: document.getElementById('inv-fecha-tostado').value,
-                fecha: serverTimestamp()
-            });
-            alert("Inventario actualizado");
-            cargarDatosIniciales();
-        };
-
-        window.guardarVenta = async () => {
-            const tipo = document.getElementById('venta-tipo').value;
-            const presentacion = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
-            const cantidad = parseFloat(document.getElementById('venta-cantidad').value) || 0;
-            const precio = parseFloat(document.getElementById('venta-precio').value) || 0;
-            if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0");
-            await addDoc(collection(db, "ventas"), { 
-                tipo, presentacion, cantidad, precio, 
-                pago: document.getElementById('venta-pago').value, 
-                notas: document.getElementById('venta-notas').value, 
-                fecha: serverTimestamp() 
-            });
-            let cantidadPendiente = cantidad;
-            const snapshotInv = await getDocs(query(collection(db, "inventario"), where("estado", "==", tipo)));
-            for (const docInv of snapshotInv.docs) {
-                if (cantidadPendiente <= 0) break;
-                const invData = docInv.data();
-                if (tipo === 'Tostado' && invData.presentacion !== presentacion) continue;
-                if (invData.cantidad >= cantidadPendiente) {
-                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: invData.cantidad - cantidadPendiente });
-                    cantidadPendiente = 0;
-                } else {
-                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
-                    cantidadPendiente -= invData.cantidad;
-                }
-            }
-            alert(cantidadPendiente > 0 ? `Venta registrada, pero faltan ${cantidadPendiente.toFixed(2)} libras.` : "Venta registrada.");
-            cargarDatosIniciales();
-            document.getElementById('venta-cantidad').value = '';
-            document.getElementById('venta-precio').value = '';
-            document.getElementById('venta-notas').value = '';
-        };
-
-        window.guardarMuestreo = async () => {
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Guardando...";
-            try {
-                await addDoc(collection(db, "muestreos"), {
-                    nombre: document.getElementById('m-nombre').value,
-                    fecha: document.getElementById('m-fecha').value,
-                    finca: document.getElementById('m-finca').value,
-                    altitud: document.getElementById('m-altitud').value,
-                    variedad: document.getElementById('m-variedad').value,
-                    proceso: document.getElementById('m-proceso').value,
-                    lote: document.getElementById('m-lote').value,
-                    muestraNum: document.getElementById('m-muestra').value,
-                    pesoPerg: document.getElementById('m-peso-perg').value,
-                    pesoOro: document.getElementById('m-peso-oro').value,
-                    humedad: document.getElementById('m-humedad').value,
-                    densidad: document.getElementById('m-densidad').value,
-                    atw: document.getElementById('m-atw').value,
-                    muestraZaranda: document.getElementById('m-muestra-zaranda').value,
-                    z18: document.getElementById('m-z18').value,
-                    z16: document.getElementById('m-z16').value,
-                    z15: document.getElementById('m-z15').value,
-                    z14: document.getElementById('m-z14').value,
-                    residuo: document.getElementById('m-residuo').value,
-                    total: document.getElementById('m-total').value,
-                    pctZ18: document.getElementById('m-pct-z18').value,
-                    pctZ16: document.getElementById('m-pct-z16').value,
-                    pctZ15: document.getElementById('m-pct-z15').value,
-                    pctZ14: document.getElementById('m-pct-z14').value,
-                    pctResiduo: document.getElementById('m-pct-residuo').value,
-                    rendimiento: document.getElementById('m-rendimiento').value,
-                    defectos: document.getElementById('m-defectos').value,
-                    observaciones: document.getElementById('m-observaciones').value,
-                    fechaRegistro: serverTimestamp()
-                });
-                alert("✅ Ficha guardada.");
-                cargarDatosIniciales();
-                document.querySelectorAll('#muestreo input:not([readonly]), #muestreo textarea').forEach(el => {
-                    if (!['m-finca','m-altitud','m-variedad','m-proceso'].includes(el.id)) el.value = '';
-                });
-                document.getElementById('m-total').value = '';
-                document.getElementById('m-rendimiento').value = '';
-                ['m-pct-z18','m-pct-z16','m-pct-z15','m-pct-z14','m-pct-residuo'].forEach(id => document.getElementById(id).value = '');
-            } catch (error) {
-                alert("Error: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "💾 Guardar Ficha de Muestreo";
-            }
-        };
-
-        window.verMuestraCompleta = async (docId) => {
-            try {
-                const docSnap = await getDoc(doc(db, "muestreos", docId));
-                if (!docSnap.exists()) return alert("No se encontró la ficha");
-                const m = docSnap.data();
-                muestraActualEnModal = { id: docId, ...m };
-                document.getElementById('modal-titulo').innerText = `Ficha: ${m.nombre || 'Sin nombre'} - Lote ${m.lote || 'N/A'}`;
-                document.getElementById('modal-contenido').innerHTML = `
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📋 Datos Generales</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Nombre</div><div class="value">${m.nombre || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Fecha</div><div class="value">${m.fecha || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Finca</div><div class="value">${m.finca || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Altitud</div><div class="value">${m.altitud || 'N/A'} msnm</div></div>
-                        <div class="detail-item"><div class="label">Variedad</div><div class="value">${m.variedad || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Proceso</div><div class="value">${m.proceso || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Lote</div><div class="value">${m.lote || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Muestra #</div><div class="value">${m.muestraNum || 'N/A'}</div></div>
-                    </div>
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">⚖️ Pesos y Mediciones</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Peso Inicial (Pergamino)</div><div class="value">${m.pesoPerg || '0'} g</div></div>
-                        <div class="detail-item"><div class="label">Peso Final (Oro)</div><div class="value">${m.pesoOro || '0'} g</div></div>
-                        <div class="detail-item"><div class="label">Humedad</div><div class="value">${m.humedad || '0'} %</div></div>
-                        <div class="detail-item"><div class="label">Densidad</div><div class="value">${m.densidad || '0'} g/ml</div></div>
-                        <div class="detail-item"><div class="label">ATW (1000 granos)</div><div class="value">${m.atw || 'N/A'} g</div></div>
-                    </div>
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📊 Análisis por Zarandas</h4>
-                    <table class="zarandas-table">
-                        <thead><tr><th>Zaranda</th><th>Gramos</th><th>Porcentaje</th></tr></thead>
-                        <tbody>
-                            <tr><td>Z 18</td><td>${m.z18 || '0'} g</td><td>${m.pctZ18 || '0%'}</td></tr>
-                            <tr><td>Z 16</td><td>${m.z16 || '0'} g</td><td>${m.pctZ16 || '0%'}</td></tr>
-                            <tr><td>Z 15</td><td>${m.z15 || '0'} g</td><td>${m.pctZ15 || '0%'}</td></tr>
-                            <tr><td>Z 14</td><td>${m.z14 || '0'} g</td><td>${m.pctZ14 || '0%'}</td></tr>
-                            <tr><td>Residuo</td><td>${m.residuo || '0'} g</td><td>${m.pctResiduo || '0%'}</td></tr>
-                            <tr style="font-weight:bold; background:#f0f0f0;"><td>Total</td><td>${m.total || '0'} g</td><td>100%</td></tr>
-                        </tbody>
-                    </table>
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">🏆 Resultados</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item highlight"><div class="label">Rendimiento</div><div class="value">${m.rendimiento || '0%'}</div></div>
-                        <div class="detail-item"><div class="label">Defectos</div><div class="value">${m.defectos || 'N/A'} / 300g</div></div>
-                    </div>
-                    ${m.observaciones ? `<h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📝 Observaciones</h4><div class="detail-item"><div class="value">${m.observaciones}</div></div>` : ''}
-                `;
-                document.getElementById('modal-ver-muestra').style.display = 'flex';
-            } catch (error) {
-                alert("Error: " + error.message);
-            }
-        };
-
-        window.cerrarModalVer = () => {
-            document.getElementById('modal-ver-muestra').style.display = 'none';
-            muestraActualEnModal = null;
-        };
-
-        window.generarPDFDesdeModal = async () => {
-            if (!muestraActualEnModal) return alert("No hay datos");
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Generando PDF...";
-            try {
-                const m = muestraActualEnModal;
-                const { jsPDF } = window.jspdf;
-                const docPdf = new jsPDF();
-                docPdf.setFillColor(44, 94, 46);
-                docPdf.rect(0, 0, 210, 35, 'F');
-                docPdf.setTextColor(255, 255, 255);
-                docPdf.setFontSize(20);
-                docPdf.text("Finca Los Robles", 105, 15, null, null, "center");
-                docPdf.setFontSize(14);
-                docPdf.text("FICHA DE MUESTREO - CAFÉ ORO", 105, 27, null, null, "center");
-                docPdf.setTextColor(0, 0, 0);
-                docPdf.setFontSize(11);
-                let y = 45;
-                const addLine = (label, value) => {
-                    docPdf.setFont("helvetica", "bold");
-                    docPdf.text(label, 15, y);
-                    docPdf.setFont("helvetica", "normal");
-                    docPdf.text(String(value || "N/A"), 75, y);
-                    y += 7;
-                };
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("DATOS GENERALES", 15, y);
-                docPdf.setTextColor(0, 0, 0);
-                y += 5;
-                addLine("Nombre:", m.nombre);
-                addLine("Fecha:", m.fecha);
-                addLine("Finca:", m.finca);
-                addLine("Altitud:", (m.altitud || "N/A") + " msnm");
-                addLine("Variedad:", m.variedad);
-                addLine("Proceso:", m.proceso);
-                addLine("Lote:", m.lote);
-                addLine("Muestra #:", m.muestraNum);
-                y += 3;
-                docPdf.setDrawColor(212, 175, 55);
-                docPdf.line(15, y, 195, y);
-                y += 8;
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("PESOS Y MEDICIONES", 15, y);
-                docPdf.setTextColor(0, 0, 0);
-                y += 5;
-                addLine("Peso Inicial:", (m.pesoPerg || "0") + " g");
-                addLine("Peso Final:", (m.pesoOro || "0") + " g");
-                addLine("Humedad:", (m.humedad || "0") + " %");
-                addLine("Densidad:", (m.densidad || "0") + " g/ml");
-                addLine("ATW:", (m.atw || "N/A") + " g");
-                y += 3;
-                docPdf.line(15, y, 195, y);
-                y += 8;
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("ANÁLISIS POR ZARANDAS", 15, y);
-                docPdf.setTextColor(0, 0, 0);
-                y += 5;
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setFillColor(44, 94, 46);
-                docPdf.rect(15, y - 4, 180, 7, 'F');
-                docPdf.setTextColor(255, 255, 255);
-                docPdf.text("Zaranda", 20, y);
-                docPdf.text("Gramos", 90, y);
-                docPdf.text("Porcentaje", 150, y);
-                y += 7;
-                docPdf.setTextColor(0, 0, 0);
-                docPdf.setFont("helvetica", "normal");
-                [["Z 18", m.z18, m.pctZ18], ["Z 16", m.z16, m.pctZ16], 
-                 ["Z 15", m.z15, m.pctZ15], ["Z 14", m.z14, m.pctZ14],
-                 ["Residuo", m.residuo, m.pctResiduo], ["TOTAL", m.total, "100%"]
-                ].forEach(([z, g, p], i) => {
-                    if (i === 5) docPdf.setFont("helvetica", "bold");
-                    docPdf.text(z, 20, y);
-                    docPdf.text((g || "0") + " g", 90, y);
-                    docPdf.text(p || "0%", 150, y);
-                    y += 6;
-                    docPdf.setFont("helvetica", "normal");
-                });
-                y += 5;
-                docPdf.line(15, y, 195, y);
-                y += 8;
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("RESULTADOS", 15, y);
-                y += 5;
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setFontSize(14);
-                docPdf.setTextColor(44, 94, 46);
-                docPdf.text("Rendimiento: " + (m.rendimiento || "0%"), 15, y + 5);
-                docPdf.setFontSize(11);
-                docPdf.setTextColor(0, 0, 0);
-                docPdf.text("Defectos: " + (m.defectos || "N/A") + " / 300g", 15, y + 15);
-                if (m.observaciones) {
-                    y += 25;
-                    docPdf.setFont("helvetica", "bold");
-                    docPdf.text("Observaciones:", 15, y);
-                    docPdf.setFont("helvetica", "normal");
-                    docPdf.text(docPdf.splitTextToSize(m.observaciones, 140), 15, y + 6);
-                }
-                docPdf.setFontSize(8);
-                docPdf.setTextColor(100, 100, 100);
-                docPdf.text(`Generado: ${new Date().toLocaleString('es-GT')}`, 105, 290, null, null, "center");
-                docPdf.text("Finca Los Robles - Café de Especialidad", 105, 295, null, null, "center");
-                docPdf.save(`Ficha_${m.lote || 'SinLote'}_${m.fecha || Date.now()}.pdf`);
-                alert("✅ PDF descargado.");
-            } catch (error) {
-                alert("Error: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "📄 Descargar PDF";
-            }
-        };
-
-        async function cargarDatosIniciales() {
-            try {
-                const snapVentas = await getDocs(query(collection(db, "ventas"), orderBy("fecha", "desc")));
-                const tbodyVentas = document.querySelector('#tabla-ventas tbody'); tbodyVentas.innerHTML = '';
-                let totalLibras = 0;
-                snapVentas.forEach(doc => {
-                    const v = doc.data(); totalLibras += v.cantidad;
-                    const fecha = v.fecha ? new Date(v.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
-                    tbodyVentas.innerHTML += `<tr><td>${fecha}</td><td>${v.tipo}</td><td>${v.presentacion !== 'N/A' ? v.presentacion : '-'}</td><td>${v.cantidad}</td><td>Q${(v.cantidad * v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
-                });
-                document.getElementById('dash-ventas').innerText = totalLibras.toFixed(1) + " libras";
-
-                const snapInv = await getDocs(collection(db, "inventario"));
-                const tbodyInv = document.querySelector('#tabla-inventario tbody'); tbodyInv.innerHTML = '';
-                let oro = 0, tostado = 0, pergamino = 0;
-                snapInv.forEach(doc => {
-                    const d = doc.data();
-                    if (d.estado === 'Oro') oro += d.cantidad;
-                    if (d.estado === 'Tostado') tostado += d.cantidad;
-                    if (d.estado === 'Pergamino') pergamino += d.cantidad;
-                    const fecha = d.fecha ? new Date(d.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
-                    tbodyInv.innerHTML += `<tr><td>${fecha}</td><td>${d.estado}</td><td>${d.presentacion !== 'N/A' ? d.presentacion : '-'}</td><td>${d.variedad}</td><td>${d.cantidad.toFixed(1)}</td></tr>`;
-                });
-                document.getElementById('dash-oro').innerText = oro.toFixed(1) + " libras";
-                document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
-                document.getElementById('dash-pergamino').innerText = pergamino.toFixed(1) + " libras";
-
-                const snapCostos = await getDocs(query(collection(db, "costosTostado"), orderBy("fechaRegistro", "desc")));
-                const tbodyCostos = document.querySelector('#tabla-costos tbody'); tbodyCostos.innerHTML = '';
-                snapCostos.forEach(docSnap => {
-                    const c = docSnap.data();
-                    const fecha = c.fechaTostado || (c.fechaRegistro ? new Date(c.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
-                    tbodyCostos.innerHTML += `
-                        <tr>
-                            <td>${fecha}</td>
-                            <td>${c.lote || 'N/A'}</td>
-                            <td>${c.variedad || 'N/A'}</td>
-                            <td>${c.proceso || 'N/A'}</td>
-                            <td>Q${(c.costoTotal||0).toFixed(2)}</td>
-                            <td>Q${(c.precioSugerido||0).toFixed(2)}</td>
-                            <td style="white-space: nowrap;">
-                                <button class="btn btn-small btn-view" onclick="verCostoDetalle('${docSnap.id}')">👁️ Ver</button>
-                            </td>
-                        </tr>`;
-                });
-
-                const snapMuestras = await getDocs(query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc")));
-                const tbodyMuestras = document.querySelector('#tabla-muestreos tbody'); tbodyMuestras.innerHTML = '';
-                snapMuestras.forEach(docSnap => {
-                    const m = docSnap.data();
-                    const fecha = m.fecha || (m.fechaRegistro ? new Date(m.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
-                    tbodyMuestras.innerHTML += `
-                        <tr>
-                            <td>${fecha}</td>
-                            <td>${m.nombre || 'N/A'}</td>
-                            <td>${m.lote || 'N/A'}</td>
-                            <td>${m.rendimiento || '0%'}</td>
-                            <td>${m.humedad || '0'}%</td>
-                            <td style="white-space: nowrap;">
-                                <button class="btn btn-small btn-view" onclick="verMuestraCompleta('${docSnap.id}')">👁️ Ver</button>
-                                <button class="btn btn-small btn-pdf" onclick="verMuestraCompleta('${docSnap.id}'); setTimeout(() => generarPDFDesdeModal(), 500);">📄 PDF</button>
-                            </td>
-                        </tr>`;
-                });
-            } catch (error) {
-                console.error("Error cargando datos:", error);
-            }
+    window.guardarVenta = async () => {
+        const tipo = document.getElementById('venta-tipo').value;
+        const pres = tipo==='Tostado'?document.getElementById('venta-presentacion').value:'N/A';
+        const cant = parseFloat(document.getElementById('venta-cantidad').value)||0;
+        const prec = parseFloat(document.getElementById('venta-precio').value)||0;
+        if (cant<=0) return alert("Cantidad debe ser mayor a 0.");
+        await addDoc(collection(db,"ventas"), { tipo, presentacion:pres, cantidad:cant, precio:prec, pago:document.getElementById('venta-pago').value, notas:document.getElementById('venta-notas').value, fecha:serverTimestamp() });
+        let pend = cant;
+        const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",tipo)));
+        for (const d of snap.docs) {
+            if (pend<=0) break;
+            const inv = d.data();
+            if (tipo==='Tostado' && inv.presentacion!==pres) continue;
+            if (inv.cantidad>=pend) { await updateDoc(doc(db,"inventario",d.id), {cantidad:inv.cantidad-pend}); pend=0; }
+            else { await updateDoc(doc(db,"inventario",d.id), {cantidad:0}); pend-=inv.cantidad; }
         }
+        alert(pend>0?`Venta registrada, faltan ${pend.toFixed(2)} lb en inventario.`:"Venta registrada e inventario descontado.");
+        cargarDatosIniciales();
+        document.getElementById('venta-cantidad').value=''; document.getElementById('venta-precio').value=''; document.getElementById('venta-notas').value='';
+    };
 
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW no registrado', err));
-        }
-    
-        // ===== CÁLCULO DE COSTOS (FÓRMULA CORREGIDA) =====
-        window.calcularPrecioSugerido = () => {
-            const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
-            const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
-            const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
-            const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
-            
-            const costoTotal = verde + tostado + empaque;
-            
-            let precioSugerido = 0;
-            let gananciaNeta = 0;
-            
-            if (margenPorc >= 100) {
-                document.getElementById('precio-sugerido').innerText = '∞ (margen ≥ 100%)';
-                document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
-                document.getElementById('ganancia-neta').innerText = 'N/A';
-                return;
-            }
-            
-            if (margenPorc > 0) {
-                precioSugerido = costoTotal / (1 - (margenPorc / 100));
-                gananciaNeta = precioSugerido - costoTotal;
-            } else {
-                precioSugerido = costoTotal;
-                gananciaNeta = 0;
-            }
-            
-            document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
-            document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
-            document.getElementById('ganancia-neta').innerText = 'Q ' + gananciaNeta.toFixed(2);
-        };
+    // ===== CARGAR DATOS =====
+    async function cargarDatosIniciales() {
+        try {
+            const sv = await getDocs(query(collection(db,"ventas"),orderBy("fecha","desc")));
+            const tv = document.querySelector('#tabla-ventas tbody'); tv.innerHTML=''; let tl=0;
+            sv.forEach(d => { const v=d.data(); tl+=v.cantidad; const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A'; tv.innerHTML+=`<tr><td>${f}</td><td>${v.tipo}</td><td>${v.presentacion!=='N/A'?v.presentacion:'-'}</td><td>${v.cantidad}</td><td>Q${(v.cantidad*v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`; });
+            document.getElementById('dash-ventas').innerText=tl.toFixed(1)+" libras";
 
-        // ===== GUARDAR COSTO DE LOTE =====
-        window.guardarCosto = async () => {
-            const lote = document.getElementById('costo-lote').value.trim();
-            if (!lote) return alert("Por favor ingresa un nombre para el lote");
+            const si = await getDocs(collection(db,"inventario"));
+            const ti = document.querySelector('#tabla-inventario tbody'); ti.innerHTML=''; let o=0,t=0,p=0;
+            si.forEach(d => { const v=d.data(); if(v.estado==='Oro')o+=v.cantidad; if(v.estado==='Tostado')t+=v.cantidad; if(v.estado==='Pergamino')p+=v.cantidad; const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A'; ti.innerHTML+=`<tr><td>${f}</td><td>${v.estado}</td><td>${v.presentacion!=='N/A'?v.presentacion:'-'}</td><td>${v.variedad}</td><td>${v.cantidad.toFixed(1)}</td></tr>`; });
+            document.getElementById('dash-oro').innerText=o.toFixed(1)+" lb"; document.getElementById('dash-tostado').innerText=t.toFixed(1)+" lb"; document.getElementById('dash-pergamino').innerText=p.toFixed(1)+" lb";
 
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Guardando...";
+            const sc = await getDocs(query(collection(db,"costosTostado"),orderBy("fechaRegistro","desc")));
+            const tc2 = document.querySelector('#tabla-costos tbody'); tc2.innerHTML='';
+            sc.forEach(d => { const c=d.data(); const f=c.fechaTostado||(c.fechaRegistro?new Date(c.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tc2.innerHTML+=`<tr><td>${f}</td><td>${c.lote}</td><td>${c.variedad}</td><td>${c.proceso}</td><td>Q${(c.costoTotal||0).toFixed(2)}</td><td>Q${(c.precioSugerido||0).toFixed(2)}</td><td><button class="btn btn-small btn-view" onclick="verCostoDetalle('${d.id}')">👁️ Ver</button></td></tr>`; });
 
-            try {
-                const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
-                const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
-                const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
-                const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
-                const costoTotal = verde + tostado + empaque;
-                const precioSugerido = margenPorc < 100 ? costoTotal / (1 - (margenPorc / 100)) : 0;
+            const sm = await getDocs(query(collection(db,"muestreos"),orderBy("fechaRegistro","desc")));
+            const tm = document.querySelector('#tabla-muestreos tbody'); tm.innerHTML='';
+            sm.forEach(d => { const m=d.data(); const f=m.fecha||(m.fechaRegistro?new Date(m.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tm.innerHTML+=`<tr><td>${f}</td><td>${m.nombre||'N/A'}</td><td>${m.lote||'N/A'}</td><td>${m.rendimiento||'0%'}</td><td>${m.humedad||'0'}%</td><td style="white-space:nowrap;"><button class="btn btn-small btn-view" onclick="verMuestraCompleta('${d.id}')">👁️ Ver</button><button class="btn btn-small btn-pdf" onclick="verMuestraCompleta('${d.id}'); setTimeout(()=>generarPDFDesdeModal(),600);">📄 PDF</button></td></tr>`; });
+        } catch(e) { console.error("Error cargando datos:", e); }
+    }
 
-                const datosCosto = {
-                    lote: lote,
-                    variedad: document.getElementById('costo-variedad').value,
-                    proceso: document.getElementById('costo-proceso').value,
-                    fechaTostado: document.getElementById('costo-fecha-tostado').value,
-                    costoVerde: verde,
-                    costoTostado: tostado,
-                    costoEmpaque: empaque,
-                    costoTotal: costoTotal,
-                    margenPorc: margenPorc,
-                    precioSugerido: precioSugerido,
-                    gananciaNeta: precioSugerido - costoTotal,
-                    fechaRegistro: serverTimestamp()
-                };
-
-                await addDoc(collection(db, "costosTostado"), datosCosto);
-                alert("✅ Costo del lote guardado correctamente");
-                cargarDatosIniciales();
-
-                // Limpiar formulario
-                document.getElementById('costo-lote').value = '';
-                document.getElementById('costo-verde').value = '';
-                document.getElementById('costo-tostado').value = '';
-                document.getElementById('costo-empaque').value = '';
-                document.getElementById('costo-fecha-tostado').value = '';
-                calcularPrecioSugerido();
-
-            } catch (error) {
-                console.error(error);
-                alert("Error al guardar: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "💾 Guardar Costo de este Lote";
-            }
-        };
-
-        // ===== VER COSTO DETALLADO =====
-        window.verCostoDetalle = async (docId) => {
-            try {
-                const docRef = doc(db, "costosTostado", docId);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) { alert("No se encontró el registro"); return; }
-                
-                const c = docSnap.data();
-                document.getElementById('modal-costo-titulo').innerText = `Lote: ${c.lote || 'Sin nombre'}`;
-                
-                const contenido = document.getElementById('modal-costo-contenido');
-                contenido.innerHTML = `
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📋 Información del Lote</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Nombre del Lote</div><div class="value">${c.lote || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Fecha de Tostado</div><div class="value">${c.fechaTostado || 'N/A'}</div></div>
-                    </div>
-                    
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">💰 Desglose de Costos (por Libra)</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Costo Café Verde</div><div class="value">Q ${c.costoVerde.toFixed(2)}</div></div>
-                        <div class="detail-item"><div class="label">Costo Tostado</div><div class="value">Q ${c.costoTostado.toFixed(2)}</div></div>
-                        <div class="detail-item"><div class="label">Costo Empaque</div><div class="value">Q ${c.costoEmpaque.toFixed(2)}</div></div>
-                        <div class="detail-item highlight"><div class="label">Costo Total</div><div class="value">Q ${c.costoTotal.toFixed(2)}</div></div>
-                    </div>
-                    
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📊 Precio de Venta</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Margen de Ganancia</div><div class="value">${c.margenPorc}%</div></div>
-                        <div class="detail-item highlight"><div class="label">Precio Sugerido</div><div class="value">Q ${c.precioSugerido.toFixed(2)}</div></div>
-                        <div class="detail-item"><div class="label">Ganancia Neta/Libra</div><div class="value">Q ${c.gananciaNeta.toFixed(2)}</div></div>
-                    </div>
-                `;
-                
-                document.getElementById('modal-ver-costo').style.display = 'flex';
-            } catch (error) {
-                alert("Error al cargar el detalle: " + error.message);
-            }
-        };
-
-        // ===== C-MARKET (BOLSA DE NY) =====
-        window.actualizarCMarket = () => {
-            const centsLibra = parseFloat(document.getElementById('cmarket-input').value) || 0;
-            const usdLibra = centsLibra / 100;
-            const usdKg = usdLibra / 0.453592;
-            
-            document.getElementById('cmarket-price').innerText = centsLibra.toFixed(2) + ' ¢/lb';
-            document.getElementById('cmarket-usdlb').innerText = 'US$ ' + usdLibra.toFixed(2);
-            document.getElementById('cmarket-usdkg').innerText = 'US$ ' + usdKg.toFixed(2);
-            
-            calcularCotizador();
-        };
-
-        // ===== COTIZADOR DE CAFÉ VERDE =====
-        window.calcularCotizador = () => {
-            const tipoCambio = parseFloat(document.getElementById('tipo-cambio').value) || 7.80;
-            const estado = document.getElementById('cot-estado').value;
-            const rendimiento = parseFloat(document.getElementById('cot-rendimiento').value) || 81;
-            const precioQLb = parseFloat(document.getElementById('cot-precio-qlb').value) || 0;
-            const pais = document.getElementById('cot-pais').value;
-            const cantidadKg = parseFloat(document.getElementById('cot-cantidad-kg').value) || 0;
-            const seguroPorc = parseFloat(document.getElementById('cot-seguro').value) || 0.3;
-            
-            let precioOroQLb = precioQLb;
-            if (estado === 'pergamino' && rendimiento > 0) {
-                precioOroQLb = precioQLb * (100 / rendimiento);
-            }
-            
-            const precioQKg = precioOroQLb / 0.453592;
-            const precioUSDLibra = precioOroQLb / tipoCambio;
-            const precioUSDKg = precioUSDLibra / 0.453592;
-            
-            document.getElementById('conv-qlb').innerText = 'Q ' + precioOroQLb.toFixed(2);
-            document.getElementById('conv-qkg').innerText = 'Q ' + precioQKg.toFixed(2);
-            document.getElementById('conv-usdlb').innerText = 'US$ ' + precioUSDLibra.toFixed(2);
-            document.getElementById('conv-usdkg').innerText = 'US$ ' + precioUSDKg.toFixed(2);
-            
-            const cmarketCents = parseFloat(document.getElementById('cmarket-input').value) || 385;
-            const cmarketUSDLibra = cmarketCents / 100;
-            const diferencial = precioUSDLibra - cmarketUSDLibra;
-            const diferencialBox = document.getElementById('cot-diferencial-box');
-            
-            if (diferencial >= 0) {
-                diferencialBox.innerHTML = `<strong>📈 Diferencial vs C-Market:</strong> <span style="color:#2C5E2E; font-weight:bold;">+US$ ${diferencial.toFixed(2)}/lb</span> (tu café cotiza por encima del mercado)`;
-            } else {
-                diferencialBox.innerHTML = `<strong>📉 Diferencial vs C-Market:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${diferencial.toFixed(2)}/lb</span> (tu café cotiza por debajo del mercado)`;
-            }
-            
-            const fobUSDLibra = precioUSDLibra;
-            const fobUSDKg = precioUSDKg;
-            const fobTotalUSD = fobUSDKg * cantidadKg;
-            
-            const fletePorTonelada = FLETES_POR_TONELADA[pais] || 120;
-            const toneladas = cantidadKg / 1000;
-            const fleteTotalUSD = fletePorTonelada * toneladas;
-            
-            const seguroTotalUSD = fobTotalUSD * (seguroPorc / 100);
-            
-            const cifTotalUSD = fobTotalUSD + fleteTotalUSD + seguroTotalUSD;
-            const cifUSDKg = cantidadKg > 0 ? cifTotalUSD / cantidadKg : 0;
-            const cifUSDLibra = cifUSDKg * 0.453592;
-            
-            document.getElementById('fob-usdlb').innerText = 'US$ ' + fobUSDLibra.toFixed(2);
-            document.getElementById('fob-usdkg').innerText = 'US$ ' + fobUSDKg.toFixed(2);
-            document.getElementById('cif-usdlb').innerText = 'US$ ' + cifUSDLibra.toFixed(2);
-            document.getElementById('cif-usdkg').innerText = 'US$ ' + cifUSDKg.toFixed(2);
-            document.getElementById('cif-total').innerText = 'US$ ' + cifTotalUSD.toFixed(2);
-            document.getElementById('flete-total').innerText = 'US$ ' + fleteTotalUSD.toFixed(2);
-            document.getElementById('seguro-total').innerText = 'US$ ' + seguroTotalUSD.toFixed(2);
-        };
-
-        window.calcularMuestreo = () => {
-            const pesoPerg = parseFloat(document.getElementById('m-peso-perg').value) || 0;
-            const pesoOro = parseFloat(document.getElementById('m-peso-oro').value) || 0;
-            const z18 = parseFloat(document.getElementById('m-z18').value) || 0;
-            const z16 = parseFloat(document.getElementById('m-z16').value) || 0;
-            const z15 = parseFloat(document.getElementById('m-z15').value) || 0;
-            const z14 = parseFloat(document.getElementById('m-z14').value) || 0;
-            const residuo = parseFloat(document.getElementById('m-residuo').value) || 0;
-            const total = z18 + z16 + z15 + z14 + residuo;
-            document.getElementById('m-total').value = total.toFixed(2);
-            const rendimiento = pesoPerg > 0 ? (pesoOro / pesoPerg) * 100 : 0;
-            document.getElementById('m-rendimiento').value = rendimiento.toFixed(2) + '%';
-            const calcPct = (val) => total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
-            document.getElementById('m-pct-z18').value = calcPct(z18);
-            document.getElementById('m-pct-z16').value = calcPct(z16);
-            document.getElementById('m-pct-z15').value = calcPct(z15);
-            document.getElementById('m-pct-z14').value = calcPct(z14);
-            document.getElementById('m-pct-residuo').value = calcPct(residuo);
-        };
-
-        window.guardarInventario = async () => {
-            const estado = document.getElementById('inv-estado').value;
-            await addDoc(collection(db, "inventario"), {
-                estado: estado,
-                presentacion: estado === 'Tostado' ? document.getElementById('inv-presentacion').value : 'N/A',
-                cantidad: parseFloat(document.getElementById('inv-cantidad').value) || 0,
-                finca: document.getElementById('inv-finca').value,
-                variedad: document.getElementById('inv-variedad').value,
-                proceso: document.getElementById('inv-proceso').value,
-                fechaTostado: document.getElementById('inv-fecha-tostado').value,
-                fecha: serverTimestamp()
-            });
-            alert("Inventario actualizado");
-            cargarDatosIniciales();
-        };
-
-        window.guardarVenta = async () => {
-            const tipo = document.getElementById('venta-tipo').value;
-            const presentacion = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
-            const cantidad = parseFloat(document.getElementById('venta-cantidad').value) || 0;
-            const precio = parseFloat(document.getElementById('venta-precio').value) || 0;
-            if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0");
-            
-            await addDoc(collection(db, "ventas"), { tipo, presentacion, cantidad, precio, pago: document.getElementById('venta-pago').value, notas: document.getElementById('venta-notas').value, fecha: serverTimestamp() });
-            
-            let cantidadPendiente = cantidad;
-            const snapshotInv = await getDocs(query(collection(db, "inventario"), where("estado", "==", tipo)));
-            for (const docInv of snapshotInv.docs) {
-                if (cantidadPendiente <= 0) break;
-                const invData = docInv.data();
-                if (tipo === 'Tostado' && invData.presentacion !== presentacion) continue;
-                if (invData.cantidad >= cantidadPendiente) {
-                    await updateDoc(doc(db, "inventario"), docInv.id), { cantidad: invData.cantidad - cantidadPendiente });
-                    cantidadPendiente = 0;
-                } else {
-                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
-                    cantidadPendiente -= invData.cantidad;
-                }
-            }
-            alert(cantidadPendiente > 0 ? `Venta registrada, pero faltan ${cantidadPendiente.toFixed(2)} libras en inventario.` : "Venta registrada e inventario descontado.");
-            cargarDatosIniciales();
-            document.getElementById('venta-cantidad').value = '';
-            document.getElementById('venta-precio').value = '';
-            document.getElementById('venta-notas').value = '';
-        };
-
-        window.guardarMuestreo = async () => {
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Guardando...";
-            
-            try {
-                const datosMuestra = {
-                    nombre: document.getElementById('m-nombre').value,
-                    fecha: document.getElementById('m-fecha').value,
-                    finca: document.getElementById('m-finca').value,
-                    altitud: document.getElementById('m-altitud').value,
-                    variedad: document.getElementById('m-variedad').value,
-                    proceso: document.getElementById('m-proceso').value,
-                    lote: document.getElementById('m-lote').value,
-                    muestraNum: document.getElementById('m-muestra').value,
-                    pesoPerg: document.getElementById('m-peso-perg').value,
-                    pesoOro: document.getElementById('m-peso-oro').value,
-                    humedad: document.getElementById('m-humedad').value,
-                    densidad: document.getElementById('m-densidad').value,
-                    atw: document.getElementById('m-atw').value,
-                    muestraZaranda: document.getElementById('m-muestra-zaranda').value,
-                    z18: document.getElementById('m-z18').value,
-                    z16: document.getElementById('m-z16').value,
-                    z15: document.getElementById('m-z15').value,
-                    z14: document.getElementById('m-z14').value,
-                    residuo: document.getElementById('m-residuo').value,
-                    total: document.getElementById('m-total').value,
-                    pctZ18: document.getElementById('m-pct-z18').value,
-                    pctZ16: document.getElementById('m-pct-z16').value,
-                    pctZ15: document.getElementById('m-pct-z15').value,
-                    pctZ14: document.getElementById('m-pct-z14').value,
-                    pctResiduo: document.getElementById('m-pct-residuo').value,
-                    rendimiento: document.getElementById('m-rendimiento').value,
-                    defectos: document.getElementById('m-defectos').value,
-                    observaciones: document.getElementById('m-observaciones').value,
-                    fechaRegistro: serverTimestamp()
-                };
-
-                await addDoc(collection(db, "muestreos"), datosMuestra);
-                
-                alert("✅ Ficha de muestreo guardada correctamente.");
-                cargarDatosIniciales();
-                
-                document.querySelectorAll('#muestreo input:not([readonly]), #muestreo textarea').forEach(el => {
-                    if (el.id !== 'm-finca' && el.id !== 'm-altitud' && el.id !== 'm-variedad' && el.id !== 'm-proceso') {
-                        el.value = '';
-                    }
-                });
-                document.getElementById('m-total').value = '';
-                document.getElementById('m-rendimiento').value = '';
-                ['m-pct-z18','m-pct-z16','m-pct-z15','m-pct-z14','m-pct-residuo'].forEach(id => document.getElementById(id).value = '');
-                
-            } catch (error) {
-                console.error(error);
-                alert("Error al guardar: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "💾 Guardar Ficha de Muestreo";
-            }
-        };
-
-        window.verMuestraCompleta = async (docId) => {
-            try {
-                const docRef = doc(db, "muestreos", docId);
-                const docSnap = await getDoc(docRef);
-                if (!docSnap.exists()) { alert("No se encontró la ficha"); return; }
-                
-                const m = docSnap.data();
-                muestraActualEnModal = { id: docId, ...m };
-                
-                document.getElementById('modal-titulo').innerText = `Ficha: ${m.nombre || 'Sin nombre'} - Lote ${m.lote || 'N/A'}`;
-                
-                const contenido = document.getElementById('modal-contenido');
-                contenido.innerHTML = `
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📋 Datos Generales</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Nombre</div><div class="value">${m.nombre || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Fecha</div><div class="value">${m.fecha || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Finca</div><div class="value">${m.finca || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Altitud</div><div class="value">${m.altitud || 'N/A'} msnm</div></div>
-                        <div class="detail-item"><div class="label">Variedad</div><div class="value">${m.variedad || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Proceso</div><div class="value">${m.proceso || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Lote</div><div class="value">${m.lote || 'N/A'}</div></div>
-                        <div class="detail-item"><div class="label">Muestra #</div><div class="value">${m.muestraNum || 'N/A'}</div></div>
-                    </div>
-                    
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">⚖️ Pesos y Mediciones</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item"><div class="label">Peso Inicial (Pergamino)</div><div class="value">${m.pesoPerg || '0'} g</div></div>
-                        <div class="detail-item"><div class="label">Peso Final (Oro)</div><div class="value">${m.pesoOro || '0'} g</div></div>
-                        <div class="detail-item"><div class="label">Humedad</div><div class="value">${m.humedad || '0'} %</div></div>
-                        <div class="detail-item"><div class="label">Densidad</div><div class="value">${m.densidad || '0'} g/ml</div></div>
-                        <div class="detail-item"><div class="label">ATW (1000 granos)</div><div class="value">${m.atw || 'N/A'} g</div></div>
-                        <div class="detail-item"><div class="label">Muestra para zarandas</div><div class="value">${m.muestraZaranda || 'N/A'} g</div></div>
-                    </div>
-                    
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📊 Análisis por Zarandas</h4>
-                    <table class="zarandas-table">
-                        <thead><tr><th>Zaranda</th><th>Gramos</th><th>Porcentaje</th></tr></thead>
-                        <tbody>
-                            <tr><td>Z 18</td><td>${m.z18 || '0'} g</td><td>${m.pctZ18 || '0%'}</td></tr>
-                            <tr><td>Z 16</td><td>${m.z16 || '0'} g</td><td>${m.pctZ16 || '0%'}</td></tr>
-                            <tr><td>Z 15</td><td>${m.z15 || '0'} g</td><td>${m.pctZ15 || '0%'}</td></tr>
-                            <tr><td>Z 14</td><td>${m.z14 || '0'} g</td><td>${m.pctZ14 || '0%'}</td></tr>
-                            <tr><td>Residuo</td><td>${m.residuo || '0'} g</td><td>${m.pctResiduo || '0%'}</td></tr>
-                            <tr style="font-weight:bold; background:#f0f0f0;"><td>Total</td><td>${m.total || '0'} g</td><td>100%</td></tr>
-                        </tbody>
-                    </table>
-                    
-                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">🏆 Resultados</h4>
-                    <div class="detail-grid">
-                        <div class="detail-item highlight"><div class="label">Rendimiento</div><div class="value">${m.rendimiento || '0%'}</div></div>
-                        <div class="detail-item"><div class="label">Defectos</div><div class="value">${m.defectos || 'N/A'} / 300g</div></div>
-                    </div>
-                    
-                    ${m.observaciones ? `<h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📝 Observaciones</h4><div class="detail-item"><div class="value">${m.observaciones}</div></div>` : ''}
-                `;
-                
-                document.getElementById('modal-ver-muestra').style.display = 'flex';
-            } catch (error) {
-                alert("Error al cargar la ficha: " + error.message);
-            }
-        };
-
-        window.cerrarModalVer = () => {
-            document.getElementById('modal-ver-muestra').style.display = 'none';
-            muestraActualEnModal = null;
-        };
-
-        window.generarPDFDesdeModal = async () => {
-            if (!muestraActualEnModal) { alert("No hay datos para generar el PDF"); return; }
-            
-            const btn = event.target;
-            btn.disabled = true;
-            btn.innerText = "Generando PDF...";
-            
-            try {
-                const m = muestraActualEnModal;
-                const { jsPDF } = window.jspdf;
-                const docPdf = new jsPDF();
-                
-                docPdf.setFillColor(44, 94, 46);
-                docPdf.rect(0, 0, 210, 35, 'F');
-                docPdf.setTextColor(255, 255, 255);
-                docPdf.setFontSize(20);
-                docPdf.text("Finca Los Robles", 105, 15, null, null, "center");
-                docPdf.setFontSize(14);
-                docPdf.text("FICHA DE MUESTREO - CAFÉ ORO", 105, 27, null, null, "center");
-                
-                docPdf.setTextColor(0, 0, 0);
-                docPdf.setFontSize(11);
-                let y = 45;
-                const addLine = (label, value) => {
-                    docPdf.setFont("helvetica", "bold");
-                    docPdf.text(label, 15, y);
-                    docPdf.setFont("helvetica", "normal");
-                    docPdf.text(String(value || "N/A"), 75, y);
-                    y += 7;
-                };
-                
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("DATOS GENERALES", 15, y);
-                docPdf.setTextColor(0, 0, 0);
-                y += 5;
-                
-                addLine("Nombre:", m.nombre);
-                addLine("Fecha:", m.fecha);
-                addLine("Finca:", m.finca);
-                addLine("Altitud:", (m.altitud || "N/A") + " msnm");
-                addLine("Variedad:", m.variedad);
-                addLine("Proceso:", m.proceso);
-                addLine("Lote:", m.lote);
-                addLine("Muestra #:", m.muestraNum);
-                
-                y += 3;
-                docPdf.setDrawColor(212, 175, 55);
-                docPdf.setLineWidth(0.5);
-                docPdf.line(15, y, 195, y);
-                y += 8;
-                
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("PESOS Y MEDICIONES", 15, y);
-                docPdf.setTextColor(0, 0, 0);
-                y += 5;
-                
-                addLine("Peso Inicial (Pergamino):", (m.pesoPerg || "0") + " g");
-                addLine("Peso Final (Oro):", (m.pesoOro || "0") + " g");
-                addLine("Humedad:", (m.humedad || "0") + " %");
-                addLine("Densidad:", (m.densidad || "0") + " g/ml");
-                addLine("ATW (1000 granos):", (m.atw || "N/A") + " g");
-                
-                y += 3;
-                docPdf.setDrawColor(212, 175, 55);
-                docPdf.line(15, y, 195, y);
-                y += 8;
-                
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("ANÁLISIS POR ZARANDAS", 15, y);
-                docPdf.setTextColor(0, 0, 0);
-                y += 5;
-                
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setFillColor(44, 94, 46);
-                docPdf.rect(15, y - 4, 180, 7, 'F');
-                docPdf.setTextColor(255, 255, 255);
-                docPdf.text("Zaranda", 20, y);
-                docPdf.text("Gramos", 90, y);
-                docPdf.text("Porcentaje", 150, y);
-                y += 7;
-                
-                docPdf.setTextColor(0, 0, 0);
-                docPdf.setFont("helvetica", "normal");
-                const zarandas = [
-                    ["Z 18", m.z18, m.pctZ18],
-                    ["Z 16", m.z16, m.pctZ16],
-                    ["Z 15", m.z15, m.pctZ15],
-                    ["Z 14", m.z14, m.pctZ14],
-                    ["Residuo", m.residuo, m.pctResiduo],
-                    ["TOTAL", m.total, "100%"]
-                ];
-                zarandas.forEach(([z, g, p], i) => {
-                    if (i === zarandas.length - 1) docPdf.setFont("helvetica", "bold");
-                    docPdf.text(z, 20, y);
-                    docPdf.text((g || "0") + " g", 90, y);
-                    docPdf.text(p || "0%", 150, y);
-                    y += 6;
-                    docPdf.setFont("helvetica", "normal");
-                });
-                
-                y += 5;
-                docPdf.setDrawColor(212, 175, 55);
-                docPdf.line(15, y, 195, y);
-                y += 8;
-                
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setTextColor(139, 90, 43);
-                docPdf.text("RESULTADOS", 15, y);
-                docPdf.setTextColor(0, 0, 0);
-                y += 5;
-                
-                docPdf.setFont("helvetica", "bold");
-                docPdf.setFontSize(14);
-                docPdf.setTextColor(44, 94, 46);
-                docPdf.text("Rendimiento: " + (m.rendimiento || "0%"), 15, y + 5);
-                docPdf.setFontSize(11);
-                docPdf.setTextColor(0, 0, 0);
-                docPdf.text("Defectos: " + (m.defectos || "N/A") + " / 300g", 15, y + 15);
-                
-                if (m.observaciones) {
-                    y += 25;
-                    docPdf.setFont("helvetica", "bold");
-                    docPdf.text("Observaciones:", 15, y);
-                    docPdf.setFont("helvetica", "normal");
-                    const lines = docPdf.splitTextToSize(m.observaciones, 140);
-                    docPdf.text(lines, 15, y + 6);
-                }
-                
-                docPdf.setFontSize(8);
-                docPdf.setTextColor(100, 100, 100);
-                docPdf.text(`Generado: ${new Date().toLocaleString('es-GT')}`, 105, 290, null, null, "center");
-                docPdf.text("Finca Los Robles - Café de Especialidad", 105, 295, null, null, "center");
-                
-                const fileName = `Ficha_${m.lote || 'SinLote'}_${m.nombre || 'Muestra'}_${m.fecha || Date.now()}.pdf`;
-                docPdf.save(fileName);
-                
-                alert("✅ PDF descargado correctamente.");
-                
-            } catch (error) {
-                console.error(error);
-                alert("Error al generar el PDF: " + error.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = "📄 Descargar PDF";
-            }
-        };
-
-        async function cargarDatosIniciales() {
-            const snapVentas = await getDocs(query(collection(db, "ventas"), orderBy("fecha", "desc")));
-            const tbodyVentas = document.querySelector('#tabla-ventas tbody'); tbodyVentas.innerHTML = '';
-            let totalLibras = 0;
-            snapVentas.forEach(doc => {
-                const v = doc.data(); totalLibras += v.cantidad;
-                const fecha = v.fecha ? new Date(v.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
-                tbodyVentas.innerHTML += `<tr><td>${fecha}</td><td>${v.tipo}</td><td>${v.presentacion !== 'N/A' ? v.presentacion : '-'}</td><td>${v.cantidad}</td><td>Q${(v.cantidad * v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
-            });
-            document.getElementById('dash-ventas').innerText = totalLibras.toFixed(1) + " libras";
-
-            const snapInv = await getDocs(collection(db, "inventario"));
-            const tbodyInv = document.querySelector('#tabla-inventario tbody'); tbodyInv.innerHTML = '';
-            let oro = 0, tostado = 0, pergamino = 0;
-            snapInv.forEach(doc => {
-                const d = doc.data();
-                if (d.estado === 'Oro') oro += d.cantidad;
-                if (d.estado === 'Tostado') tostado += d.cantidad;
-                if (d.estado === 'Pergamino') pergamino += d.cantidad;
-                const fecha = d.fecha ? new Date(d.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
-                tbodyInv.innerHTML += `<tr><td>${fecha}</td><td>${d.estado}</td><td>${d.presentacion !== 'N/A' ? d.presentacion : '-'}</td><td>${d.variedad}</td><td>${d.cantidad.toFixed(1)}</td></tr>`;
-            });
-            document.getElementById('dash-oro').innerText = oro.toFixed(1) + " libras";
-            document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
-            document.getElementById('dash-pergamino').innerText = pergamino.toFixed(1) + " libras";
-
-            // ===== HISTORIAL DE COSTOS TOSTADO =====
-            const snapCostos = await getDocs(query(collection(db, "costosTostado"), orderBy("fechaRegistro", "desc")));
-            const tbodyCostos = document.querySelector('#tabla-costos tbody'); tbodyCostos.innerHTML = '';
-            snapCostos.forEach(docSnap => {
-                const c = docSnap.data();
-                const fecha = c.fechaTostado || (c.fechaRegistro ? new Date(c.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
-                tbodyCostos.innerHTML += `
-                    <tr>
-                        <td>${fecha}</td>
-                        <td>${c.lote || 'N/A'}</td>
-                        <td>${c.variedad || 'N/A'}</td>
-                        <td>${c.proceso || 'N/A'}</td>
-                        <td>Q${c.costoTotal.toFixed(2)}</td>
-                        <td>Q${c.precioSugerido.toFixed(2)}</td>
-                        <td style="white-space: nowrap;">
-                            <button class="btn btn-small btn-view" onclick="verCostoDetalle('${docSnap.id}')">👁️ Ver</button>
-                        </td>
-                    </tr>`;
-            });
-
-            const snapMuestras = await getDocs(query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc")));
-            const tbodyMuestras = document.querySelector('#tabla-muestreos tbody'); tbodyMuestras.innerHTML = '';
-            snapMuestras.forEach(docSnap => {
-                const m = docSnap.data();
-                const fecha = m.fecha || (m.fechaRegistro ? new Date(m.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
-                tbodyMuestras.innerHTML += `
-                    <tr>
-                        <td>${fecha}</td>
-                        <td>${m.nombre || 'N/A'}</td>
-                        <td>${m.lote || 'N/A'}</td>
-                        <td>${m.rendimiento || '0%'}</td>
-                        <td>${m.humedad || '0'}%</td>
-                        <td style="white-space: nowrap;">
-                            <button class="btn btn-small btn-view" onclick="verMuestraCompleta('${docSnap.id}')">👁️ Ver</button>
-                            <button class="btn btn-small btn-pdf" onclick="verMuestraCompleta('${docSnap.id}'); setTimeout(() => generarPDFDesdeModal(), 500);">📄 PDF</button>
-                        </td>
-                    </tr>`;
-            });
-        }
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW no registrado', err));
-        }
-    </script>
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
 </body>
 </html>
