@@ -573,7 +573,7 @@
         </div>
     </div>
 
-    <!-- FIREBASE & LOGIC -->
+        <!-- FIREBASE & LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -595,16 +595,11 @@
         let currentAuthUid = null;
         let currentAuthEmail = null;
         let muestraActualEnModal = null;
+        let isManualLogin = false; // 🔑 Bandera para evitar que onAuthStateChanged interfiera
 
         const FLETES_POR_TONELADA = {
-            "usa-golfo": 90,
-            "usa-este": 110,
-            "canada": 105,
-            "europa": 120,
-            "japon": 160,
-            "corea": 155,
-            "australia": 200,
-            "china": 170
+            "usa-golfo": 90, "usa-este": 110, "canada": 105, "europa": 120,
+            "japon": 160, "corea": 155, "australia": 200, "china": 170
         };
 
         window.toggleSidebar = () => {
@@ -619,6 +614,7 @@
             document.querySelectorAll('.error-msg').forEach(el => el.style.display = 'none');
         };
 
+        // ===== REGISTRO =====
         window.register = async () => {
             const email = document.getElementById('reg-email').value.trim();
             const pass = document.getElementById('reg-password').value;
@@ -626,6 +622,11 @@
             if (!email || !pass) return showError('reg-error', 'Completa todos los campos');
             if (pass !== pass2) return showError('reg-error', 'Las contraseñas no coinciden');
             if (pass.length < 6) return showError('reg-error', 'Mínimo 6 caracteres');
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Registrando...";
+            
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
                 currentAuthUid = userCredential.user.uid;
@@ -635,12 +636,32 @@
                 document.getElementById('verify-email-display').innerText = email;
                 document.getElementById('demo-otp').innerText = otp;
                 showAuthState('verify');
-            } catch (error) { showError('reg-error', error.message); }
+            } catch (error) {
+                console.error("Error en registro:", error);
+                if (error.code === 'auth/email-already-in-use') {
+                    showError('reg-error', 'Este correo ya está registrado. Intenta iniciar sesión.');
+                } else if (error.code === 'auth/invalid-email') {
+                    showError('reg-error', 'El formato del correo no es válido.');
+                } else if (error.code === 'auth/weak-password') {
+                    showError('reg-error', 'La contraseña es muy débil. Usa al menos 6 caracteres.');
+                } else {
+                    showError('reg-error', 'Error: ' + error.message);
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Registrarse";
+            }
         };
 
+        // ===== VERIFICACIÓN OTP =====
         window.verifyCode = async () => {
             const inputOtp = document.getElementById('verify-otp-input').value.trim();
             if (inputOtp.length !== 6) return showError('verify-error', 'El código debe tener 6 dígitos');
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Verificando...";
+            
             try {
                 const docRef = doc(db, "verificaciones", currentAuthUid);
                 const docSnap = await getDoc(docRef);
@@ -648,55 +669,199 @@
                     const data = docSnap.data();
                     const diffMinutes = (new Date() - data.createdAt.toDate()) / 60000;
                     if (data.codigo === inputOtp && diffMinutes < 15) {
-                        await setDoc(doc(db, "usuarios", currentAuthUid), { email: currentAuthEmail, verificado: true, rol: 'admin', createdAt: serverTimestamp() }, { merge: true });
+                        await setDoc(doc(db, "usuarios", currentAuthUid), { 
+                            email: currentAuthEmail, 
+                            verificado: true, 
+                            rol: 'admin', 
+                            createdAt: serverTimestamp() 
+                        }, { merge: true });
                         await deleteDoc(docRef);
-                        alert("¡Cuenta verificada exitosamente!");
+                        alert("✅ ¡Cuenta verificada exitosamente! Bienvenido.");
                         entrarAlSistema();
-                    } else { showError('verify-error', 'Código incorrecto o expirado.'); }
-                } else { showError('verify-error', 'Solicita un código nuevo.'); }
-            } catch (error) { showError('verify-error', 'Error en la verificación.'); }
+                    } else if (diffMinutes >= 15) {
+                        showError('verify-error', 'El código expiró. Solicita uno nuevo.');
+                    } else {
+                        showError('verify-error', 'Código incorrecto. Verifica e intenta de nuevo.');
+                    }
+                } else {
+                    showError('verify-error', 'No se encontró un código activo. Solicita uno nuevo.');
+                }
+            } catch (error) {
+                console.error("Error en verificación:", error);
+                showError('verify-error', 'Error al verificar: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Verificar e Ingresar";
+            }
         };
 
         window.resendCode = async () => {
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            await setDoc(doc(db, "verificaciones", currentAuthUid), { codigo: otp, email: currentAuthEmail, createdAt: serverTimestamp() }, { merge: true });
+            await setDoc(doc(db, "verificaciones", currentAuthUid), { 
+                codigo: otp, 
+                email: currentAuthEmail, 
+                createdAt: serverTimestamp() 
+            }, { merge: true });
             document.getElementById('demo-otp').innerText = otp;
             document.getElementById('verify-otp-input').value = '';
+            alert("✅ Nuevo código generado. Revísalo arriba.");
         };
 
+        // ===== LOGIN MEJORADO =====
         window.login = async () => {
             const email = document.getElementById('login-email').value.trim();
             const password = document.getElementById('login-password').value;
+            
+            // Validaciones básicas
+            if (!email || !password) {
+                return showError('login-error', '⚠️ Por favor ingresa tu correo y contraseña.');
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            const textoOriginal = btn.innerText;
+            btn.innerText = "Ingresando...";
+            
+            // Ocultar mensajes previos
+            document.getElementById('login-error').style.display = 'none';
+            
+            // 🔑 Marcar que es un login manual para que onAuthStateChanged no interfiera
+            isManualLogin = true;
+            
             try {
+                console.log("🔄 Intentando iniciar sesión con:", email);
+                
+                // 1. Autenticar en Firebase Auth
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
-                const docSnap = await getDoc(doc(db, "usuarios", user.uid));
-                if (docSnap.exists() && docSnap.data().verificado === true) {
-                    currentAuthUid = user.uid; currentAuthEmail = user.email;
-                    entrarAlSistema();
-                } else {
+                console.log("✅ Autenticado en Firebase Auth. UID:", user.uid);
+                
+                // 2. Verificar si existe el documento de usuario en Firestore
+                const docRef = doc(db, "usuarios", user.uid);
+                const docSnap = await getDoc(docRef);
+                
+                if (!docSnap.exists()) {
+                    // El usuario existe en Auth pero NO en Firestore
+                    console.warn("⚠️ Usuario existe en Auth pero no en Firestore");
                     await signOut(auth);
-                    currentAuthUid = user.uid; currentAuthEmail = email;
-                    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-                    await setDoc(doc(db, "verificaciones", user.uid), { codigo: otp, email, createdAt: serverTimestamp() }, { merge: true });
-                    document.getElementById('verify-email-display').innerText = email;
-                    document.getElementById('demo-otp').innerText = otp;
-                    showAuthState('verify');
+                    showError('login-error', 
+                        '⚠️ Tu cuenta existe pero no está registrada en el sistema. ' +
+                        'Por favor, regístrate de nuevo o contacta al administrador.');
+                    isManualLogin = false;
+                    return;
                 }
-            } catch (error) { showError('login-error', 'Correo o contraseña incorrectos.'); }
+                
+                const userData = docSnap.data();
+                
+                if (userData.verificado !== true) {
+                    // El usuario existe pero NO está verificado
+                    console.warn("⚠️ Usuario no verificado");
+                    await signOut(auth);
+                    showError('login-error', 
+                        '⚠️ Tu cuenta aún no ha sido verificada. ' +
+                        'Por favor regístrate nuevamente para recibir tu código de verificación.');
+                    isManualLogin = false;
+                    return;
+                }
+                
+                // 3. Todo correcto - entrar al sistema
+                console.log("✅ Usuario verificado. Entrando al sistema...");
+                currentAuthUid = user.uid;
+                currentAuthEmail = user.email;
+                entrarAlSistema();
+                
+            } catch (error) {
+                console.error("❌ Error en login:", error.code, error.message);
+                
+                // Manejo específico de errores de Firebase Auth
+                let mensajeError = '';
+                switch (error.code) {
+                    case 'auth/invalid-credential':
+                    case 'auth/wrong-password':
+                    case 'auth/user-not-found':
+                        mensajeError = '❌ Correo o contraseña incorrectos. Verifica e intenta de nuevo.';
+                        break;
+                    case 'auth/invalid-email':
+                        mensajeError = '❌ El formato del correo no es válido.';
+                        break;
+                    case 'auth/user-disabled':
+                        mensajeError = '❌ Esta cuenta ha sido deshabilitada. Contacta al administrador.';
+                        break;
+                    case 'auth/too-many-requests':
+                        mensajeError = '❌ Demasiados intentos. Espera unos minutos e intenta de nuevo.';
+                        break;
+                    case 'auth/network-request-failed':
+                        mensajeError = '❌ Error de conexión. Verifica tu internet e intenta de nuevo.';
+                        break;
+                    case 'auth/missing-password':
+                        mensajeError = '❌ Por favor ingresa tu contraseña.';
+                        break;
+                    default:
+                        mensajeError = '❌ Error al iniciar sesión: ' + error.message;
+                }
+                
+                showError('login-error', mensajeError);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = textoOriginal;
+                // Resetear bandera después de un tiempo para no afectar otros flujos
+                setTimeout(() => { isManualLogin = false; }, 2000);
+            }
         };
 
-        window.logout = () => { signOut(auth); location.reload(); };
-        function showError(elementId, message) { const el = document.getElementById(elementId); el.innerText = message; el.style.display = 'block'; }
-        function entrarAlSistema() { document.getElementById('auth-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; cargarDatosIniciales(); calcularCotizador(); }
+        window.logout = async () => {
+            try {
+                await signOut(auth);
+                currentAuthUid = null;
+                currentAuthEmail = null;
+                location.reload();
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+                alert("Error al cerrar sesión: " + error.message);
+            }
+        };
 
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            if (el) {
+                el.innerText = message;
+                el.style.display = 'block';
+            } else {
+                alert(message);
+            }
+        }
+
+        function entrarAlSistema() {
+            document.getElementById('auth-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+            cargarDatosIniciales();
+            calcularCotizador();
+        }
+
+        // ===== ESTADO DE AUTENTICACIÓN (NO INTERFIERE CON LOGIN MANUAL) =====
         onAuthStateChanged(auth, (user) => {
+            // 🔑 Si es un login manual, no hacer nada (ya lo manejó la función login)
+            if (isManualLogin) {
+                console.log("⏸️ onAuthStateChanged ignorado (login manual en progreso)");
+                return;
+            }
+            
             if (user) {
+                // Solo verificar si recargó la página (no es login manual)
                 getDoc(doc(db, "usuarios", user.uid)).then(docSnap => {
                     if (docSnap.exists() && docSnap.data().verificado) {
-                        currentAuthUid = user.uid; currentAuthEmail = user.email;
+                        currentAuthUid = user.uid;
+                        currentAuthEmail = user.email;
                         entrarAlSistema();
-                    } else { signOut(auth); showAuthState('login'); }
+                    } else {
+                        // Usuario sin verificar al recargar - cerrar sesión silenciosamente
+                        console.warn("Usuario sin verificar al recargar. Cerrando sesión.");
+                        signOut(auth);
+                        showAuthState('login');
+                    }
+                }).catch(error => {
+                    console.error("Error verificando usuario en onAuthStateChanged:", error);
+                    showAuthState('login');
                 });
             } else {
                 document.getElementById('auth-screen').style.display = 'flex';
@@ -714,7 +879,8 @@
         };
 
         window.toggleVentaPresentacion = () => {
-            document.getElementById('venta-presentacion-group').style.display = (document.getElementById('venta-tipo').value === 'Tostado') ? 'flex' : 'none';
+            document.getElementById('venta-presentacion-group').style.display = 
+                (document.getElementById('venta-tipo').value === 'Tostado') ? 'flex' : 'none';
         };
 
         window.toggleInvFields = () => {
@@ -723,6 +889,514 @@
             document.getElementById('field-tostado').style.display = isTostado ? 'flex' : 'none';
         };
 
+        window.calcularPrecioSugerido = () => {
+            const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
+            const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
+            const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
+            const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
+            const costoTotal = verde + tostado + empaque;
+            let precioSugerido = 0, gananciaNeta = 0;
+            if (margenPorc >= 100) {
+                document.getElementById('precio-sugerido').innerText = '∞ (margen ≥ 100%)';
+                document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
+                document.getElementById('ganancia-neta').innerText = 'N/A';
+                return;
+            }
+            if (margenPorc > 0) {
+                precioSugerido = costoTotal / (1 - (margenPorc / 100));
+                gananciaNeta = precioSugerido - costoTotal;
+            } else {
+                precioSugerido = costoTotal;
+            }
+            document.getElementById('costo-total').innerText = 'Q ' + costoTotal.toFixed(2);
+            document.getElementById('precio-sugerido').innerText = 'Q ' + precioSugerido.toFixed(2);
+            document.getElementById('ganancia-neta').innerText = 'Q ' + gananciaNeta.toFixed(2);
+        };
+
+        window.guardarCosto = async () => {
+            const lote = document.getElementById('costo-lote').value.trim();
+            if (!lote) return alert("Por favor ingresa un nombre para el lote");
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Guardando...";
+            try {
+                const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
+                const tostado = parseFloat(document.getElementById('costo-tostado').value) || 0;
+                const empaque = parseFloat(document.getElementById('costo-empaque').value) || 0;
+                const margenPorc = parseFloat(document.getElementById('costo-margen').value) || 0;
+                const costoTotal = verde + tostado + empaque;
+                const precioSugerido = margenPorc < 100 ? costoTotal / (1 - (margenPorc / 100)) : 0;
+                await addDoc(collection(db, "costosTostado"), {
+                    lote, 
+                    variedad: document.getElementById('costo-variedad').value,
+                    proceso: document.getElementById('costo-proceso').value,
+                    fechaTostado: document.getElementById('costo-fecha-tostado').value,
+                    costoVerde: verde, costoTostado: tostado, costoEmpaque: empaque,
+                    costoTotal, margenPorc, precioSugerido,
+                    gananciaNeta: precioSugerido - costoTotal,
+                    fechaRegistro: serverTimestamp()
+                });
+                alert("✅ Costo del lote guardado correctamente");
+                cargarDatosIniciales();
+                document.getElementById('costo-lote').value = '';
+                document.getElementById('costo-verde').value = '';
+                document.getElementById('costo-tostado').value = '';
+                document.getElementById('costo-empaque').value = '';
+                document.getElementById('costo-fecha-tostado').value = '';
+                calcularPrecioSugerido();
+            } catch (error) {
+                alert("Error al guardar: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "💾 Guardar Costo de este Lote";
+            }
+        };
+
+        window.verCostoDetalle = async (docId) => {
+            try {
+                const docSnap = await getDoc(doc(db, "costosTostado", docId));
+                if (!docSnap.exists()) return alert("No se encontró el registro");
+                const c = docSnap.data();
+                document.getElementById('modal-costo-titulo').innerText = `Lote: ${c.lote || 'Sin nombre'}`;
+                document.getElementById('modal-costo-contenido').innerHTML = `
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📋 Información del Lote</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Nombre del Lote</div><div class="value">${c.lote || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Fecha de Tostado</div><div class="value">${c.fechaTostado || 'N/A'}</div></div>
+                    </div>
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">💰 Desglose de Costos (por Libra)</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Costo Café Verde</div><div class="value">Q ${(c.costoVerde||0).toFixed(2)}</div></div>
+                        <div class="detail-item"><div class="label">Costo Tostado</div><div class="value">Q ${(c.costoTostado||0).toFixed(2)}</div></div>
+                        <div class="detail-item"><div class="label">Costo Empaque</div><div class="value">Q ${(c.costoEmpaque||0).toFixed(2)}</div></div>
+                        <div class="detail-item highlight"><div class="label">Costo Total</div><div class="value">Q ${(c.costoTotal||0).toFixed(2)}</div></div>
+                    </div>
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📊 Precio de Venta</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Margen de Ganancia</div><div class="value">${c.margenPorc}%</div></div>
+                        <div class="detail-item highlight"><div class="label">Precio Sugerido</div><div class="value">Q ${(c.precioSugerido||0).toFixed(2)}</div></div>
+                        <div class="detail-item"><div class="label">Ganancia Neta/Libra</div><div class="value">Q ${(c.gananciaNeta||0).toFixed(2)}</div></div>
+                    </div>
+                `;
+                document.getElementById('modal-ver-costo').style.display = 'flex';
+            } catch (error) {
+                alert("Error al cargar el detalle: " + error.message);
+            }
+        };
+
+        window.actualizarCMarket = () => {
+            const centsLibra = parseFloat(document.getElementById('cmarket-input').value) || 0;
+            const usdLibra = centsLibra / 100;
+            document.getElementById('cmarket-price').innerText = centsLibra.toFixed(2) + ' ¢/lb';
+            document.getElementById('cmarket-usdlb').innerText = 'US$ ' + usdLibra.toFixed(2);
+            document.getElementById('cmarket-usdkg').innerText = 'US$ ' + (usdLibra / 0.453592).toFixed(2);
+            calcularCotizador();
+        };
+
+        window.calcularCotizador = () => {
+            const tipoCambio = parseFloat(document.getElementById('tipo-cambio').value) || 7.80;
+            const estado = document.getElementById('cot-estado').value;
+            const rendimiento = parseFloat(document.getElementById('cot-rendimiento').value) || 81;
+            const precioQLb = parseFloat(document.getElementById('cot-precio-qlb').value) || 0;
+            const pais = document.getElementById('cot-pais').value;
+            const cantidadKg = parseFloat(document.getElementById('cot-cantidad-kg').value) || 0;
+            const seguroPorc = parseFloat(document.getElementById('cot-seguro').value) || 0.3;
+            let precioOroQLb = precioQLb;
+            if (estado === 'pergamino' && rendimiento > 0) precioOroQLb = precioQLb * (100 / rendimiento);
+            const precioQKg = precioOroQLb / 0.453592;
+            const precioUSDLibra = precioOroQLb / tipoCambio;
+            const precioUSDKg = precioUSDLibra / 0.453592;
+            document.getElementById('conv-qlb').innerText = 'Q ' + precioOroQLb.toFixed(2);
+            document.getElementById('conv-qkg').innerText = 'Q ' + precioQKg.toFixed(2);
+            document.getElementById('conv-usdlb').innerText = 'US$ ' + precioUSDLibra.toFixed(2);
+            document.getElementById('conv-usdkg').innerText = 'US$ ' + precioUSDKg.toFixed(2);
+            const cmarketUSDLibra = (parseFloat(document.getElementById('cmarket-input').value) || 385) / 100;
+            const diferencial = precioUSDLibra - cmarketUSDLibra;
+            document.getElementById('cot-diferencial-box').innerHTML = diferencial >= 0 
+                ? `<strong>📈 Diferencial vs C-Market:</strong> <span style="color:#2C5E2E; font-weight:bold;">+US$ ${diferencial.toFixed(2)}/lb</span>`
+                : `<strong>📉 Diferencial vs C-Market:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${diferencial.toFixed(2)}/lb</span>`;
+            const fobTotalUSD = precioUSDKg * cantidadKg;
+            const fleteTotalUSD = (FLETES_POR_TONELADA[pais] || 120) * (cantidadKg / 1000);
+            const seguroTotalUSD = fobTotalUSD * (seguroPorc / 100);
+            const cifTotalUSD = fobTotalUSD + fleteTotalUSD + seguroTotalUSD;
+            const cifUSDKg = cantidadKg > 0 ? cifTotalUSD / cantidadKg : 0;
+            document.getElementById('fob-usdlb').innerText = 'US$ ' + precioUSDLibra.toFixed(2);
+            document.getElementById('fob-usdkg').innerText = 'US$ ' + precioUSDKg.toFixed(2);
+            document.getElementById('cif-usdlb').innerText = 'US$ ' + (cifUSDKg * 0.453592).toFixed(2);
+            document.getElementById('cif-usdkg').innerText = 'US$ ' + cifUSDKg.toFixed(2);
+            document.getElementById('cif-total').innerText = 'US$ ' + cifTotalUSD.toFixed(2);
+            document.getElementById('flete-total').innerText = 'US$ ' + fleteTotalUSD.toFixed(2);
+            document.getElementById('seguro-total').innerText = 'US$ ' + seguroTotalUSD.toFixed(2);
+        };
+
+        window.calcularMuestreo = () => {
+            const pesoPerg = parseFloat(document.getElementById('m-peso-perg').value) || 0;
+            const pesoOro = parseFloat(document.getElementById('m-peso-oro').value) || 0;
+            const z18 = parseFloat(document.getElementById('m-z18').value) || 0;
+            const z16 = parseFloat(document.getElementById('m-z16').value) || 0;
+            const z15 = parseFloat(document.getElementById('m-z15').value) || 0;
+            const z14 = parseFloat(document.getElementById('m-z14').value) || 0;
+            const residuo = parseFloat(document.getElementById('m-residuo').value) || 0;
+            const total = z18 + z16 + z15 + z14 + residuo;
+            document.getElementById('m-total').value = total.toFixed(2);
+            document.getElementById('m-rendimiento').value = (pesoPerg > 0 ? (pesoOro / pesoPerg) * 100 : 0).toFixed(2) + '%';
+            const calcPct = (val) => total > 0 ? ((val / total) * 100).toFixed(1) + '%' : '0%';
+            document.getElementById('m-pct-z18').value = calcPct(z18);
+            document.getElementById('m-pct-z16').value = calcPct(z16);
+            document.getElementById('m-pct-z15').value = calcPct(z15);
+            document.getElementById('m-pct-z14').value = calcPct(z14);
+            document.getElementById('m-pct-residuo').value = calcPct(residuo);
+        };
+
+        window.guardarInventario = async () => {
+            const estado = document.getElementById('inv-estado').value;
+            await addDoc(collection(db, "inventario"), {
+                estado, presentacion: estado === 'Tostado' ? document.getElementById('inv-presentacion').value : 'N/A',
+                cantidad: parseFloat(document.getElementById('inv-cantidad').value) || 0,
+                finca: document.getElementById('inv-finca').value,
+                variedad: document.getElementById('inv-variedad').value,
+                proceso: document.getElementById('inv-proceso').value,
+                fechaTostado: document.getElementById('inv-fecha-tostado').value,
+                fecha: serverTimestamp()
+            });
+            alert("Inventario actualizado");
+            cargarDatosIniciales();
+        };
+
+        window.guardarVenta = async () => {
+            const tipo = document.getElementById('venta-tipo').value;
+            const presentacion = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
+            const cantidad = parseFloat(document.getElementById('venta-cantidad').value) || 0;
+            const precio = parseFloat(document.getElementById('venta-precio').value) || 0;
+            if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0");
+            await addDoc(collection(db, "ventas"), { 
+                tipo, presentacion, cantidad, precio, 
+                pago: document.getElementById('venta-pago').value, 
+                notas: document.getElementById('venta-notas').value, 
+                fecha: serverTimestamp() 
+            });
+            let cantidadPendiente = cantidad;
+            const snapshotInv = await getDocs(query(collection(db, "inventario"), where("estado", "==", tipo)));
+            for (const docInv of snapshotInv.docs) {
+                if (cantidadPendiente <= 0) break;
+                const invData = docInv.data();
+                if (tipo === 'Tostado' && invData.presentacion !== presentacion) continue;
+                if (invData.cantidad >= cantidadPendiente) {
+                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: invData.cantidad - cantidadPendiente });
+                    cantidadPendiente = 0;
+                } else {
+                    await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
+                    cantidadPendiente -= invData.cantidad;
+                }
+            }
+            alert(cantidadPendiente > 0 ? `Venta registrada, pero faltan ${cantidadPendiente.toFixed(2)} libras.` : "Venta registrada.");
+            cargarDatosIniciales();
+            document.getElementById('venta-cantidad').value = '';
+            document.getElementById('venta-precio').value = '';
+            document.getElementById('venta-notas').value = '';
+        };
+
+        window.guardarMuestreo = async () => {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Guardando...";
+            try {
+                await addDoc(collection(db, "muestreos"), {
+                    nombre: document.getElementById('m-nombre').value,
+                    fecha: document.getElementById('m-fecha').value,
+                    finca: document.getElementById('m-finca').value,
+                    altitud: document.getElementById('m-altitud').value,
+                    variedad: document.getElementById('m-variedad').value,
+                    proceso: document.getElementById('m-proceso').value,
+                    lote: document.getElementById('m-lote').value,
+                    muestraNum: document.getElementById('m-muestra').value,
+                    pesoPerg: document.getElementById('m-peso-perg').value,
+                    pesoOro: document.getElementById('m-peso-oro').value,
+                    humedad: document.getElementById('m-humedad').value,
+                    densidad: document.getElementById('m-densidad').value,
+                    atw: document.getElementById('m-atw').value,
+                    muestraZaranda: document.getElementById('m-muestra-zaranda').value,
+                    z18: document.getElementById('m-z18').value,
+                    z16: document.getElementById('m-z16').value,
+                    z15: document.getElementById('m-z15').value,
+                    z14: document.getElementById('m-z14').value,
+                    residuo: document.getElementById('m-residuo').value,
+                    total: document.getElementById('m-total').value,
+                    pctZ18: document.getElementById('m-pct-z18').value,
+                    pctZ16: document.getElementById('m-pct-z16').value,
+                    pctZ15: document.getElementById('m-pct-z15').value,
+                    pctZ14: document.getElementById('m-pct-z14').value,
+                    pctResiduo: document.getElementById('m-pct-residuo').value,
+                    rendimiento: document.getElementById('m-rendimiento').value,
+                    defectos: document.getElementById('m-defectos').value,
+                    observaciones: document.getElementById('m-observaciones').value,
+                    fechaRegistro: serverTimestamp()
+                });
+                alert("✅ Ficha guardada.");
+                cargarDatosIniciales();
+                document.querySelectorAll('#muestreo input:not([readonly]), #muestreo textarea').forEach(el => {
+                    if (!['m-finca','m-altitud','m-variedad','m-proceso'].includes(el.id)) el.value = '';
+                });
+                document.getElementById('m-total').value = '';
+                document.getElementById('m-rendimiento').value = '';
+                ['m-pct-z18','m-pct-z16','m-pct-z15','m-pct-z14','m-pct-residuo'].forEach(id => document.getElementById(id).value = '');
+            } catch (error) {
+                alert("Error: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "💾 Guardar Ficha de Muestreo";
+            }
+        };
+
+        window.verMuestraCompleta = async (docId) => {
+            try {
+                const docSnap = await getDoc(doc(db, "muestreos", docId));
+                if (!docSnap.exists()) return alert("No se encontró la ficha");
+                const m = docSnap.data();
+                muestraActualEnModal = { id: docId, ...m };
+                document.getElementById('modal-titulo').innerText = `Ficha: ${m.nombre || 'Sin nombre'} - Lote ${m.lote || 'N/A'}`;
+                document.getElementById('modal-contenido').innerHTML = `
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📋 Datos Generales</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Nombre</div><div class="value">${m.nombre || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Fecha</div><div class="value">${m.fecha || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Finca</div><div class="value">${m.finca || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Altitud</div><div class="value">${m.altitud || 'N/A'} msnm</div></div>
+                        <div class="detail-item"><div class="label">Variedad</div><div class="value">${m.variedad || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Proceso</div><div class="value">${m.proceso || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Lote</div><div class="value">${m.lote || 'N/A'}</div></div>
+                        <div class="detail-item"><div class="label">Muestra #</div><div class="value">${m.muestraNum || 'N/A'}</div></div>
+                    </div>
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">⚖️ Pesos y Mediciones</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item"><div class="label">Peso Inicial (Pergamino)</div><div class="value">${m.pesoPerg || '0'} g</div></div>
+                        <div class="detail-item"><div class="label">Peso Final (Oro)</div><div class="value">${m.pesoOro || '0'} g</div></div>
+                        <div class="detail-item"><div class="label">Humedad</div><div class="value">${m.humedad || '0'} %</div></div>
+                        <div class="detail-item"><div class="label">Densidad</div><div class="value">${m.densidad || '0'} g/ml</div></div>
+                        <div class="detail-item"><div class="label">ATW (1000 granos)</div><div class="value">${m.atw || 'N/A'} g</div></div>
+                    </div>
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📊 Análisis por Zarandas</h4>
+                    <table class="zarandas-table">
+                        <thead><tr><th>Zaranda</th><th>Gramos</th><th>Porcentaje</th></tr></thead>
+                        <tbody>
+                            <tr><td>Z 18</td><td>${m.z18 || '0'} g</td><td>${m.pctZ18 || '0%'}</td></tr>
+                            <tr><td>Z 16</td><td>${m.z16 || '0'} g</td><td>${m.pctZ16 || '0%'}</td></tr>
+                            <tr><td>Z 15</td><td>${m.z15 || '0'} g</td><td>${m.pctZ15 || '0%'}</td></tr>
+                            <tr><td>Z 14</td><td>${m.z14 || '0'} g</td><td>${m.pctZ14 || '0%'}</td></tr>
+                            <tr><td>Residuo</td><td>${m.residuo || '0'} g</td><td>${m.pctResiduo || '0%'}</td></tr>
+                            <tr style="font-weight:bold; background:#f0f0f0;"><td>Total</td><td>${m.total || '0'} g</td><td>100%</td></tr>
+                        </tbody>
+                    </table>
+                    <h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">🏆 Resultados</h4>
+                    <div class="detail-grid">
+                        <div class="detail-item highlight"><div class="label">Rendimiento</div><div class="value">${m.rendimiento || '0%'}</div></div>
+                        <div class="detail-item"><div class="label">Defectos</div><div class="value">${m.defectos || 'N/A'} / 300g</div></div>
+                    </div>
+                    ${m.observaciones ? `<h4 style="color: var(--secondary); margin: 1rem 0 0.5rem;">📝 Observaciones</h4><div class="detail-item"><div class="value">${m.observaciones}</div></div>` : ''}
+                `;
+                document.getElementById('modal-ver-muestra').style.display = 'flex';
+            } catch (error) {
+                alert("Error: " + error.message);
+            }
+        };
+
+        window.cerrarModalVer = () => {
+            document.getElementById('modal-ver-muestra').style.display = 'none';
+            muestraActualEnModal = null;
+        };
+
+        window.generarPDFDesdeModal = async () => {
+            if (!muestraActualEnModal) return alert("No hay datos");
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerText = "Generando PDF...";
+            try {
+                const m = muestraActualEnModal;
+                const { jsPDF } = window.jspdf;
+                const docPdf = new jsPDF();
+                docPdf.setFillColor(44, 94, 46);
+                docPdf.rect(0, 0, 210, 35, 'F');
+                docPdf.setTextColor(255, 255, 255);
+                docPdf.setFontSize(20);
+                docPdf.text("Finca Los Robles", 105, 15, null, null, "center");
+                docPdf.setFontSize(14);
+                docPdf.text("FICHA DE MUESTREO - CAFÉ ORO", 105, 27, null, null, "center");
+                docPdf.setTextColor(0, 0, 0);
+                docPdf.setFontSize(11);
+                let y = 45;
+                const addLine = (label, value) => {
+                    docPdf.setFont("helvetica", "bold");
+                    docPdf.text(label, 15, y);
+                    docPdf.setFont("helvetica", "normal");
+                    docPdf.text(String(value || "N/A"), 75, y);
+                    y += 7;
+                };
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setTextColor(139, 90, 43);
+                docPdf.text("DATOS GENERALES", 15, y);
+                docPdf.setTextColor(0, 0, 0);
+                y += 5;
+                addLine("Nombre:", m.nombre);
+                addLine("Fecha:", m.fecha);
+                addLine("Finca:", m.finca);
+                addLine("Altitud:", (m.altitud || "N/A") + " msnm");
+                addLine("Variedad:", m.variedad);
+                addLine("Proceso:", m.proceso);
+                addLine("Lote:", m.lote);
+                addLine("Muestra #:", m.muestraNum);
+                y += 3;
+                docPdf.setDrawColor(212, 175, 55);
+                docPdf.line(15, y, 195, y);
+                y += 8;
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setTextColor(139, 90, 43);
+                docPdf.text("PESOS Y MEDICIONES", 15, y);
+                docPdf.setTextColor(0, 0, 0);
+                y += 5;
+                addLine("Peso Inicial:", (m.pesoPerg || "0") + " g");
+                addLine("Peso Final:", (m.pesoOro || "0") + " g");
+                addLine("Humedad:", (m.humedad || "0") + " %");
+                addLine("Densidad:", (m.densidad || "0") + " g/ml");
+                addLine("ATW:", (m.atw || "N/A") + " g");
+                y += 3;
+                docPdf.line(15, y, 195, y);
+                y += 8;
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setTextColor(139, 90, 43);
+                docPdf.text("ANÁLISIS POR ZARANDAS", 15, y);
+                docPdf.setTextColor(0, 0, 0);
+                y += 5;
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setFillColor(44, 94, 46);
+                docPdf.rect(15, y - 4, 180, 7, 'F');
+                docPdf.setTextColor(255, 255, 255);
+                docPdf.text("Zaranda", 20, y);
+                docPdf.text("Gramos", 90, y);
+                docPdf.text("Porcentaje", 150, y);
+                y += 7;
+                docPdf.setTextColor(0, 0, 0);
+                docPdf.setFont("helvetica", "normal");
+                [["Z 18", m.z18, m.pctZ18], ["Z 16", m.z16, m.pctZ16], 
+                 ["Z 15", m.z15, m.pctZ15], ["Z 14", m.z14, m.pctZ14],
+                 ["Residuo", m.residuo, m.pctResiduo], ["TOTAL", m.total, "100%"]
+                ].forEach(([z, g, p], i) => {
+                    if (i === 5) docPdf.setFont("helvetica", "bold");
+                    docPdf.text(z, 20, y);
+                    docPdf.text((g || "0") + " g", 90, y);
+                    docPdf.text(p || "0%", 150, y);
+                    y += 6;
+                    docPdf.setFont("helvetica", "normal");
+                });
+                y += 5;
+                docPdf.line(15, y, 195, y);
+                y += 8;
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setTextColor(139, 90, 43);
+                docPdf.text("RESULTADOS", 15, y);
+                y += 5;
+                docPdf.setFont("helvetica", "bold");
+                docPdf.setFontSize(14);
+                docPdf.setTextColor(44, 94, 46);
+                docPdf.text("Rendimiento: " + (m.rendimiento || "0%"), 15, y + 5);
+                docPdf.setFontSize(11);
+                docPdf.setTextColor(0, 0, 0);
+                docPdf.text("Defectos: " + (m.defectos || "N/A") + " / 300g", 15, y + 15);
+                if (m.observaciones) {
+                    y += 25;
+                    docPdf.setFont("helvetica", "bold");
+                    docPdf.text("Observaciones:", 15, y);
+                    docPdf.setFont("helvetica", "normal");
+                    docPdf.text(docPdf.splitTextToSize(m.observaciones, 140), 15, y + 6);
+                }
+                docPdf.setFontSize(8);
+                docPdf.setTextColor(100, 100, 100);
+                docPdf.text(`Generado: ${new Date().toLocaleString('es-GT')}`, 105, 290, null, null, "center");
+                docPdf.text("Finca Los Robles - Café de Especialidad", 105, 295, null, null, "center");
+                docPdf.save(`Ficha_${m.lote || 'SinLote'}_${m.fecha || Date.now()}.pdf`);
+                alert("✅ PDF descargado.");
+            } catch (error) {
+                alert("Error: " + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "📄 Descargar PDF";
+            }
+        };
+
+        async function cargarDatosIniciales() {
+            try {
+                const snapVentas = await getDocs(query(collection(db, "ventas"), orderBy("fecha", "desc")));
+                const tbodyVentas = document.querySelector('#tabla-ventas tbody'); tbodyVentas.innerHTML = '';
+                let totalLibras = 0;
+                snapVentas.forEach(doc => {
+                    const v = doc.data(); totalLibras += v.cantidad;
+                    const fecha = v.fecha ? new Date(v.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
+                    tbodyVentas.innerHTML += `<tr><td>${fecha}</td><td>${v.tipo}</td><td>${v.presentacion !== 'N/A' ? v.presentacion : '-'}</td><td>${v.cantidad}</td><td>Q${(v.cantidad * v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
+                });
+                document.getElementById('dash-ventas').innerText = totalLibras.toFixed(1) + " libras";
+
+                const snapInv = await getDocs(collection(db, "inventario"));
+                const tbodyInv = document.querySelector('#tabla-inventario tbody'); tbodyInv.innerHTML = '';
+                let oro = 0, tostado = 0, pergamino = 0;
+                snapInv.forEach(doc => {
+                    const d = doc.data();
+                    if (d.estado === 'Oro') oro += d.cantidad;
+                    if (d.estado === 'Tostado') tostado += d.cantidad;
+                    if (d.estado === 'Pergamino') pergamino += d.cantidad;
+                    const fecha = d.fecha ? new Date(d.fecha.seconds * 1000).toLocaleDateString() : 'N/A';
+                    tbodyInv.innerHTML += `<tr><td>${fecha}</td><td>${d.estado}</td><td>${d.presentacion !== 'N/A' ? d.presentacion : '-'}</td><td>${d.variedad}</td><td>${d.cantidad.toFixed(1)}</td></tr>`;
+                });
+                document.getElementById('dash-oro').innerText = oro.toFixed(1) + " libras";
+                document.getElementById('dash-tostado').innerText = tostado.toFixed(1) + " libras";
+                document.getElementById('dash-pergamino').innerText = pergamino.toFixed(1) + " libras";
+
+                const snapCostos = await getDocs(query(collection(db, "costosTostado"), orderBy("fechaRegistro", "desc")));
+                const tbodyCostos = document.querySelector('#tabla-costos tbody'); tbodyCostos.innerHTML = '';
+                snapCostos.forEach(docSnap => {
+                    const c = docSnap.data();
+                    const fecha = c.fechaTostado || (c.fechaRegistro ? new Date(c.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
+                    tbodyCostos.innerHTML += `
+                        <tr>
+                            <td>${fecha}</td>
+                            <td>${c.lote || 'N/A'}</td>
+                            <td>${c.variedad || 'N/A'}</td>
+                            <td>${c.proceso || 'N/A'}</td>
+                            <td>Q${(c.costoTotal||0).toFixed(2)}</td>
+                            <td>Q${(c.precioSugerido||0).toFixed(2)}</td>
+                            <td style="white-space: nowrap;">
+                                <button class="btn btn-small btn-view" onclick="verCostoDetalle('${docSnap.id}')">👁️ Ver</button>
+                            </td>
+                        </tr>`;
+                });
+
+                const snapMuestras = await getDocs(query(collection(db, "muestreos"), orderBy("fechaRegistro", "desc")));
+                const tbodyMuestras = document.querySelector('#tabla-muestreos tbody'); tbodyMuestras.innerHTML = '';
+                snapMuestras.forEach(docSnap => {
+                    const m = docSnap.data();
+                    const fecha = m.fecha || (m.fechaRegistro ? new Date(m.fechaRegistro.seconds * 1000).toLocaleDateString() : 'N/A');
+                    tbodyMuestras.innerHTML += `
+                        <tr>
+                            <td>${fecha}</td>
+                            <td>${m.nombre || 'N/A'}</td>
+                            <td>${m.lote || 'N/A'}</td>
+                            <td>${m.rendimiento || '0%'}</td>
+                            <td>${m.humedad || '0'}%</td>
+                            <td style="white-space: nowrap;">
+                                <button class="btn btn-small btn-view" onclick="verMuestraCompleta('${docSnap.id}')">👁️ Ver</button>
+                                <button class="btn btn-small btn-pdf" onclick="verMuestraCompleta('${docSnap.id}'); setTimeout(() => generarPDFDesdeModal(), 500);">📄 PDF</button>
+                            </td>
+                        </tr>`;
+                });
+            } catch (error) {
+                console.error("Error cargando datos:", error);
+            }
+        }
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW no registrado', err));
+        }
+    
         // ===== CÁLCULO DE COSTOS (FÓRMULA CORREGIDA) =====
         window.calcularPrecioSugerido = () => {
             const verde = parseFloat(document.getElementById('costo-verde').value) || 0;
