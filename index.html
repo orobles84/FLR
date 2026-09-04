@@ -34,6 +34,7 @@
         .btn-view { background: #1976d2; }
         .btn-pdf { background: var(--secondary); }
         .btn-save { background: var(--accent); color: var(--primary); margin-top: 1rem; }
+        .btn-danger { background: var(--danger); }
         .link { color: var(--primary); text-decoration: none; font-weight: bold; font-size: 0.9rem; cursor: pointer; display: inline-block; margin-top: 15px; padding: 8px; }
         .error-msg { color: var(--danger); margin-top: 10px; font-size: 0.9rem; display: none; text-align: left; padding: 8px; background: #ffebee; border-radius: 6px; }
         .otp-display { background: #fff9c4; padding: 12px; border-radius: 8px; border: 2px dashed #fbc02d; font-size: 1.8rem; font-weight: bold; color: var(--secondary); letter-spacing: 5px; margin: 10px 0; }
@@ -115,6 +116,26 @@
         .zarandas-table { width: 100%; margin-top: 1rem; }
         .zarandas-table th { background: var(--secondary); }
 
+        /* PRECIOS LISTA */
+        .precio-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.5rem; align-items: center; padding: 0.5rem; background: #f9f9f9; border-radius: 6px; margin-bottom: 0.5rem; }
+        .precio-row input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+        .precio-row .producto-nombre { font-weight: bold; color: var(--primary); padding: 8px; }
+
+        /* CATACIÓN SCA */
+        .sca-category { background: white; padding: 1rem; border-radius: 8px; margin-bottom: 0.75rem; border-left: 4px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .sca-category-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .sca-category-name { font-weight: bold; color: var(--primary); font-size: 1rem; }
+        .sca-category-desc { font-size: 0.75rem; color: #666; font-style: italic; }
+        .sca-score-input { width: 80px; padding: 8px; border: 2px solid var(--accent); border-radius: 6px; font-size: 1.1rem; font-weight: bold; text-align: center; color: var(--primary); background: #fff9c4; }
+        .sca-total-card { background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: 1.5rem; border-radius: 12px; text-align: center; margin: 1rem 0; border: 3px solid var(--accent); }
+        .sca-total-score { font-size: 3rem; font-weight: bold; color: var(--accent); }
+        .sca-classification { font-size: 1.2rem; font-weight: bold; margin-top: 0.5rem; padding: 0.5rem; border-radius: 6px; }
+        .sca-class.outstanding { background: #ffd700; color: #333; }
+        .sca-class.excellent { background: #4caf50; color: white; }
+        .sca-class.verygood { background: #8bc34a; color: white; }
+        .sca-class.good { background: #2196f3; color: white; }
+        .sca-class.below { background: #9e9e9e; color: white; }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -123,6 +144,7 @@
             .conversion-grid { grid-template-columns: repeat(4, 1fr); }
             h2 { font-size: 1.6rem; }
             .card p { font-size: 1.8rem; }
+            .precio-row { grid-template-columns: 3fr 1fr 1fr auto; }
         }
         @media (min-width: 1024px) {
             .form-grid { grid-template-columns: repeat(3, 1fr); }
@@ -139,7 +161,6 @@
             <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFF" text-anchor="middle" font-family="Arial">FLR</text>
             <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
         </svg>
-
         <div id="form-login">
             <h2>Iniciar Sesión</h2>
             <input type="email" id="login-email" placeholder="Correo electrónico">
@@ -148,7 +169,6 @@
             <p class="error-msg" id="login-error"></p>
             <a class="link" onclick="showAuthState('register')">¿No tienes cuenta? Crear una nueva</a>
         </div>
-
         <div id="form-register" style="display:none;">
             <h2>Crear Cuenta</h2>
             <input type="email" id="reg-email" placeholder="Correo electrónico">
@@ -158,7 +178,6 @@
             <p class="error-msg" id="reg-error"></p>
             <a class="link" onclick="showAuthState('login')">¿Ya tienes cuenta? Iniciar Sesión</a>
         </div>
-
         <div id="form-verify" style="display:none;">
             <h2>Verificación de Seguridad</h2>
             <p style="font-size:0.9rem; margin:15px 0; color:#555;">Código para: <strong id="verify-email-display"></strong></p>
@@ -199,8 +218,10 @@
         <div class="menu-item active" onclick="showSection('dashboard',this)"><span class="icon">📊</span> Dashboard</div>
         <div class="menu-item" onclick="showSection('ventas',this)"><span class="icon">💰</span> Ventas</div>
         <div class="menu-item" onclick="showSection('inventario',this)"><span class="icon">📦</span> Inventario</div>
+        <div class="menu-item" onclick="showSection('precios',this)"><span class="icon">🏷️</span> Lista de Precios</div>
         <div class="menu-item" onclick="showSection('costos',this)"><span class="icon">🧮</span> Costos Tostado</div>
         <div class="menu-item" onclick="showSection('cotizador',this)"><span class="icon">💵</span> Cotizador Verde</div>
+        <div class="menu-item" onclick="showSection('catacion',this)"><span class="icon">☕</span> Catación SCA</div>
         <div class="menu-item" onclick="showSection('muestreo',this)"><span class="icon">🔬</span> Muestreo Lab</div>
         <button class="btn logout-btn" onclick="logout()">🚪 Cerrar Sesión</button>
     </div>
@@ -211,34 +232,48 @@
         <div id="dashboard" class="section active">
             <h2>📊 Dashboard General</h2>
             <div class="form-grid">
-                <div class="card"><h3>Ventas del Mes</h3><p id="dash-ventas">0 libras</p></div>
-                <div class="card"><h3>Inventario Tostado</h3><p id="dash-tostado">0 libras</p></div>
-                <div class="card"><h3>Inventario Oro</h3><p id="dash-oro">0 libras</p></div>
-                <div class="card"><h3>Inventario Pergamino</h3><p id="dash-pergamino">0 libras</p></div>
+                <div class="card"><h3>Ventas Totales</h3><p id="dash-ventas">0</p></div>
+                <div class="card"><h3>Café Tostado</h3><p id="dash-tostado">0 lb</p></div>
+                <div class="card"><h3>Café Oro</h3><p id="dash-oro">0 lb</p></div>
+                <div class="card"><h3>Café Pergamino</h3><p id="dash-pergamino">0 lb</p></div>
+                <div class="card"><h3>Miel de Abeja</h3><p id="dash-miel">0 u.</p></div>
+                <div class="card"><h3>Licor de Guayaba</h3><p id="dash-licor">0 u.</p></div>
             </div>
         </div>
 
         <!-- VENTAS -->
         <div id="ventas" class="section">
             <h2>💰 Registro de Ventas</h2>
+            <div class="info-box"><strong>💡 Tip:</strong> Al seleccionar un producto, el precio sugerido se carga automáticamente desde tu Lista de Precios. Puedes modificarlo antes de guardar.</div>
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Tipo de Café</label>
-                    <select id="venta-tipo" onchange="toggleVentaPresentacion()">
-                        <option value="Tostado">Tostado</option>
-                        <option value="Oro">Verde (Oro)</option>
-                        <option value="Pergamino">Pergamino</option>
+                    <label>Producto</label>
+                    <select id="venta-tipo" onchange="onVentaTipoChange()">
+                        <optgroup label="Café">
+                            <option value="Tostado">Café Tostado</option>
+                            <option value="Oro">Café Verde (Oro)</option>
+                            <option value="Pergamino">Café Pergamino</option>
+                        </optgroup>
+                        <optgroup label="Miel">
+                            <option value="Miel-Botella">Miel Botella 750ml</option>
+                            <option value="Miel-Galon">Miel Galón</option>
+                        </optgroup>
+                        <optgroup label="Licor de Guayaba">
+                            <option value="Licor-Botella">Licor Botella 750ml</option>
+                            <option value="Licor-Litro">Licor Litro</option>
+                            <option value="Licor-Galon">Licor Galón</option>
+                        </optgroup>
                     </select>
                 </div>
                 <div class="form-group" id="venta-presentacion-group" style="display:none;">
-                    <label>Presentación</label>
+                    <label>Presentación Café</label>
                     <select id="venta-presentacion">
                         <option value="Entero">Grano Entero</option>
                         <option value="Molido">Molido</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="venta-cantidad" class="yellow-input" step="0.01"></div>
-                <div class="form-group"><label>Precio por Libra (Q)</label><input type="number" id="venta-precio" class="yellow-input" step="0.01"></div>
+                <div class="form-group"><label>Cantidad</label><input type="number" id="venta-cantidad" class="yellow-input" step="0.01"></div>
+                <div class="form-group"><label>Precio Unitario (Q)</label><input type="number" id="venta-precio" class="yellow-input" step="0.01"></div>
                 <div class="form-group">
                     <label>Método de Pago</label>
                     <select id="venta-pago"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Pendiente">Pendiente</option></select>
@@ -248,7 +283,7 @@
             <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
             <h3>Historial de Ventas</h3>
             <div class="table-wrapper">
-                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Tipo</th><th>Pres.</th><th>Libras</th><th>Total</th><th>Pago</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>P.Unit</th><th>Total</th><th>Pago</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
@@ -257,21 +292,32 @@
             <h2>📦 Gestión de Inventario</h2>
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Estado del Café</label>
+                    <label>Producto</label>
                     <select id="inv-estado" onchange="toggleInvFields()">
-                        <option value="Pergamino">Pergamino</option>
-                        <option value="Oro">Oro (Verde)</option>
-                        <option value="Tostado">Tostado</option>
+                        <optgroup label="Café">
+                            <option value="Pergamino">Café Pergamino</option>
+                            <option value="Oro">Café Oro (Verde)</option>
+                            <option value="Tostado">Café Tostado</option>
+                        </optgroup>
+                        <optgroup label="Miel">
+                            <option value="Miel-Botella">Miel Botella 750ml</option>
+                            <option value="Miel-Galon">Miel Galón</option>
+                        </optgroup>
+                        <optgroup label="Licor de Guayaba">
+                            <option value="Licor-Botella">Licor Botella 750ml</option>
+                            <option value="Licor-Litro">Licor Litro</option>
+                            <option value="Licor-Galon">Licor Galón</option>
+                        </optgroup>
                     </select>
                 </div>
-                <div class="form-group"><label>Cantidad (Libras)</label><input type="number" id="inv-cantidad" class="yellow-input" step="0.01"></div>
+                <div class="form-group"><label>Cantidad</label><input type="number" id="inv-cantidad" class="yellow-input" step="0.01"></div>
                 <div class="form-group" id="inv-presentacion-group" style="display:none;">
-                    <label>Presentación</label>
+                    <label>Presentación Café</label>
                     <select id="inv-presentacion"><option value="Entero">Grano Entero</option><option value="Molido">Molido</option></select>
                 </div>
                 <div class="form-group"><label>Finca / Origen</label><input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input"></div>
-                <div class="form-group"><label>Variedad</label><input type="text" id="inv-variedad" value="Catimor" class="yellow-input"></div>
-                <div class="form-group">
+                <div class="form-group" id="inv-variedad-group"><label>Variedad</label><input type="text" id="inv-variedad" value="Catimor" class="yellow-input"></div>
+                <div class="form-group" id="inv-proceso-group">
                     <label>Proceso</label>
                     <select id="inv-proceso"><option>Lavado</option><option>Honey</option><option>Natural</option></select>
                 </div>
@@ -283,21 +329,27 @@
             <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
             <h3>Inventario Actual Disponible</h3>
             <div class="table-wrapper">
-                <table id="tabla-inventario"><thead><tr><th>Fecha</th><th>Estado</th><th>Pres.</th><th>Variedad</th><th>Libras</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-inventario"><thead><tr><th>Fecha</th><th>Producto</th><th>Detalles</th><th>Cantidad</th></tr></thead><tbody></tbody></table>
             </div>
+        </div>
+
+        <!-- LISTA DE PRECIOS -->
+        <div id="precios" class="section">
+            <h2>🏷️ Lista de Precios de Venta</h2>
+            <div class="info-box"><strong>💡 Nota:</strong> Esta lista es tu catálogo de referencia. Los precios se cargan automáticamente al registrar una venta, pero puedes modificarlos en cada venta específica.</div>
+            <div id="precios-container"></div>
+            <button class="btn btn-save" onclick="guardarPreciosLista()">💾 Guardar Lista de Precios</button>
+            <button class="btn btn-secondary" onclick="restaurarPreciosDefault()" style="margin-top:0.5rem;">🔄 Restaurar Precios por Defecto</button>
         </div>
 
         <!-- COSTOS TOSTADO -->
         <div id="costos" class="section">
             <h2>🧮 Calculadora de Costos - Café Tostado</h2>
-            <div class="info-box">
-                <strong>📐 Fórmula:</strong> Precio de Venta = Costo Total ÷ (1 - % Ganancia)<br>
-                <small>El margen se calcula sobre el precio final de venta, no sobre el costo.</small>
-            </div>
+            <div class="info-box"><strong>📐 Fórmula:</strong> Precio de Venta = Costo Total ÷ (1 - % Ganancia)</div>
             <h3>📋 Datos del Lote</h3>
             <div class="form-grid">
                 <div class="form-group"><label>Nombre del Lote</label><input type="text" id="costo-lote" class="yellow-input" placeholder="Ej: COE0726, FAT CAT"></div>
-                <div class="form-group"><label>Variedad de Café</label><input type="text" id="costo-variedad" class="yellow-input" value="Catimor"></div>
+                <div class="form-group"><label>Variedad</label><input type="text" id="costo-variedad" class="yellow-input" value="Catimor"></div>
                 <div class="form-group">
                     <label>Proceso</label>
                     <select id="costo-proceso"><option value="Lavado">Lavado</option><option value="Honey">Honey</option><option value="Natural">Natural</option><option value="Anaeróbico">Anaeróbico</option></select>
@@ -306,9 +358,9 @@
             </div>
             <h3>💰 Costos por Libra</h3>
             <div class="form-grid">
-                <div class="form-group"><label>Costo Café Verde/Libra (Q)</label><input type="number" id="costo-verde" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
-                <div class="form-group"><label>Costo Tostado/Libra (Q)</label><input type="number" id="costo-tostado" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
-                <div class="form-group"><label>Costo Empaque/Libra (Q)</label><input type="number" id="costo-empaque" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
+                <div class="form-group"><label>Costo Café Verde (Q)</label><input type="number" id="costo-verde" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
+                <div class="form-group"><label>Costo Tostado (Q)</label><input type="number" id="costo-tostado" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
+                <div class="form-group"><label>Costo Empaque (Q)</label><input type="number" id="costo-empaque" class="yellow-input" step="0.01" oninput="calcularPrecioSugerido()"></div>
                 <div class="form-group"><label>Margen Ganancia (%)</label><input type="number" id="costo-margen" value="30" class="yellow-input" oninput="calcularPrecioSugerido()"></div>
             </div>
             <div class="card" style="background:var(--primary); color:white; text-align:center; border-left-color:var(--accent);">
@@ -320,13 +372,13 @@
             <button class="btn btn-save" onclick="guardarCosto()">💾 Guardar Costo de este Lote</button>
             <h3>📊 Historial de Costos por Lote</h3>
             <div class="table-wrapper">
-                <table id="tabla-costos"><thead><tr><th>Fecha Tostado</th><th>Lote</th><th>Variedad</th><th>Proceso</th><th>Costo/Lb</th><th>Precio Venta</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-costos"><thead><tr><th>Fecha</th><th>Lote</th><th>Variedad</th><th>Proceso</th><th>Costo/Lb</th><th>Precio Venta</th><th>Acciones</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
-        <!-- COTIZADOR VERDE -->
+        <!-- COTIZADOR -->
         <div id="cotizador" class="section">
-            <h2>💵 Cotizador de Café Verde / Pergamino / Oro</h2>
+            <h2>💵 Cotizador de Café Verde</h2>
             <div class="cmarket-banner">
                 <h3>📈 ICE C-Market (Bolsa de NY)</h3>
                 <div class="price" id="cmarket-price">385.00 ¢/lb</div>
@@ -358,9 +410,8 @@
                 <div class="conversion-card"><div class="currency">Dólares</div><div class="value" id="conv-usdlb">US$ 3.21</div><div class="unit">por libra</div></div>
                 <div class="conversion-card"><div class="currency">Dólares</div><div class="value" id="conv-usdkg">US$ 7.07</div><div class="unit">por kg</div></div>
             </div>
-            <div class="info-box" id="cot-diferencial-box"><strong>📈 Diferencial vs C-Market:</strong> <span id="cot-diferencial">...</span></div>
+            <div class="info-box" id="cot-diferencial-box"><strong>📈 Diferencial vs C-Market:</strong> ...</div>
             <h3>🚢 FOB / CIF</h3>
-            <div class="info-box"><strong>FOB</strong> = Puesto en puerto GT · <strong>CIF</strong> = Llegado a destino con flete y seguro</div>
             <div class="form-grid">
                 <div class="form-group">
                     <label>País destino</label>
@@ -371,22 +422,169 @@
                         <option value="australia">🇦🇺 Australia</option><option value="china">🇨🇳 China</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Cantidad (kg)</label><input type="number" id="cot-cantidad-kg" value="18000" step="60" class="yellow-input" oninput="calcularCotizador()"><small style="color:#666;">Contenedor 20' ≈ 18,000 kg</small></div>
+                <div class="form-group"><label>Cantidad (kg)</label><input type="number" id="cot-cantidad-kg" value="18000" step="60" class="yellow-input" oninput="calcularCotizador()"></div>
                 <div class="form-group"><label>Seguro (%)</label><input type="number" id="cot-seguro" value="0.3" step="0.05" class="yellow-input" oninput="calcularCotizador()"></div>
             </div>
-            <h3>💼 Resultados</h3>
             <div class="conversion-grid">
                 <div class="conversion-card"><div class="currency">FOB</div><div class="value" id="fob-usdlb">US$ 0.00</div><div class="unit">/libra</div></div>
                 <div class="conversion-card"><div class="currency">FOB</div><div class="value" id="fob-usdkg">US$ 0.00</div><div class="unit">/kg</div></div>
                 <div class="conversion-card highlight"><div class="currency">CIF</div><div class="value" id="cif-usdlb">US$ 0.00</div><div class="unit">/libra</div></div>
                 <div class="conversion-card highlight"><div class="currency">CIF</div><div class="value" id="cif-usdkg">US$ 0.00</div><div class="unit">/kg</div></div>
             </div>
-            <div class="card" style="background:var(--primary); color:white; text-align:center; border-left-color:var(--accent);">
+            <div class="card" style="background:var(--primary); color:white; text-align:center;">
                 <h3 style="color:white;">Total Contenedor CIF</h3>
                 <p style="color:var(--accent); font-size:1.8rem;" id="cif-total">US$ 0.00</p>
                 <p style="color:white; font-size:0.9rem;">Flete: <span id="flete-total">US$ 0</span> · Seguro: <span id="seguro-total">US$ 0</span></p>
             </div>
-            <div class="info-box"><strong>⚠️</strong> Fletes estimados (ago 2026). Consulta tu forwarder para cotizaciones reales.</div>
+        </div>
+
+        <!-- CATACIÓN SCA -->
+        <div id="catacion" class="section">
+            <h2>☕ Catación SCA - Escala Oficial</h2>
+            <div class="info-box"><strong>📋 Escala SCA:</strong> Cada categoría se puntúa de 6 a 10 (incrementos de 0.25). Puntaje total sobre 100. Se considera <strong>Specialty</strong> a partir de 80 puntos.</div>
+            
+            <h3>📋 Datos de la Muestra</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Nombre / Código</label><input type="text" id="c-nombre" class="yellow-input" placeholder="Ej: COE0726, FAT CAT"></div>
+                <div class="form-group"><label>Fecha de Catación</label><input type="date" id="c-fecha" class="yellow-input"></div>
+                <div class="form-group"><label>Variedad</label><input type="text" id="c-variedad" class="yellow-input" value="Catimor"></div>
+                <div class="form-group"><label>Proceso</label><input type="text" id="c-proceso" class="yellow-input" value="Lavado"></div>
+                <div class="form-group"><label>Origen / Finca</label><input type="text" id="c-origen" class="yellow-input" value="Finca Los Robles"></div>
+                <div class="form-group"><label>Altitud (msnm)</label><input type="text" id="c-altitud" class="yellow-input" value="1600"></div>
+                <div class="form-group"><label>Catador</label><input type="text" id="c-catador" class="yellow-input"></div>
+                <div class="form-group"><label>Tostado</label><input type="text" id="c-tostado" class="yellow-input" placeholder="Ej: Medio"></div>
+            </div>
+
+            <h3>🎯 Evaluación Sensorial (Escala SCA)</h3>
+            
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">1. Fragancia / Aroma</div>
+                        <div class="sca-category-desc">Evaluación del café seco (fragancia) y húmedo (aroma)</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-fragancia" min="6" max="10" step="0.25" value="7.5" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">2. Sabor (Flavor)</div>
+                        <div class="sca-category-desc">Impresión gustativa principal: combinaciones de sabor</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-sabor" min="6" max="10" step="0.25" value="7.5" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">3. Retrogusto (Aftertaste)</div>
+                        <div class="sca-category-desc">Duración y calidad del sabor residual</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-retrgusto" min="6" max="10" step="0.25" value="7.5" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">4. Acidez (Acidity)</div>
+                        <div class="sca-category-desc">Intensidad y calidad de la acidez</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-acidez" min="6" max="10" step="0.25" value="7.5" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">5. Cuerpo (Body)</div>
+                        <div class="sca-category-desc">Sensación táctil en boca (peso, textura)</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-cuerpo" min="6" max="10" step="0.25" value="7.5" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">6. Uniformidad (Uniformity)</div>
+                        <div class="sca-category-desc">Consistencia entre tazas (base 10 si uniforme)</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-uniformidad" min="0" max="10" step="0.25" value="10" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">7. Balance</div>
+                        <div class="sca-category-desc">Armonía entre sabor, retrogusto, acidez y cuerpo</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-balance" min="6" max="10" step="0.25" value="7.5" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">8. Dulzura (Sweetness)</div>
+                        <div class="sca-category-desc">Presencia de dulzor natural (base 10 si dulce)</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-dulzura" min="0" max="10" step="0.25" value="10" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">9. Limpieza de Taza (Clean Cup)</div>
+                        <div class="sca-category-desc">Ausencia de defectos (base 10 si limpia)</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-limpieza" min="0" max="10" step="0.25" value="10" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">10. Puntaje Global (Overall)</div>
+                        <div class="sca-category-desc">Impresión general y satisfacción personal</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-global" min="6" max="10" step="0.25" value="7.5" oninput="calcularCatacion()">
+                </div>
+            </div>
+
+            <div class="sca-category">
+                <div class="sca-category-header">
+                    <div>
+                        <div class="sca-category-name">⚠️ Defectos</div>
+                        <div class="sca-category-desc">Puntos a restar por defectos detectados</div>
+                    </div>
+                    <input type="number" class="sca-score-input" id="c-defectos" min="0" max="10" step="0.25" value="0" oninput="calcularCatacion()" style="border-color:var(--danger);">
+                </div>
+            </div>
+
+            <!-- TOTAL -->
+            <div class="sca-total-card">
+                <h3 style="color:white; margin-bottom:0.5rem;">PUNTAJE TOTAL SCA</h3>
+                <div class="sca-total-score" id="c-total">80.00</div>
+                <div class="sca-classification verygood" id="c-clasificacion">Very Good - Specialty</div>
+            </div>
+
+            <div class="form-group" style="margin-top:1rem;">
+                <label>Notas de Cata (descriptores de sabor, aroma, etc.)</label>
+                <textarea id="c-notas" class="yellow-input" rows="3" placeholder="Ej: Chocolate, caramelo, cítricos, cuerpo medio, acidez brillante..."></textarea>
+            </div>
+
+            <button class="btn" style="margin-top:1rem;" onclick="guardarCatacion()">💾 Guardar Ficha de Catación</button>
+
+            <h3>📊 Historial de Cataciones</h3>
+            <div class="table-wrapper">
+                <table id="tabla-cataciones"><thead><tr><th>Fecha</th><th>Muestra</th><th>Variedad</th><th>Puntaje</th><th>Clasificación</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+            </div>
         </div>
 
         <!-- MUESTREO -->
@@ -447,7 +645,7 @@
         <h3 id="modal-titulo">Ficha de Muestreo</h3>
         <div id="modal-contenido"></div>
         <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
-            <button class="btn btn-pdf" style="flex:1; min-width:150px;" onclick="generarPDFDesdeModal()">📄 Descargar PDF</button>
+            <button class="btn btn-pdf" style="flex:1; min-width:150px;" onclick="generarPDFMuestra()">📄 Descargar PDF</button>
             <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-ver-muestra')">Cerrar</button>
         </div>
     </div>
@@ -462,8 +660,19 @@
     </div>
 </div>
 
-<!-- VERSION -->
-<div class="version-tag">v2026.08.1</div>
+<!-- MODAL CATACIÓN -->
+<div class="modal-overlay" id="modal-ver-catacion">
+    <div class="modal-content-large">
+        <h3 id="modal-catacion-titulo">Ficha de Catación SCA</h3>
+        <div id="modal-catacion-contenido"></div>
+        <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
+            <button class="btn btn-pdf" style="flex:1; min-width:150px;" onclick="generarPDFCatacion()">📄 Descargar PDF</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-ver-catacion')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="version-tag">v2026.09.1</div>
 
 <!-- ==================== FIREBASE & LOGIC ==================== -->
 <script type="module">
@@ -487,13 +696,28 @@
     let currentAuthUid = null;
     let currentAuthEmail = null;
     let muestraActualEnModal = null;
+    let catacionActualEnModal = null;
     let isManualLogin = false;
 
     const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
+    // ===== PRECIOS POR DEFECTO =====
+    const PRECIOS_DEFAULT = {
+        "Tostado": { nombre: "Café Tostado (Entero/Molido)", unidad: "libra", precio: 80 },
+        "Oro": { nombre: "Café Verde (Oro)", unidad: "libra", precio: 25 },
+        "Pergamino": { nombre: "Café Pergamino", unidad: "libra", precio: 12 },
+        "Miel-Botella": { nombre: "Miel de Abeja Botella 750ml", unidad: "botella", precio: 75 },
+        "Miel-Galon": { nombre: "Miel de Abeja Galón", unidad: "galón", precio: 375 },
+        "Licor-Botella": { nombre: "Licor de Guayaba Botella 750ml", unidad: "botella", precio: 75 },
+        "Licor-Litro": { nombre: "Licor de Guayaba Litro", unidad: "litro", precio: 85 },
+        "Licor-Galon": { nombre: "Licor de Guayaba Galón", unidad: "galón", precio: 300 }
+    };
+
+    let preciosListaActual = { ...PRECIOS_DEFAULT };
+
     // ===== UI =====
     window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); };
-    window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; muestraActualEnModal = null; };
+    window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; muestraActualEnModal = null; catacionActualEnModal = null; };
 
     window.showAuthState = (state) => {
         document.getElementById('form-login').style.display = state === 'login' ? 'block' : 'none';
@@ -507,8 +731,10 @@
     function entrarAlSistema() {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('app-screen').style.display = 'block';
+        cargarPreciosLista();
         cargarDatosIniciales();
         calcularCotizador();
+        calcularCatacion();
     }
 
     // ===== AUTH =====
@@ -530,7 +756,6 @@
             document.getElementById('demo-otp').innerText = otp;
             showAuthState('verify');
         } catch (e) {
-            console.error(e);
             const msgs = { 'auth/email-already-in-use':'Este correo ya está registrado.', 'auth/invalid-email':'Correo no válido.', 'auth/weak-password':'Contraseña muy débil.' };
             showError('reg-error', '❌ ' + (msgs[e.code] || e.message));
         } finally { btn.disabled = false; btn.innerText = "Registrarse"; }
@@ -551,9 +776,9 @@
                     await deleteDoc(doc(db, "verificaciones", currentAuthUid));
                     alert("✅ ¡Cuenta verificada! Bienvenido.");
                     entrarAlSistema();
-                } else if (mins >= 15) { showError('verify-error', '⚠️ Código expirado. Solicita uno nuevo.'); }
+                } else if (mins >= 15) { showError('verify-error', '⚠️ Código expirado.'); }
                 else { showError('verify-error', '❌ Código incorrecto.'); }
-            } else { showError('verify-error', '⚠️ No hay código activo. Solicita uno nuevo.'); }
+            } else { showError('verify-error', '⚠️ No hay código activo.'); }
         } catch (e) { showError('verify-error', '❌ Error: ' + e.message); }
         finally { btn.disabled = false; btn.innerText = "Verificar e Ingresar"; }
     };
@@ -580,7 +805,7 @@
             const snap = await getDoc(doc(db, "usuarios", user.uid));
             if (!snap.exists()) {
                 await signOut(auth);
-                showError('login-error', '⚠️ Tu cuenta existe en Firebase pero no está registrada en el sistema. Elimina tu usuario en Firebase Console → Authentication y regístrate de nuevo desde la app.');
+                showError('login-error', '⚠️ Cuenta no registrada en el sistema. Elimina tu usuario en Firebase Console y regístrate de nuevo.');
                 isManualLogin = false; return;
             }
             if (snap.data().verificado !== true) {
@@ -591,7 +816,6 @@
             currentAuthUid = user.uid; currentAuthEmail = user.email;
             entrarAlSistema();
         } catch (e) {
-            console.error("Login error:", e.code, e.message);
             const msgs = {
                 'auth/invalid-credential': '❌ Correo o contraseña incorrectos.',
                 'auth/wrong-password': '❌ Contraseña incorrecta.',
@@ -628,8 +852,146 @@
         if (el) el.classList.add('active');
         if (window.innerWidth < 1024) toggleSidebar();
     };
-    window.toggleVentaPresentacion = () => { document.getElementById('venta-presentacion-group').style.display = document.getElementById('venta-tipo').value === 'Tostado' ? 'flex' : 'none'; };
-    window.toggleInvFields = () => { const t = document.getElementById('inv-estado').value === 'Tostado'; document.getElementById('inv-presentacion-group').style.display = t ? 'flex' : 'none'; document.getElementById('field-tostado').style.display = t ? 'flex' : 'none'; };
+
+    // ===== LISTA DE PRECIOS =====
+    async function cargarPreciosLista() {
+        try {
+            const snap = await getDoc(doc(db, "precios", "catalogo"));
+            if (snap.exists()) {
+                preciosListaActual = snap.data().productos || { ...PRECIOS_DEFAULT };
+            } else {
+                preciosListaActual = { ...PRECIOS_DEFAULT };
+            }
+            renderPreciosLista();
+        } catch (e) {
+            console.error("Error cargando precios:", e);
+            preciosListaActual = { ...PRECIOS_DEFAULT };
+            renderPreciosLista();
+        }
+    }
+
+    function renderPreciosLista() {
+        const container = document.getElementById('precios-container');
+        container.innerHTML = '';
+        Object.keys(preciosListaActual).forEach(key => {
+            const p = preciosListaActual[key];
+            const row = document.createElement('div');
+            row.className = 'precio-row';
+            row.innerHTML = `
+                <div class="producto-nombre">${p.nombre}</div>
+                <input type="number" value="${p.precio}" step="0.01" data-key="${key}" data-field="precio" placeholder="Precio Q">
+                <input type="text" value="${p.unidad}" data-key="${key}" data-field="unidad" placeholder="Unidad">
+                <button class="btn btn-small btn-danger" onclick="eliminarProductoLista('${key}')">🗑️</button>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    window.guardarPreciosLista = async () => {
+        // Leer valores actualizados del DOM
+        document.querySelectorAll('#precios-container input').forEach(input => {
+            const key = input.dataset.key;
+            const field = input.dataset.field;
+            if (preciosListaActual[key]) {
+                if (field === 'precio') preciosListaActual[key].precio = parseFloat(input.value) || 0;
+                else if (field === 'unidad') preciosListaActual[key].unidad = input.value;
+            }
+        });
+        try {
+            await setDoc(doc(db, "precios", "catalogo"), { productos: preciosListaActual, actualizado: serverTimestamp() });
+            alert("✅ Lista de precios guardada.");
+        } catch (e) { alert("Error: " + e.message); }
+    };
+
+    window.restaurarPreciosDefault = () => {
+        if (confirm("¿Restaurar precios por defecto? Se perderán los cambios actuales.")) {
+            preciosListaActual = JSON.parse(JSON.stringify(PRECIOS_DEFAULT));
+            renderPreciosLista();
+            alert("✅ Precios restaurados. Recuerda guardar.");
+        }
+    };
+
+    window.eliminarProductoLista = (key) => {
+        if (confirm(`¿Eliminar "${preciosListaActual[key].nombre}" de la lista?`)) {
+            delete preciosListaActual[key];
+            renderPreciosLista();
+        }
+    };
+
+    // ===== VENTAS - AUTO CARGAR PRECIO =====
+    window.onVentaTipoChange = () => {
+        const tipo = document.getElementById('venta-tipo').value;
+        // Mostrar/ocultar presentación para café tostado
+        document.getElementById('venta-presentacion-group').style.display = (tipo === 'Tostado') ? 'flex' : 'none';
+        // Auto cargar precio desde lista
+        if (preciosListaActual[tipo]) {
+            document.getElementById('venta-precio').value = preciosListaActual[tipo].precio;
+        }
+    };
+
+    // ===== INVENTARIO =====
+    window.toggleInvFields = () => {
+        const est = document.getElementById('inv-estado').value;
+        const isTostado = est === 'Tostado';
+        const isCafe = est === 'Pergamino' || est === 'Oro' || est === 'Tostado';
+        document.getElementById('inv-presentacion-group').style.display = isTostado ? 'flex' : 'none';
+        document.getElementById('field-tostado').style.display = isTostado ? 'flex' : 'none';
+        document.getElementById('inv-variedad-group').style.display = isCafe ? 'flex' : 'none';
+        document.getElementById('inv-proceso-group').style.display = isCafe ? 'flex' : 'none';
+    };
+
+    window.guardarInventario = async () => {
+        const est = document.getElementById('inv-estado').value;
+        const isCafe = est === 'Pergamino' || est === 'Oro' || est === 'Tostado';
+        await addDoc(collection(db,"inventario"), {
+            estado: est,
+            presentacion: est === 'Tostado' ? document.getElementById('inv-presentacion').value : 'N/A',
+            cantidad: parseFloat(document.getElementById('inv-cantidad').value) || 0,
+            finca: document.getElementById('inv-finca').value,
+            variedad: isCafe ? document.getElementById('inv-variedad').value : 'N/A',
+            proceso: isCafe ? document.getElementById('inv-proceso').value : 'N/A',
+            fechaTostado: est === 'Tostado' ? document.getElementById('inv-fecha-tostado').value : '',
+            fecha: serverTimestamp()
+        });
+        alert("✅ Inventario actualizado.");
+        cargarDatosIniciales();
+    };
+
+    // ===== VENTAS =====
+    window.guardarVenta = async () => {
+        const tipo = document.getElementById('venta-tipo').value;
+        const pres = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
+        const cant = parseFloat(document.getElementById('venta-cantidad').value) || 0;
+        const prec = parseFloat(document.getElementById('venta-precio').value) || 0;
+        if (cant <= 0) return alert("Cantidad debe ser mayor a 0.");
+        
+        await addDoc(collection(db,"ventas"), {
+            tipo, presentacion: pres, cantidad: cant, precio: prec,
+            pago: document.getElementById('venta-pago').value,
+            notas: document.getElementById('venta-notas').value,
+            fecha: serverTimestamp()
+        });
+
+        // Descontar inventario
+        let pend = cant;
+        const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",tipo)));
+        for (const d of snap.docs) {
+            if (pend <= 0) break;
+            const inv = d.data();
+            if (tipo === 'Tostado' && inv.presentacion !== pres) continue;
+            if (inv.cantidad >= pend) {
+                await updateDoc(doc(db,"inventario",d.id), { cantidad: inv.cantidad - pend });
+                pend = 0;
+            } else {
+                await updateDoc(doc(db,"inventario",d.id), { cantidad: 0 });
+                pend -= inv.cantidad;
+            }
+        }
+        alert(pend > 0 ? `Venta registrada, faltan ${pend.toFixed(2)} en inventario.` : "✅ Venta registrada e inventario descontado.");
+        cargarDatosIniciales();
+        document.getElementById('venta-cantidad').value = '';
+        document.getElementById('venta-notas').value = '';
+    };
 
     // ===== COSTOS =====
     window.calcularPrecioSugerido = () => {
@@ -655,7 +1017,14 @@
             const e = parseFloat(document.getElementById('costo-empaque').value)||0;
             const m = parseFloat(document.getElementById('costo-margen').value)||0;
             const ct = v+t+e; const pv = m<100 ? ct/(1-(m/100)) : 0;
-            await addDoc(collection(db,"costosTostado"), { lote, variedad:document.getElementById('costo-variedad').value, proceso:document.getElementById('costo-proceso').value, fechaTostado:document.getElementById('costo-fecha-tostado').value, costoVerde:v, costoTostado:t, costoEmpaque:e, costoTotal:ct, margenPorc:m, precioSugerido:pv, gananciaNeta:pv-ct, fechaRegistro:serverTimestamp() });
+            await addDoc(collection(db,"costosTostado"), {
+                lote, variedad:document.getElementById('costo-variedad').value,
+                proceso:document.getElementById('costo-proceso').value,
+                fechaTostado:document.getElementById('costo-fecha-tostado').value,
+                costoVerde:v, costoTostado:t, costoEmpaque:e,
+                costoTotal:ct, margenPorc:m, precioSugerido:pv,
+                gananciaNeta:pv-ct, fechaRegistro:serverTimestamp()
+            });
             alert("✅ Costo guardado."); cargarDatosIniciales();
             ['costo-lote','costo-verde','costo-tostado','costo-empaque','costo-fecha-tostado'].forEach(id => document.getElementById(id).value='');
             calcularPrecioSugerido();
@@ -721,8 +1090,8 @@
         const cm = (parseFloat(document.getElementById('cmarket-input').value)||385)/100;
         const dif = usdlb-cm;
         document.getElementById('cot-diferencial-box').innerHTML = dif>=0
-            ? `<strong>📈 Diferencial:</strong> <span style="color:#2C5E2E; font-weight:bold;">+US$ ${dif.toFixed(2)}/lb</span> (encima del mercado)`
-            : `<strong>📉 Diferencial:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${dif.toFixed(2)}/lb</span> (debajo del mercado)`;
+            ? `<strong>📈 Diferencial:</strong> <span style="color:#2C5E2E; font-weight:bold;">+US$ ${dif.toFixed(2)}/lb</span>`
+            : `<strong>📉 Diferencial:</strong> <span style="color:#d32f2f; font-weight:bold;">US$ ${dif.toFixed(2)}/lb</span>`;
         const fobT = usdkg*kg, flt = (FLETES[pais]||120)*(kg/1000), segT = fobT*(seg/100), cifT = fobT+flt+segT, cifkg = kg>0?cifT/kg:0;
         document.getElementById('fob-usdlb').innerText='US$ '+usdlb.toFixed(2);
         document.getElementById('fob-usdkg').innerText='US$ '+usdkg.toFixed(2);
@@ -782,36 +1151,21 @@
                     <div class="detail-item"><div class="label">Variedad</div><div class="value">${m.variedad||'N/A'}</div></div>
                     <div class="detail-item"><div class="label">Proceso</div><div class="value">${m.proceso||'N/A'}</div></div>
                     <div class="detail-item"><div class="label">Lote</div><div class="value">${m.lote||'N/A'}</div></div>
-                    <div class="detail-item"><div class="label">Muestra #</div><div class="value">${m.muestraNum||'N/A'}</div></div>
                 </div>
-                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">⚖️ Pesos y Mediciones</h4>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">⚖️ Pesos y Resultados</h4>
                 <div class="detail-grid">
                     <div class="detail-item"><div class="label">Peso Pergamino</div><div class="value">${m.pesoPerg||'0'} g</div></div>
                     <div class="detail-item"><div class="label">Peso Oro</div><div class="value">${m.pesoOro||'0'} g</div></div>
                     <div class="detail-item"><div class="label">Humedad</div><div class="value">${m.humedad||'0'}%</div></div>
                     <div class="detail-item"><div class="label">Densidad</div><div class="value">${m.densidad||'0'} g/ml</div></div>
-                    <div class="detail-item"><div class="label">ATW</div><div class="value">${m.atw||'N/A'} g</div></div>
-                </div>
-                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📊 Zarandas</h4>
-                <table class="zarandas-table"><thead><tr><th>Zaranda</th><th>Gramos</th><th>%</th></tr></thead><tbody>
-                    <tr><td>Z 18</td><td>${m.z18||'0'} g</td><td>${m.pctZ18||'0%'}</td></tr>
-                    <tr><td>Z 16</td><td>${m.z16||'0'} g</td><td>${m.pctZ16||'0%'}</td></tr>
-                    <tr><td>Z 15</td><td>${m.z15||'0'} g</td><td>${m.pctZ15||'0%'}</td></tr>
-                    <tr><td>Z 14</td><td>${m.z14||'0'} g</td><td>${m.pctZ14||'0%'}</td></tr>
-                    <tr><td>Residuo</td><td>${m.residuo||'0'} g</td><td>${m.pctResiduo||'0%'}</td></tr>
-                    <tr style="font-weight:bold; background:#f0f0f0;"><td>Total</td><td>${m.total||'0'} g</td><td>100%</td></tr>
-                </tbody></table>
-                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">🏆 Resultados</h4>
-                <div class="detail-grid">
                     <div class="detail-item highlight"><div class="label">Rendimiento</div><div class="value">${m.rendimiento||'0%'}</div></div>
                     <div class="detail-item"><div class="label">Defectos</div><div class="value">${m.defectos||'N/A'} / 300g</div></div>
-                </div>
-                ${m.observaciones?`<h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📝 Observaciones</h4><div class="detail-item"><div class="value">${m.observaciones}</div></div>`:''}`;
+                </div>`;
             document.getElementById('modal-ver-muestra').style.display = 'flex';
         } catch(e) { alert("Error: "+e.message); }
     };
 
-    window.generarPDFDesdeModal = () => {
+    window.generarPDFMuestra = () => {
         if (!muestraActualEnModal) return alert("Sin datos.");
         const m = muestraActualEnModal;
         const { jsPDF } = window.jspdf;
@@ -823,79 +1177,278 @@
         const ln = (l,v) => { d.setFont("helvetica","bold"); d.text(l,15,y); d.setFont("helvetica","normal"); d.text(String(v||"N/A"),75,y); y+=7; };
         d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("DATOS GENERALES",15,y); d.setTextColor(0,0,0); y+=5;
         ln("Nombre:",m.nombre); ln("Fecha:",m.fecha); ln("Finca:",m.finca); ln("Altitud:",(m.altitud||"N/A")+" msnm");
-        ln("Variedad:",m.variedad); ln("Proceso:",m.proceso); ln("Lote:",m.lote); ln("Muestra #:",m.muestraNum);
-        y+=3; d.setDrawColor(212,175,55); d.line(15,y,195,y); y+=8;
-        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("PESOS Y MEDICIONES",15,y); d.setTextColor(0,0,0); y+=5;
-        ln("Peso Pergamino:",(m.pesoPerg||"0")+" g"); ln("Peso Oro:",(m.pesoOro||"0")+" g");
-        ln("Humedad:",(m.humedad||"0")+"%"); ln("Densidad:",(m.densidad||"0")+" g/ml"); ln("ATW:",(m.atw||"N/A")+" g");
+        ln("Variedad:",m.variedad); ln("Proceso:",m.proceso); ln("Lote:",m.lote);
         y+=3; d.line(15,y,195,y); y+=8;
-        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("ZARANDAS",15,y); d.setTextColor(0,0,0); y+=5;
-        d.setFillColor(44,94,46); d.rect(15,y-4,180,7,'F'); d.setTextColor(255,255,255);
-        d.text("Zaranda",20,y); d.text("Gramos",90,y); d.text("%",150,y); y+=7; d.setTextColor(0,0,0); d.setFont("helvetica","normal");
-        [["Z 18",m.z18,m.pctZ18],["Z 16",m.z16,m.pctZ16],["Z 15",m.z15,m.pctZ15],["Z 14",m.z14,m.pctZ14],["Residuo",m.residuo,m.pctResiduo],["TOTAL",m.total,"100%"]].forEach(([z,g,p],i)=>{
-            if(i===5) d.setFont("helvetica","bold");
-            d.text(z,20,y); d.text((g||"0")+" g",90,y); d.text(p||"0%",150,y); y+=6; d.setFont("helvetica","normal");
-        });
-        y+=5; d.setDrawColor(212,175,55); d.line(15,y,195,y); y+=8;
         d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("RESULTADOS",15,y); y+=5;
         d.setFontSize(14); d.setTextColor(44,94,46); d.text("Rendimiento: "+(m.rendimiento||"0%"),15,y+5);
-        d.setFontSize(11); d.setTextColor(0,0,0); d.text("Defectos: "+(m.defectos||"N/A")+" / 300g",15,y+15);
-        if(m.observaciones){ y+=25; d.setFont("helvetica","bold"); d.text("Observaciones:",15,y); d.setFont("helvetica","normal"); d.text(d.splitTextToSize(m.observaciones,140),15,y+6); }
+        d.setFontSize(11); d.setTextColor(0,0,0);
+        d.text("Peso Pergamino: "+(m.pesoPerg||"0")+" g",15,y+15);
+        d.text("Peso Oro: "+(m.pesoOro||"0")+" g",15,y+22);
+        d.text("Humedad: "+(m.humedad||"0")+"%",15,y+29);
+        d.text("Defectos: "+(m.defectos||"N/A")+" / 300g",15,y+36);
         d.setFontSize(8); d.setTextColor(100,100,100);
         d.text("Generado: "+new Date().toLocaleString('es-GT'),105,290,null,null,"center");
-        d.text("Finca Los Robles - Café de Especialidad",105,295,null,null,"center");
-        d.save(`Ficha_${m.lote||'SinLote'}_${m.fecha||Date.now()}.pdf`);
+        d.save(`Muestra_${m.lote||'SinLote'}_${m.fecha||Date.now()}.pdf`);
         alert("✅ PDF descargado.");
     };
 
-    // ===== INVENTARIO & VENTAS =====
-    window.guardarInventario = async () => {
-        const est = document.getElementById('inv-estado').value;
-        await addDoc(collection(db,"inventario"), { estado:est, presentacion:est==='Tostado'?document.getElementById('inv-presentacion').value:'N/A', cantidad:parseFloat(document.getElementById('inv-cantidad').value)||0, finca:document.getElementById('inv-finca').value, variedad:document.getElementById('inv-variedad').value, proceso:document.getElementById('inv-proceso').value, fechaTostado:document.getElementById('inv-fecha-tostado').value, fecha:serverTimestamp() });
-        alert("Inventario actualizado."); cargarDatosIniciales();
+    // ===== CATACIÓN SCA =====
+    window.calcularCatacion = () => {
+        const categorias = ['fragancia','sabor','retrgusto','acidez','cuerpo','uniformidad','balance','dulzura','limpieza','global'];
+        let total = 0;
+        categorias.forEach(c => {
+            const v = parseFloat(document.getElementById('c-'+c).value) || 0;
+            total += v;
+        });
+        const defectos = parseFloat(document.getElementById('c-defectos').value) || 0;
+        const puntajeFinal = total - defectos;
+        
+        document.getElementById('c-total').innerText = puntajeFinal.toFixed(2);
+        
+        const clasif = document.getElementById('c-clasificacion');
+        clasif.className = 'sca-classification';
+        if (puntajeFinal >= 90) { clasif.innerText = '🏆 Outstanding - Excepcional'; clasif.classList.add('outstanding'); }
+        else if (puntajeFinal >= 85) { clasif.innerText = '⭐ Excellent - Excelente'; clasif.classList.add('excellent'); }
+        else if (puntajeFinal >= 80) { clasif.innerText = '✅ Very Good - Specialty'; clasif.classList.add('verygood'); }
+        else if (puntajeFinal >= 75) { clasif.innerText = '👍 Good - Bueno'; clasif.classList.add('good'); }
+        else { clasif.innerText = '⚠️ Below Specialty'; clasif.classList.add('below'); }
     };
 
-    window.guardarVenta = async () => {
-        const tipo = document.getElementById('venta-tipo').value;
-        const pres = tipo==='Tostado'?document.getElementById('venta-presentacion').value:'N/A';
-        const cant = parseFloat(document.getElementById('venta-cantidad').value)||0;
-        const prec = parseFloat(document.getElementById('venta-precio').value)||0;
-        if (cant<=0) return alert("Cantidad debe ser mayor a 0.");
-        await addDoc(collection(db,"ventas"), { tipo, presentacion:pres, cantidad:cant, precio:prec, pago:document.getElementById('venta-pago').value, notas:document.getElementById('venta-notas').value, fecha:serverTimestamp() });
-        let pend = cant;
-        const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",tipo)));
-        for (const d of snap.docs) {
-            if (pend<=0) break;
-            const inv = d.data();
-            if (tipo==='Tostado' && inv.presentacion!==pres) continue;
-            if (inv.cantidad>=pend) { await updateDoc(doc(db,"inventario",d.id), {cantidad:inv.cantidad-pend}); pend=0; }
-            else { await updateDoc(doc(db,"inventario",d.id), {cantidad:0}); pend-=inv.cantidad; }
+    window.guardarCatacion = async () => {
+        const nombre = document.getElementById('c-nombre').value.trim();
+        if (!nombre) return alert("Ingresa un nombre para la muestra.");
+        const btn = event.target; btn.disabled = true; btn.innerText = "Guardando...";
+        try {
+            const categorias = ['fragancia','sabor','retrgusto','acidez','cuerpo','uniformidad','balance','dulzura','limpieza','global'];
+            const data = {
+                nombre,
+                fecha: document.getElementById('c-fecha').value,
+                variedad: document.getElementById('c-variedad').value,
+                proceso: document.getElementById('c-proceso').value,
+                origen: document.getElementById('c-origen').value,
+                altitud: document.getElementById('c-altitud').value,
+                catador: document.getElementById('c-catador').value,
+                tostado: document.getElementById('c-tostado').value,
+                notas: document.getElementById('c-notas').value,
+                defectos: parseFloat(document.getElementById('c-defectos').value) || 0,
+                puntajeTotal: parseFloat(document.getElementById('c-total').innerText) || 0,
+                fechaRegistro: serverTimestamp()
+            };
+            categorias.forEach(c => data[c] = parseFloat(document.getElementById('c-'+c).value) || 0);
+            
+            // Clasificación
+            if (data.puntajeTotal >= 90) data.clasificacion = 'Outstanding';
+            else if (data.puntajeTotal >= 85) data.clasificacion = 'Excellent';
+            else if (data.puntajeTotal >= 80) data.clasificacion = 'Very Good';
+            else if (data.puntajeTotal >= 75) data.clasificacion = 'Good';
+            else data.clasificacion = 'Below Specialty';
+            
+            await addDoc(collection(db,"cataciones"), data);
+            alert("✅ Ficha de catación guardada.");
+            cargarDatosIniciales();
+            
+            // Resetear campos (manteniendo valores por defecto SCA)
+            document.getElementById('c-nombre').value = '';
+            document.getElementById('c-catador').value = '';
+            document.getElementById('c-notas').value = '';
+            ['fragancia','sabor','retrgusto','acidez','cuerpo','balance','global'].forEach(c => document.getElementById('c-'+c).value = '7.5');
+            ['uniformidad','dulzura','limpieza'].forEach(c => document.getElementById('c-'+c).value = '10');
+            document.getElementById('c-defectos').value = '0';
+            calcularCatacion();
+        } catch(e) { alert("Error: "+e.message); }
+        finally { btn.disabled = false; btn.innerText = "💾 Guardar Ficha de Catación"; }
+    };
+
+    window.verCatacionCompleta = async (id) => {
+        try {
+            const s = await getDoc(doc(db,"cataciones",id));
+            if (!s.exists()) return alert("No encontrada.");
+            const c = s.data(); catacionActualEnModal = {id,...c};
+            document.getElementById('modal-catacion-titulo').innerText = `☕ ${c.nombre} - ${c.puntajeTotal.toFixed(2)} pts`;
+            
+            const categorias = [
+                {k:'fragancia', n:'Fragancia/Aroma'},
+                {k:'sabor', n:'Sabor'},
+                {k:'retrgusto', n:'Retrogusto'},
+                {k:'acidez', n:'Acidez'},
+                {k:'cuerpo', n:'Cuerpo'},
+                {k:'uniformidad', n:'Uniformidad'},
+                {k:'balance', n:'Balance'},
+                {k:'dulzura', n:'Dulzura'},
+                {k:'limpieza', n:'Limpieza de Taza'},
+                {k:'global', n:'Puntaje Global'}
+            ];
+            
+            let catHTML = categorias.map(cat => `
+                <div class="detail-item">
+                    <div class="label">${cat.n}</div>
+                    <div class="value" style="font-size:1.2rem; font-weight:bold; color:var(--primary);">${(c[cat.k]||0).toFixed(2)}</div>
+                </div>
+            `).join('');
+            
+            document.getElementById('modal-catacion-contenido').innerHTML = `
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Datos de la Muestra</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Nombre</div><div class="value">${c.nombre}</div></div>
+                    <div class="detail-item"><div class="label">Fecha</div><div class="value">${c.fecha||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Origen</div><div class="value">${c.origen||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Altitud</div><div class="value">${c.altitud||'N/A'} msnm</div></div>
+                    <div class="detail-item"><div class="label">Catador</div><div class="value">${c.catador||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Tostado</div><div class="value">${c.tostado||'N/A'}</div></div>
+                </div>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">🎯 Evaluación Sensorial (Escala SCA)</h4>
+                <div class="detail-grid">${catHTML}</div>
+                <div class="detail-item" style="background:var(--danger); color:white;">
+                    <div class="label" style="color:white;">Defectos (restados)</div>
+                    <div class="value" style="color:white; font-size:1.3rem;">-${(c.defectos||0).toFixed(2)}</div>
+                </div>
+                <div class="sca-total-card" style="margin-top:1rem;">
+                    <h3 style="color:white; margin-bottom:0.5rem;">PUNTAJE TOTAL</h3>
+                    <div class="sca-total-score">${(c.puntajeTotal||0).toFixed(2)}</div>
+                    <div class="sca-classification ${c.clasificacion==='Outstanding'?'outstanding':c.clasificacion==='Excellent'?'excellent':c.clasificacion==='Very Good'?'verygood':c.clasificacion==='Good'?'good':'below'}">${c.clasificacion}</div>
+                </div>
+                ${c.notas?`<h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📝 Notas de Cata</h4><div class="detail-item"><div class="value">${c.notas}</div></div>`:''}
+            `;
+            document.getElementById('modal-ver-catacion').style.display = 'flex';
+        } catch(e) { alert("Error: "+e.message); }
+    };
+
+    window.generarPDFCatacion = () => {
+        if (!catacionActualEnModal) return alert("Sin datos.");
+        const c = catacionActualEnModal;
+        const { jsPDF } = window.jspdf;
+        const d = new jsPDF();
+        
+        // Encabezado
+        d.setFillColor(44,94,46); d.rect(0,0,210,35,'F');
+        d.setTextColor(255,255,255); d.setFontSize(20); d.text("Finca Los Robles",105,15,null,null,"center");
+        d.setFontSize(14); d.text("FICHA DE CATACIÓN SCA",105,27,null,null,"center");
+        
+        d.setTextColor(0,0,0); d.setFontSize(11); let y=45;
+        const ln = (l,v) => { d.setFont("helvetica","bold"); d.text(l,15,y); d.setFont("helvetica","normal"); d.text(String(v||"N/A"),75,y); y+=7; };
+        
+        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("DATOS DE LA MUESTRA",15,y); d.setTextColor(0,0,0); y+=5;
+        ln("Nombre:",c.nombre); ln("Fecha:",c.fecha); ln("Variedad:",c.variedad); ln("Proceso:",c.proceso);
+        ln("Origen:",c.origen); ln("Altitud:",(c.altitud||"N/A")+" msnm"); ln("Catador:",c.catador); ln("Tostado:",c.tostado);
+        
+        y+=3; d.setDrawColor(212,175,55); d.line(15,y,195,y); y+=8;
+        
+        d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("EVALUACIÓN SENSORIAL (SCA)",15,y); y+=5;
+        
+        // Tabla de categorías
+        d.setFillColor(44,94,46); d.rect(15,y-4,180,7,'F');
+        d.setTextColor(255,255,255); d.setFontSize(10);
+        d.text("Categoría",20,y); d.text("Puntaje",170,y); y+=7;
+        
+        d.setTextColor(0,0,0); d.setFont("helvetica","normal"); d.setFontSize(10);
+        const cats = [
+            ["Fragancia/Aroma",c.fragancia],["Sabor",c.sabor],["Retrogusto",c.retrgusto],
+            ["Acidez",c.acidez],["Cuerpo",c.cuerpo],["Uniformidad",c.uniformidad],
+            ["Balance",c.balance],["Dulzura",c.dulzura],["Limpieza",c.limpieza],["Global",c.global]
+        ];
+        cats.forEach(([n,v]) => {
+            d.setFont("helvetica","normal"); d.text(n,20,y);
+            d.setFont("helvetica","bold"); d.text((v||0).toFixed(2),170,y);
+            y+=6;
+        });
+        
+        y+=2; d.setFont("helvetica","bold");
+        d.text("Defectos:",20,y); d.setTextColor(211,47,47); d.text("-"+(c.defectos||0).toFixed(2),170,y);
+        y+=8;
+        
+        // Puntaje total destacado
+        d.setFillColor(44,94,46); d.rect(15,y,180,20,'F');
+        d.setTextColor(255,255,255); d.setFontSize(14);
+        d.text("PUNTAJE TOTAL SCA:",25,y+8);
+        d.setTextColor(212,175,55); d.setFontSize(18);
+        d.text((c.puntajeTotal||0).toFixed(2),170,y+12,null,null,"right");
+        y+=25;
+        
+        // Clasificación
+        d.setFillColor(212,175,55); d.rect(15,y,180,12,'F');
+        d.setTextColor(44,94,46); d.setFontSize(12);
+        d.text("Clasificación: "+(c.clasificacion||"N/A"),105,y+8,null,null,"center");
+        y+=18;
+        
+        if (c.notas) {
+            d.setTextColor(0,0,0); d.setFontSize(10);
+            d.setFont("helvetica","bold"); d.text("Notas de Cata:",15,y); y+=5;
+            d.setFont("helvetica","italic");
+            d.text(d.splitTextToSize(c.notas,180),15,y);
         }
-        alert(pend>0?`Venta registrada, faltan ${pend.toFixed(2)} lb en inventario.`:"Venta registrada e inventario descontado.");
-        cargarDatosIniciales();
-        document.getElementById('venta-cantidad').value=''; document.getElementById('venta-precio').value=''; document.getElementById('venta-notas').value='';
+        
+        d.setFontSize(8); d.setTextColor(100,100,100);
+        d.text("Generado: "+new Date().toLocaleString('es-GT'),105,290,null,null,"center");
+        d.text("Finca Los Robles - Café de Especialidad",105,295,null,null,"center");
+        
+        d.save(`Catacion_${c.nombre||'SinNombre'}_${c.fecha||Date.now()}.pdf`);
+        alert("✅ PDF descargado.");
     };
 
     // ===== CARGAR DATOS =====
     async function cargarDatosIniciales() {
         try {
+            // Ventas
             const sv = await getDocs(query(collection(db,"ventas"),orderBy("fecha","desc")));
-            const tv = document.querySelector('#tabla-ventas tbody'); tv.innerHTML=''; let tl=0;
-            sv.forEach(d => { const v=d.data(); tl+=v.cantidad; const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A'; tv.innerHTML+=`<tr><td>${f}</td><td>${v.tipo}</td><td>${v.presentacion!=='N/A'?v.presentacion:'-'}</td><td>${v.cantidad}</td><td>Q${(v.cantidad*v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`; });
-            document.getElementById('dash-ventas').innerText=tl.toFixed(1)+" libras";
+            const tv = document.querySelector('#tabla-ventas tbody'); tv.innerHTML=''; let totalVentas=0;
+            sv.forEach(d => {
+                const v=d.data();
+                totalVentas += (v.cantidad * v.precio);
+                const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A';
+                const nombreProd = preciosListaActual[v.tipo] ? preciosListaActual[v.tipo].nombre : v.tipo;
+                const unidad = preciosListaActual[v.tipo] ? preciosListaActual[v.tipo].unidad : '';
+                tv.innerHTML+=`<tr><td>${f}</td><td>${nombreProd}</td><td>${v.cantidad} ${unidad}</td><td>Q${v.precio.toFixed(2)}</td><td>Q${(v.cantidad*v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
+            });
+            document.getElementById('dash-ventas').innerText = "Q "+totalVentas.toFixed(2);
 
+            // Inventario
             const si = await getDocs(collection(db,"inventario"));
-            const ti = document.querySelector('#tabla-inventario tbody'); ti.innerHTML=''; let o=0,t=0,p=0;
-            si.forEach(d => { const v=d.data(); if(v.estado==='Oro')o+=v.cantidad; if(v.estado==='Tostado')t+=v.cantidad; if(v.estado==='Pergamino')p+=v.cantidad; const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A'; ti.innerHTML+=`<tr><td>${f}</td><td>${v.estado}</td><td>${v.presentacion!=='N/A'?v.presentacion:'-'}</td><td>${v.variedad}</td><td>${v.cantidad.toFixed(1)}</td></tr>`; });
-            document.getElementById('dash-oro').innerText=o.toFixed(1)+" lb"; document.getElementById('dash-tostado').innerText=t.toFixed(1)+" lb"; document.getElementById('dash-pergamino').innerText=p.toFixed(1)+" lb";
+            const ti = document.querySelector('#tabla-inventario tbody'); ti.innerHTML='';
+            let o=0,t=0,p=0,miel=0,licor=0;
+            si.forEach(d => {
+                const v=d.data();
+                if (v.estado==='Oro') o+=v.cantidad;
+                else if (v.estado==='Tostado') t+=v.cantidad;
+                else if (v.estado==='Pergamino') p+=v.cantidad;
+                else if (v.estado && v.estado.startsWith('Miel')) miel+=v.cantidad;
+                else if (v.estado && v.estado.startsWith('Licor')) licor+=v.cantidad;
+                
+                const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A';
+                const nombreProd = preciosListaActual[v.estado] ? preciosListaActual[v.estado].nombre : v.estado;
+                let detalles = '';
+                if (v.estado==='Tostado') detalles = `${v.presentacion} · ${v.variedad} · ${v.proceso}`;
+                else if (['Pergamino','Oro','Tostado'].includes(v.estado)) detalles = `${v.variedad} · ${v.proceso}`;
+                else detalles = v.finca || '';
+                const unidad = preciosListaActual[v.estado] ? preciosListaActual[v.estado].unidad : '';
+                ti.innerHTML+=`<tr><td>${f}</td><td>${nombreProd}</td><td style="font-size:0.8rem;">${detalles}</td><td>${v.cantidad.toFixed(1)} ${unidad}</td></tr>`;
+            });
+            document.getElementById('dash-oro').innerText = o.toFixed(1)+" lb";
+            document.getElementById('dash-tostado').innerText = t.toFixed(1)+" lb";
+            document.getElementById('dash-pergamino').innerText = p.toFixed(1)+" lb";
+            document.getElementById('dash-miel').innerText = miel.toFixed(1)+" u.";
+            document.getElementById('dash-licor').innerText = licor.toFixed(1)+" u.";
 
+            // Costos
             const sc = await getDocs(query(collection(db,"costosTostado"),orderBy("fechaRegistro","desc")));
             const tc2 = document.querySelector('#tabla-costos tbody'); tc2.innerHTML='';
             sc.forEach(d => { const c=d.data(); const f=c.fechaTostado||(c.fechaRegistro?new Date(c.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tc2.innerHTML+=`<tr><td>${f}</td><td>${c.lote}</td><td>${c.variedad}</td><td>${c.proceso}</td><td>Q${(c.costoTotal||0).toFixed(2)}</td><td>Q${(c.precioSugerido||0).toFixed(2)}</td><td><button class="btn btn-small btn-view" onclick="verCostoDetalle('${d.id}')">👁️ Ver</button></td></tr>`; });
 
+            // Cataciones
+            const scC = await getDocs(query(collection(db,"cataciones"),orderBy("fechaRegistro","desc")));
+            const tcC = document.querySelector('#tabla-cataciones tbody'); tcC.innerHTML='';
+            scC.forEach(d => {
+                const c=d.data();
+                const f=c.fecha||(c.fechaRegistro?new Date(c.fechaRegistro.seconds*1000).toLocaleDateString():'N/A');
+                const colorClas = c.clasificacion==='Outstanding'?'#ffd700':c.clasificacion==='Excellent'?'#4caf50':c.clasificacion==='Very Good'?'#8bc34a':c.clasificacion==='Good'?'#2196f3':'#9e9e9e';
+                tcC.innerHTML+=`<tr><td>${f}</td><td>${c.nombre||'N/A'}</td><td>${c.variedad||'N/A'}</td><td style="font-weight:bold; color:var(--primary);">${(c.puntajeTotal||0).toFixed(2)}</td><td style="background:${colorClas}; color:white; font-weight:bold;">${c.clasificacion||'N/A'}</td><td style="white-space:nowrap;"><button class="btn btn-small btn-view" onclick="verCatacionCompleta('${d.id}')">👁️ Ver</button><button class="btn btn-small btn-pdf" onclick="verCatacionCompleta('${d.id}'); setTimeout(()=>generarPDFCatacion(),600);">📄 PDF</button></td></tr>`;
+            });
+
+            // Muestras
             const sm = await getDocs(query(collection(db,"muestreos"),orderBy("fechaRegistro","desc")));
             const tm = document.querySelector('#tabla-muestreos tbody'); tm.innerHTML='';
-            sm.forEach(d => { const m=d.data(); const f=m.fecha||(m.fechaRegistro?new Date(m.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tm.innerHTML+=`<tr><td>${f}</td><td>${m.nombre||'N/A'}</td><td>${m.lote||'N/A'}</td><td>${m.rendimiento||'0%'}</td><td>${m.humedad||'0'}%</td><td style="white-space:nowrap;"><button class="btn btn-small btn-view" onclick="verMuestraCompleta('${d.id}')">👁️ Ver</button><button class="btn btn-small btn-pdf" onclick="verMuestraCompleta('${d.id}'); setTimeout(()=>generarPDFDesdeModal(),600);">📄 PDF</button></td></tr>`; });
+            sm.forEach(d => { const m=d.data(); const f=m.fecha||(m.fechaRegistro?new Date(m.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tm.innerHTML+=`<tr><td>${f}</td><td>${m.nombre||'N/A'}</td><td>${m.lote||'N/A'}</td><td>${m.rendimiento||'0%'}</td><td>${m.humedad||'0'}%</td><td style="white-space:nowrap;"><button class="btn btn-small btn-view" onclick="verMuestraCompleta('${d.id}')">👁️ Ver</button><button class="btn btn-small btn-pdf" onclick="verMuestraCompleta('${d.id}'); setTimeout(()=>generarPDFMuestra(),600);">📄 PDF</button></td></tr>`; });
         } catch(e) { console.error("Error cargando datos:", e); }
     }
 
