@@ -14,6 +14,7 @@
             --primary: #2C5E2E; --primary-dark: #1e4220; --secondary: #8B5A2B;
             --accent: #D4AF37; --bg-color: #F5F5DC; --text-color: #333;
             --white: #ffffff; --danger: #d32f2f; --sidebar-width: 280px;
+            --warning: #f57c00; --success: #2e7d32;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
         html, body { overflow-x: hidden; }
@@ -30,12 +31,15 @@
         .btn-secondary { background: var(--secondary); margin-top: 5px; }
         .btn-guest { background: linear-gradient(135deg, #607d8b 0%, #455a64 100%); margin-top: 10px; }
         .btn-small { width: auto; padding: 8px 14px; font-size: 0.85rem; margin-top: 0; min-height: 36px; display: inline-block; margin: 3px; }
+        .btn-xs { padding: 4px 10px; font-size: 0.75rem; min-height: 28px; }
         .btn-view { background: #1976d2; }
         .btn-pdf { background: var(--secondary); }
         .btn-save { background: var(--accent); color: var(--primary); margin-top: 1rem; }
         .btn-danger { background: var(--danger); }
+        .btn-success { background: var(--success); }
+        .btn-warning { background: var(--warning); }
         .error-msg { color: var(--danger); margin-top: 10px; font-size: 0.9rem; display: none; text-align: left; padding: 8px; background: #ffebee; border-radius: 6px; }
-        .success-msg { color: #2e7d32; margin-top: 10px; font-size: 0.9rem; display: none; text-align: left; padding: 8px; background: #e8f5e9; border-radius: 6px; }
+        .success-msg { color: var(--success); margin-top: 10px; font-size: 0.9rem; display: none; text-align: left; padding: 8px; background: #e8f5e9; border-radius: 6px; }
         .divider { display: flex; align-items: center; margin: 15px 0; color: #999; font-size: 0.85rem; }
         .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #ddd; }
         .divider span { padding: 0 10px; }
@@ -48,6 +52,7 @@
         .top-bar-title { flex: 1; font-size: 1.1rem; font-weight: bold; color: var(--accent); text-align: center; margin-right: 48px; }
         .top-bar-logo { width: 40px; height: 40px; border-radius: 50%; margin-right: 10px; background: white; padding: 2px; }
         .guest-badge { background: #607d8b; color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; margin-left: 8px; }
+        .invitado-badge { background: #ff9800; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; margin-left: 5px; }
         .version-tag { position: fixed; bottom: 8px; right: 12px; font-size: 0.7rem; color: rgba(0,0,0,0.35); z-index: 50; font-family: monospace; }
 
         /* SIDEBAR */
@@ -88,6 +93,14 @@
         .card p { font-size: 1.5rem; font-weight: bold; color: var(--secondary); margin: 0; }
         .info-box { background: #fff9c4; border-left: 4px solid #fbc02d; padding: 0.75rem 1rem; border-radius: 6px; margin: 1rem 0; font-size: 0.85rem; color: #555; }
         .info-box strong { color: var(--primary); }
+        .info-box.error { background: #ffebee; border-left-color: var(--danger); }
+        .info-box.error strong { color: var(--danger); }
+
+        /* SEMÁFORO DE PAGOS */
+        .pago-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: inline-block; }
+        .pago-pendiente { background: #ffcdd2; color: #b71c1c; }
+        .pago-transferencia { background: #fff3cd; color: #856404; }
+        .pago-pagado { background: #c8e6c9; color: #1b5e20; }
 
         /* DASHBOARD DETALLADO */
         .dash-group-title { color: var(--primary); font-weight: bold; margin: 1rem 0 0.5rem; font-size: 1rem; border-bottom: 1px solid var(--accent); padding-bottom: 0.25rem; }
@@ -118,7 +131,7 @@
         .precio-row input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
         .precio-row .producto-nombre { font-weight: bold; color: var(--primary); padding: 8px; }
 
-        /* CATACIÓN SCA CON BARRAS GRÁFICAS */
+        /* CATACIÓN SCA */
         .sca-category { background: white; padding: 1rem; border-radius: 10px; margin-bottom: 0.75rem; border-left: 4px solid var(--accent); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
         .sca-category-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem; }
         .sca-category-name { font-weight: bold; color: var(--primary); font-size: 1rem; }
@@ -150,6 +163,11 @@
         .detail-item.highlight { background: var(--primary); color: white; border-left-color: var(--accent); }
         .detail-item.highlight .label { color: var(--accent); }
         .detail-item.highlight .value { color: white; font-size: 1.3rem; font-weight: bold; }
+
+        /* FILTROS */
+        .filter-bar { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .filter-btn { padding: 6px 12px; border: 1px solid #ccc; background: white; border-radius: 20px; cursor: pointer; font-size: 0.85rem; }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
@@ -216,9 +234,7 @@
         </svg>
         <h2>Finca Los Robles</h2>
         <div class="sidebar-user-info" id="sidebar-user-info">Usuario</div>
-        <div id="menu-container">
-            <!-- Menú dinámico según modo -->
-        </div>
+        <div id="menu-container"></div>
         <div id="menu-password-section" style="display:none;">
             <button class="btn btn-secondary" onclick="cambiarContrasena()" style="margin-top:1rem;">🔑 Cambiar Contraseña</button>
         </div>
@@ -234,15 +250,11 @@
                 <h3 style="color:white;">💰 Total Ventas Registradas</h3>
                 <p style="color:var(--accent);" id="dash-ventas">Q 0.00</p>
             </div>
-
             <h3>📦 Inventario Detallado</h3>
-            
             <div class="dash-group-title">☕ Café</div>
             <div class="dash-mini-grid" id="dash-cafe-grid"></div>
-
             <div class="dash-group-title">🍯 Miel de Abeja</div>
             <div class="dash-mini-grid" id="dash-miel-grid"></div>
-
             <div class="dash-group-title">🍷 Licor de Guayaba</div>
             <div class="dash-mini-grid" id="dash-licor-grid"></div>
         </div>
@@ -250,7 +262,7 @@
         <!-- VENTAS -->
         <div id="ventas" class="section">
             <h2>💰 Registro de Ventas</h2>
-            <div class="info-box"><strong>💡 Tip:</strong> Al seleccionar un producto, el precio sugerido se carga desde tu Lista de Precios.</div>
+            <div class="info-box"><strong>💡 Tip:</strong> Para café tostado, selecciona el lote específico según fecha de tostado. El precio se carga desde tu Lista de Precios.</div>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Producto</label>
@@ -273,23 +285,39 @@
                 </div>
                 <div class="form-group" id="venta-presentacion-group" style="display:none;">
                     <label>Presentación Café</label>
-                    <select id="venta-presentacion">
+                    <select id="venta-presentacion" onchange="cargarLotesDisponibles()">
                         <option value="Entero">Grano Entero</option>
                         <option value="Molido">Molido</option>
                     </select>
+                </div>
+                <div class="form-group" id="venta-lote-group" style="display:none;">
+                    <label>Lote Disponible (según fecha de tostado)</label>
+                    <select id="venta-lote"></select>
                 </div>
                 <div class="form-group"><label>Cantidad</label><input type="number" id="venta-cantidad" class="yellow-input" step="0.01"></div>
                 <div class="form-group"><label>Precio Unitario (Q)</label><input type="number" id="venta-precio" class="yellow-input" step="0.01"></div>
                 <div class="form-group">
                     <label>Método de Pago</label>
-                    <select id="venta-pago"><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Pendiente">Pendiente</option></select>
+                    <select id="venta-pago">
+                        <option value="Efectivo">💵 Efectivo</option>
+                        <option value="Tarjeta">💳 Tarjeta</option>
+                        <option value="Transferencia">🏦 Transferencia</option>
+                        <option value="Pendiente">⏳ Pendiente</option>
+                    </select>
                 </div>
                 <div class="form-group"><label>Cliente / Notas</label><input type="text" id="venta-notas" class="yellow-input"></div>
             </div>
             <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
+            
             <h3>Historial de Ventas</h3>
+            <div class="filter-bar">
+                <button class="filter-btn active" onclick="filtrarVentas('todas', this)">Todas</button>
+                <button class="filter-btn" onclick="filtrarVentas('pendiente', this)">🔴 Pendientes</button>
+                <button class="filter-btn" onclick="filtrarVentas('transferencia', this)">🟡 Transferencia</button>
+                <button class="filter-btn" onclick="filtrarVentas('pagado', this)">🟢 Pagadas</button>
+            </div>
             <div class="table-wrapper">
-                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Producto</th><th>Cant.</th><th>P.Unit</th><th>Total</th><th>Pago</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cant.</th><th>Total</th><th>Pago</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
@@ -333,16 +361,17 @@
                 </div>
             </div>
             <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
-            <h3>Inventario Actual Disponible</h3>
+            
+            <h3>Inventario Detallado</h3>
             <div class="table-wrapper">
-                <table id="tabla-inventario"><thead><tr><th>Fecha</th><th>Producto</th><th>Detalles</th><th>Cantidad</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-inventario"><thead><tr><th>Fecha Ing.</th><th>Producto</th><th>Presentación</th><th>Variedad</th><th>Proceso</th><th>F. Tostado</th><th>Cantidad</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
         <!-- LISTA DE PRECIOS -->
         <div id="precios" class="section">
             <h2>🏷️ Lista de Precios de Venta</h2>
-            <div class="info-box"><strong>💡 Nota:</strong> Los precios se cargan automáticamente al registrar una venta, pero puedes modificarlos aquí.</div>
+            <div class="info-box"><strong>💡 Nota:</strong> Los precios se cargan automáticamente al registrar una venta.</div>
             <div id="precios-container"></div>
             <button class="btn btn-save" onclick="guardarPreciosLista()">💾 Guardar Lista de Precios</button>
             <button class="btn btn-secondary" onclick="restaurarPreciosDefault()" style="margin-top:0.5rem;">🔄 Restaurar Precios por Defecto</button>
@@ -447,8 +476,7 @@
         <!-- CATACIÓN SCA -->
         <div id="catacion" class="section">
             <h2>☕ Catación SCA - Escala Oficial</h2>
-            <div class="info-box"><strong>📋 Escala SCA:</strong> Cada categoría se puntúa de 6 a 10 (incrementos de 0.25). Puntaje total sobre 100. Se considera <strong>Specialty</strong> a partir de 80 puntos.</div>
-            
+            <div class="info-box"><strong>📋 Escala SCA:</strong> Cada categoría se puntúa de 6 a 10. Puntaje total sobre 100. Se considera <strong>Specialty</strong> a partir de 80 puntos.</div>
             <h3>📋 Datos de la Muestra</h3>
             <div class="form-grid">
                 <div class="form-group"><label>Nombre / Código</label><input type="text" id="c-nombre" class="yellow-input" placeholder="Ej: COE0726, FAT CAT"></div>
@@ -460,31 +488,28 @@
                 <div class="form-group"><label>Catador</label><input type="text" id="c-catador" class="yellow-input"></div>
                 <div class="form-group"><label>Tostado</label><input type="text" id="c-tostado" class="yellow-input" placeholder="Ej: Medio"></div>
             </div>
-
             <h3>🎯 Evaluación Sensorial (Escala SCA)</h3>
             <div id="sca-categories-container"></div>
-
-            <!-- TOTAL -->
             <div class="sca-total-card">
                 <h3 style="color:white; margin-bottom:0.5rem;">PUNTAJE TOTAL SCA</h3>
                 <div class="sca-total-score" id="c-total">80.00</div>
-                <div class="sca-total-bar"><div class="sca-total-bar-fill" id="sca-total-bar-fill" style="width:80%;"></div></div>
-                <div class="sca-scale-legend">
-                    <span>60</span><span>70</span><span>80</span><span>90</span><span>100</span>
-                </div>
+                <div class="sca-total-bar"><div class="sca-total-bar-fill" id="sca-total-bar-fill" style="width:50%;"></div></div>
+                <div class="sca-scale-legend"><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div>
                 <div class="sca-classification verygood" id="c-clasificacion">Very Good - Specialty</div>
             </div>
-
             <div class="form-group" style="margin-top:1rem;">
-                <label>Notas de Cata (descriptores de sabor, aroma, etc.)</label>
-                <textarea id="c-notas" class="yellow-input" rows="3" placeholder="Ej: Chocolate, caramelo, cítricos, cuerpo medio, acidez brillante..."></textarea>
+                <label>Notas de Cata</label>
+                <textarea id="c-notas" class="yellow-input" rows="3" placeholder="Ej: Chocolate, caramelo, cítricos..."></textarea>
             </div>
-
             <button class="btn" style="margin-top:1rem;" onclick="guardarCatacion()">💾 Guardar Ficha de Catación</button>
-
             <h3>📊 Historial de Cataciones</h3>
+            <div class="filter-bar" id="catacion-filters">
+                <button class="filter-btn active" onclick="filtrarCataciones('todas', this)">Todas</button>
+                <button class="filter-btn" onclick="filtrarCataciones('propias', this)">👤 Mías</button>
+                <button class="filter-btn" onclick="filtrarCataciones('invitados', this)">👥 De Invitados</button>
+            </div>
             <div class="table-wrapper">
-                <table id="tabla-cataciones"><thead><tr><th>Fecha</th><th>Muestra</th><th>Variedad</th><th>Puntaje</th><th>Clasificación</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-cataciones"><thead><tr><th>Fecha</th><th>Muestra</th><th>Variedad</th><th>Puntaje</th><th>Clasif.</th><th>Autor</th><th>Acciones</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
@@ -540,7 +565,7 @@
     </div>
 </div>
 
-<!-- MODAL MUESTREO -->
+<!-- MODALES -->
 <div class="modal-overlay" id="modal-ver-muestra">
     <div class="modal-content-large">
         <h3 id="modal-titulo">Ficha de Muestreo</h3>
@@ -552,7 +577,6 @@
     </div>
 </div>
 
-<!-- MODAL COSTO -->
 <div class="modal-overlay" id="modal-ver-costo">
     <div class="modal-content-large">
         <h3 id="modal-costo-titulo">Detalle de Costo</h3>
@@ -561,7 +585,6 @@
     </div>
 </div>
 
-<!-- MODAL CATACIÓN -->
 <div class="modal-overlay" id="modal-ver-catacion">
     <div class="modal-content-large">
         <h3 id="modal-catacion-titulo">Ficha de Catación SCA</h3>
@@ -573,13 +596,13 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.2</div>
+<div class="version-tag">v2026.09.3</div>
 
 <!-- ==================== FIREBASE & LOGIC ==================== -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, serverTimestamp, updateDoc, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, serverTimestamp, updateDoc, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
@@ -600,10 +623,14 @@
     let catacionActualEnModal = null;
     let isManualLogin = false;
     let modoInvitado = false;
+    let invitadoId = null; // ID único para invitados
+    let filtroVentasActual = 'todas';
+    let filtroCatacionesActual = 'todas';
+    let todasLasVentas = [];
+    let todasLasCataciones = [];
 
     const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
-    // ===== PRECIOS POR DEFECTO =====
     const PRECIOS_DEFAULT = {
         "Tostado": { nombre: "Café Tostado (Entero/Molido)", unidad: "libra", precio: 80 },
         "Oro": { nombre: "Café Verde (Oro)", unidad: "libra", precio: 25 },
@@ -617,18 +644,17 @@
 
     let preciosListaActual = { ...PRECIOS_DEFAULT };
 
-    // ===== CATEGORÍAS SCA =====
     const SCA_CATEGORIAS = [
-        { k:'fragancia', n:'1. Fragancia / Aroma', d:'Evaluación del café seco (fragancia) y húmedo (aroma)', min:6, def:7.5 },
-        { k:'sabor', n:'2. Sabor (Flavor)', d:'Impresión gustativa principal: combinaciones de sabor', min:6, def:7.5 },
-        { k:'retrgusto', n:'3. Retrogusto (Aftertaste)', d:'Duración y calidad del sabor residual', min:6, def:7.5 },
-        { k:'acidez', n:'4. Acidez (Acidity)', d:'Intensidad y calidad de la acidez', min:6, def:7.5 },
-        { k:'cuerpo', n:'5. Cuerpo (Body)', d:'Sensación táctil en boca (peso, textura)', min:6, def:7.5 },
-        { k:'uniformidad', n:'6. Uniformidad', d:'Consistencia entre tazas (base 10 si uniforme)', min:0, def:10 },
-        { k:'balance', n:'7. Balance', d:'Armonía entre sabor, retrogusto, acidez y cuerpo', min:6, def:7.5 },
-        { k:'dulzura', n:'8. Dulzura (Sweetness)', d:'Presencia de dulzor natural (base 10 si dulce)', min:0, def:10 },
-        { k:'limpieza', n:'9. Limpieza de Taza', d:'Ausencia de defectos (base 10 si limpia)', min:0, def:10 },
-        { k:'global', n:'10. Puntaje Global', d:'Impresión general y satisfacción personal', min:6, def:7.5 }
+        { k:'fragancia', n:'1. Fragancia / Aroma', d:'Evaluación del café seco y húmedo', min:6, def:7.5 },
+        { k:'sabor', n:'2. Sabor (Flavor)', d:'Impresión gustativa principal', min:6, def:7.5 },
+        { k:'retrgusto', n:'3. Retrogusto', d:'Duración del sabor residual', min:6, def:7.5 },
+        { k:'acidez', n:'4. Acidez', d:'Intensidad y calidad de la acidez', min:6, def:7.5 },
+        { k:'cuerpo', n:'5. Cuerpo', d:'Sensación táctil en boca', min:6, def:7.5 },
+        { k:'uniformidad', n:'6. Uniformidad', d:'Consistencia entre tazas', min:0, def:10 },
+        { k:'balance', n:'7. Balance', d:'Armonía general', min:6, def:7.5 },
+        { k:'dulzura', n:'8. Dulzura', d:'Dulzor natural', min:0, def:10 },
+        { k:'limpieza', n:'9. Limpieza de Taza', d:'Ausencia de defectos', min:0, def:10 },
+        { k:'global', n:'10. Puntaje Global', d:'Impresión general', min:6, def:7.5 }
     ];
 
     // ===== UI =====
@@ -636,9 +662,18 @@
     window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; muestraActualEnModal = null; catacionActualEnModal = null; };
 
     function showError(id, msg) { const el = document.getElementById(id); if(el){ el.innerText = msg; el.style.display = 'block'; } else { alert(msg); } }
-    function showSuccess(id, msg) { const el = document.getElementById(id); if(el){ el.innerText = msg; el.style.display = 'block'; setTimeout(()=>el.style.display='none', 5000); } }
 
-    // ===== CONSTRUIR CATEGORÍAS SCA DINÁMICAMENTE =====
+    // ===== INVITADO ID =====
+    function obtenerOCrearInvitadoId() {
+        let id = localStorage.getItem('invitadoId');
+        if (!id) {
+            id = 'inv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('invitadoId', id);
+        }
+        return id;
+    }
+
+    // ===== CONSTRUIR CATEGORÍAS SCA =====
     function construirCategoriasSCA() {
         const container = document.getElementById('sca-categories-container');
         container.innerHTML = '';
@@ -656,13 +691,10 @@
                 <div class="sca-bar-container">
                     <div class="sca-bar" id="bar-${cat.k}" style="width:75%;"></div>
                 </div>
-                <div class="sca-bar-labels">
-                    <span>${cat.min}</span><span>7</span><span>8</span><span>9</span><span>10</span>
-                </div>
+                <div class="sca-bar-labels"><span>${cat.min}</span><span>7</span><span>8</span><span>9</span><span>10</span></div>
             `;
             container.appendChild(div);
         });
-        // Defectos
         const defDiv = document.createElement('div');
         defDiv.className = 'sca-category';
         defDiv.style.borderLeftColor = 'var(--danger)';
@@ -670,16 +702,14 @@
             <div class="sca-category-header">
                 <div style="flex:1;">
                     <div class="sca-category-name" style="color:var(--danger);">⚠️ Defectos</div>
-                    <div class="sca-category-desc">Puntos a restar del total por defectos detectados</div>
+                    <div class="sca-category-desc">Puntos a restar del total</div>
                 </div>
                 <input type="number" class="sca-score-input" id="c-defectos" min="0" max="10" step="0.25" value="0" oninput="calcularCatacion()" style="border-color:var(--danger);">
             </div>
             <div class="sca-bar-container">
                 <div class="sca-bar" id="bar-defectos" style="width:0%; background:var(--danger);"></div>
             </div>
-            <div class="sca-bar-labels">
-                <span>0</span><span>2</span><span>5</span><span>10</span>
-            </div>
+            <div class="sca-bar-labels"><span>0</span><span>2</span><span>5</span><span>10</span></div>
         `;
         container.appendChild(defDiv);
     }
@@ -688,20 +718,17 @@
     function construirMenu() {
         const container = document.getElementById('menu-container');
         container.innerHTML = '';
-        
         if (modoInvitado) {
-            // Solo catación para invitados
             const item = document.createElement('div');
             item.className = 'menu-item active';
             item.onclick = () => showSection('catacion', item);
             item.innerHTML = '<span class="icon">☕</span> Catación SCA';
             container.appendChild(item);
             document.getElementById('menu-password-section').style.display = 'none';
-            document.getElementById('sidebar-user-info').innerText = '👤 Modo Invitado';
+            document.getElementById('sidebar-user-info').innerHTML = '👤 Modo Invitado<br><small style="opacity:0.7;">ID: ' + invitadoId.substr(0,12) + '...</small>';
             document.getElementById('logout-text').innerText = 'Salir';
             document.getElementById('guest-badge-top').style.display = 'inline-block';
         } else {
-            // Menú completo para usuarios autenticados
             const items = [
                 { id:'dashboard', icon:'📊', label:'Dashboard' },
                 { id:'ventas', icon:'💰', label:'Ventas' },
@@ -734,10 +761,10 @@
             cargarPreciosLista();
             cargarDatosIniciales();
             calcularCotizador();
+        } else {
+            cargarCataciones();
         }
         calcularCatacion();
-        // Cargar cataciones locales si es invitado
-        if (modoInvitado) cargarCatacionesLocales();
     }
 
     // ===== LOGIN =====
@@ -753,20 +780,17 @@
         try {
             const cred = await signInWithEmailAndPassword(auth, email, password);
             currentAuthUid = cred.user.uid; currentAuthEmail = cred.user.email;
-            
-            // Verificar si es primer login (forzar cambio de contraseña)
             const userDoc = await getDoc(doc(db, "usuarios", currentAuthUid));
             if (userDoc.exists() && userDoc.data().primerLogin === true) {
-                alert("🔑 Es tu primer ingreso. Por seguridad, te enviaremos un correo para cambiar tu contraseña.");
+                alert("🔑 Es tu primer ingreso. Te enviaremos un correo para cambiar tu contraseña.");
                 await sendPasswordResetEmail(auth, email);
                 await updateDoc(doc(db, "usuarios", currentAuthUid), { primerLogin: false });
                 await signOut(auth);
-                showError('login-error', '📧 Revisa tu correo para establecer tu nueva contraseña. Luego ingresa de nuevo.');
+                showError('login-error', '📧 Revisa tu correo para establecer tu nueva contraseña.');
                 isManualLogin = false;
                 btn.disabled = false; btn.innerText = "Ingresar";
                 return;
             }
-            
             entrarAlSistema();
         } catch (e) {
             const msgs = {
@@ -785,28 +809,24 @@
         }
     };
 
-    // ===== MODO INVITADO =====
     window.loginInvitado = () => {
         modoInvitado = true;
+        invitadoId = obtenerOCrearInvitadoId();
         currentAuthUid = null;
         currentAuthEmail = null;
         entrarAlSistema();
     };
 
-    // ===== CAMBIAR CONTRASEÑA =====
     window.cambiarContrasena = async () => {
         if (modoInvitado) { alert("Los invitados no pueden cambiar contraseña."); return; }
         if (!currentAuthEmail) { alert("No hay sesión activa."); return; }
         if (!confirm(`Se enviará un enlace de cambio de contraseña a:\n${currentAuthEmail}\n\n¿Continuar?`)) return;
         try {
             await sendPasswordResetEmail(auth, currentAuthEmail);
-            alert("✅ Correo enviado. Revisa tu bandeja de entrada (y spam) para cambiar tu contraseña.");
-        } catch (e) {
-            alert("❌ Error: " + e.message);
-        }
+            alert("✅ Correo enviado. Revisa tu bandeja de entrada.");
+        } catch (e) { alert("❌ Error: " + e.message); }
     };
 
-    // ===== LOGOUT =====
     window.logout = async () => {
         if (modoInvitado) {
             modoInvitado = false;
@@ -899,10 +919,52 @@
         }
     };
 
-    window.onVentaTipoChange = () => {
+    // ===== VENTAS - CARGAR LOTES =====
+    window.onVentaTipoChange = async () => {
         const tipo = document.getElementById('venta-tipo').value;
-        document.getElementById('venta-presentacion-group').style.display = (tipo === 'Tostado') ? 'flex' : 'none';
+        const isTostado = tipo === 'Tostado';
+        document.getElementById('venta-presentacion-group').style.display = isTostado ? 'flex' : 'none';
+        document.getElementById('venta-lote-group').style.display = isTostado ? 'flex' : 'none';
         if (preciosListaActual[tipo]) document.getElementById('venta-precio').value = preciosListaActual[tipo].precio;
+        if (isTostado) await cargarLotesDisponibles();
+    };
+
+    window.cargarLotesDisponibles = async () => {
+        const presentacion = document.getElementById('venta-presentacion').value;
+        const select = document.getElementById('venta-lote');
+        select.innerHTML = '<option value="">Cargando...</option>';
+        try {
+            const snap = await getDocs(query(collection(db, "inventario"), where("estado", "==", "Tostado"), where("presentacion", "==", presentacion)));
+            select.innerHTML = '';
+            let hayLotes = false;
+            const lotes = [];
+            snap.forEach(d => {
+                const inv = d.data();
+                if (inv.cantidad > 0) {
+                    lotes.push({ id: d.id, ...inv });
+                }
+            });
+            // Ordenar por fecha de tostado (más antiguo primero)
+            lotes.sort((a, b) => (a.fechaTostado || '').localeCompare(b.fechaTostado || ''));
+            
+            if (lotes.length === 0) {
+                select.innerHTML = '<option value="">⚠️ No hay lotes disponibles</option>';
+                return;
+            }
+            
+            lotes.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l.id;
+                opt.dataset.cantidad = l.cantidad;
+                opt.textContent = `📅 ${l.fechaTostado || 'S/F'} | ${l.variedad || 'N/A'} | ${l.proceso || 'N/A'} | ${l.cantidad.toFixed(1)} lb disp.`;
+                select.appendChild(opt);
+                hayLotes = true;
+            });
+            if (!hayLotes) select.innerHTML = '<option value="">⚠️ No hay lotes con stock</option>';
+        } catch (e) {
+            console.error(e);
+            select.innerHTML = '<option value="">Error cargando lotes</option>';
+        }
     };
 
     // ===== INVENTARIO =====
@@ -939,27 +1001,120 @@
         const pres = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
         const cant = parseFloat(document.getElementById('venta-cantidad').value) || 0;
         const prec = parseFloat(document.getElementById('venta-precio').value) || 0;
+        const pago = document.getElementById('venta-pago').value;
+        const loteDocId = tipo === 'Tostado' ? document.getElementById('venta-lote').value : null;
+        
         if (cant <= 0) return alert("Cantidad debe ser mayor a 0.");
+        if (tipo === 'Tostado' && !loteDocId) return alert("⚠️ Selecciona un lote disponible.");
+        
+        // Verificar stock si es tostado
+        let loteData = null;
+        if (tipo === 'Tostado') {
+            const loteSnap = await getDoc(doc(db, "inventario", loteDocId));
+            if (!loteSnap.exists()) return alert("❌ Lote no encontrado.");
+            loteData = loteSnap.data();
+            if (loteData.cantidad < cant) {
+                return alert(`❌ Stock insuficiente en este lote.\n\nDisponible: ${loteData.cantidad.toFixed(2)} lb\nSolicitado: ${cant.toFixed(2)} lb\nFaltan: ${(cant - loteData.cantidad).toFixed(2)} lb`);
+            }
+        }
+        
+        // Determinar estado de pago
+        let estadoPago = 'pagado';
+        if (pago === 'Pendiente') estadoPago = 'pendiente';
+        else if (pago === 'Transferencia') estadoPago = 'transferencia';
+        
         await addDoc(collection(db,"ventas"), {
-            tipo, presentacion: pres, cantidad: cant, precio: prec,
-            pago: document.getElementById('venta-pago').value,
+            tipo, presentacion: pres, cantidad: cant, precio: prec, pago,
+            estadoPago: estadoPago,
+            loteDocId: loteDocId,
+            loteInfo: loteData ? `${loteData.fechaTostado || 'S/F'} - ${loteData.variedad || 'N/A'} - ${loteData.proceso || 'N/A'}` : 'N/A',
             notas: document.getElementById('venta-notas').value,
             fecha: serverTimestamp()
         });
-        let pend = cant;
-        const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",tipo)));
-        for (const d of snap.docs) {
-            if (pend <= 0) break;
-            const inv = d.data();
-            if (tipo === 'Tostado' && inv.presentacion !== pres) continue;
-            if (inv.cantidad >= pend) { await updateDoc(doc(db,"inventario",d.id), { cantidad: inv.cantidad - pend }); pend = 0; }
-            else { await updateDoc(doc(db,"inventario",d.id), { cantidad: 0 }); pend -= inv.cantidad; }
+
+        // Descontar inventario del lote específico
+        if (tipo === 'Tostado' && loteDocId) {
+            await updateDoc(doc(db,"inventario", loteDocId), { cantidad: loteData.cantidad - cant });
+        } else if (tipo !== 'Tostado') {
+            // Para otros productos, descontar de cualquier lote con stock
+            let pend = cant;
+            const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",tipo)));
+            for (const d of snap.docs) {
+                if (pend <= 0) break;
+                const inv = d.data();
+                if (inv.cantidad >= pend) { await updateDoc(doc(db,"inventario",d.id), { cantidad: inv.cantidad - pend }); pend = 0; }
+                else { await updateDoc(doc(db,"inventario",d.id), { cantidad: 0 }); pend -= inv.cantidad; }
+            }
+            if (pend > 0) {
+                alert(`⚠️ Venta registrada, pero faltan ${pend.toFixed(2)} en inventario.`);
+            }
         }
-        alert(pend > 0 ? `Venta registrada, faltan ${pend.toFixed(2)} en inventario.` : "✅ Venta registrada.");
+        
+        alert("✅ Venta registrada.");
         cargarDatosIniciales();
         document.getElementById('venta-cantidad').value = '';
         document.getElementById('venta-notas').value = '';
     };
+
+    // ===== CAMBIAR ESTADO DE VENTA =====
+    window.cambiarEstadoVenta = async (ventaDocId, nuevoEstado) => {
+        if (!confirm(`¿Marcar esta venta como "${nuevoEstado.toUpperCase()}"?`)) return;
+        try {
+            await updateDoc(doc(db, "ventas", ventaDocId), { estadoPago: nuevoEstado });
+            alert("✅ Estado actualizado.");
+            cargarDatosIniciales();
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    };
+
+    // ===== FILTRAR VENTAS =====
+    window.filtrarVentas = (filtro, btn) => {
+        filtroVentasActual = filtro;
+        document.querySelectorAll('#ventas .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderTablaVentas();
+    };
+
+    function renderTablaVentas() {
+        const tbody = document.querySelector('#tabla-ventas tbody');
+        tbody.innerHTML = '';
+        let ventasFiltradas = todasLasVentas;
+        if (filtroVentasActual !== 'todas') {
+            ventasFiltradas = todasLasVentas.filter(v => v.data.estadoPago === filtroVentasActual);
+        }
+        ventasFiltradas.forEach(v => {
+            const d = v.data;
+            const docId = v.id;
+            const f = d.fecha ? new Date(d.fecha.seconds*1000).toLocaleDateString() : 'N/A';
+            const nombreProd = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : d.tipo;
+            const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : '';
+            
+            let estadoBadge = '';
+            let acciones = '';
+            if (d.estadoPago === 'pendiente') {
+                estadoBadge = '<span class="pago-badge pago-pendiente">🔴 PENDIENTE</span>';
+                acciones = `<button class="btn btn-xs btn-success" onclick="cambiarEstadoVenta('${docId}','pagado')">✅ Pagado</button>`;
+            } else if (d.estadoPago === 'transferencia') {
+                estadoBadge = '<span class="pago-badge pago-transferencia">🟡 TRANSFER.</span>';
+                acciones = `<button class="btn btn-xs btn-success" onclick="cambiarEstadoVenta('${docId}','pagado')">✅ Pagado</button>`;
+            } else {
+                estadoBadge = '<span class="pago-badge pago-pagado">🟢 PAGADO</span>';
+                acciones = '<span style="color:#999; font-size:0.75rem;">-</span>';
+            }
+            
+            tbody.innerHTML += `<tr>
+                <td>${f}</td>
+                <td>${nombreProd}</td>
+                <td style="font-size:0.75rem;">${d.loteInfo || '-'}</td>
+                <td>${d.cantidad} ${unidad}</td>
+                <td>Q${(d.cantidad*d.precio).toFixed(2)}</td>
+                <td>${d.pago}</td>
+                <td>${estadoBadge}</td>
+                <td>${acciones}</td>
+            </tr>`;
+        });
+    }
 
     // ===== COSTOS =====
     window.calcularPrecioSugerido = () => {
@@ -1160,9 +1315,8 @@
         alert("✅ PDF descargado.");
     };
 
-    // ===== CATACIÓN SCA CON BARRAS GRÁFICAS =====
+    // ===== CATACIÓN SCA =====
     function getColorBarra(valor, min) {
-        // Escala: 6=rojo, 7=naranja, 8=amarillo, 9=verde claro, 10=verde
         if (valor < 6.5) return '#f44336';
         if (valor < 7) return '#ff5722';
         if (valor < 7.5) return '#ff9800';
@@ -1178,7 +1332,6 @@
         SCA_CATEGORIAS.forEach(cat => {
             const v = parseFloat(document.getElementById('c-'+cat.k).value) || 0;
             total += v;
-            // Actualizar barra
             const bar = document.getElementById('bar-'+cat.k);
             if (bar) {
                 const pct = ((v - cat.min) / (10 - cat.min)) * 100;
@@ -1189,20 +1342,14 @@
         });
         const defectos = parseFloat(document.getElementById('c-defectos').value) || 0;
         const puntajeFinal = total - defectos;
-        
-        // Actualizar barra de defectos
         const barDef = document.getElementById('bar-defectos');
         if (barDef) {
             barDef.style.width = (defectos * 10) + '%';
             barDef.innerText = defectos > 0 ? '-'+defectos.toFixed(2) : '';
         }
-        
         document.getElementById('c-total').innerText = puntajeFinal.toFixed(2);
-        
-        // Barra total (60-100)
         const pctTotal = Math.max(0, Math.min(100, ((puntajeFinal - 60) / 40) * 100));
         document.getElementById('sca-total-bar-fill').style.width = pctTotal + '%';
-        
         const clasif = document.getElementById('c-clasificacion');
         clasif.className = 'sca-classification';
         if (puntajeFinal >= 90) { clasif.innerText = '🏆 Outstanding - Excepcional'; clasif.classList.add('outstanding'); }
@@ -1212,85 +1359,47 @@
         else { clasif.innerText = '⚠️ Below Specialty'; clasif.classList.add('below'); }
     };
 
-    function guardarCatacionLocal(data) {
-        const cataciones = JSON.parse(localStorage.getItem('cataciones_invitado') || '[]');
-        data.idLocal = 'loc_' + Date.now();
-        data.esInvitado = true;
-        cataciones.unshift(data);
-        localStorage.setItem('cataciones_invitado', JSON.stringify(cataciones));
-    }
+    window.filtrarCataciones = (filtro, btn) => {
+        filtroCatacionesActual = filtro;
+        document.querySelectorAll('#catacion-filters .filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderTablaCataciones();
+    };
 
-    function cargarCatacionesLocales() {
-        const cataciones = JSON.parse(localStorage.getItem('cataciones_invitado') || '[]');
+    function renderTablaCataciones() {
         const tbody = document.querySelector('#tabla-cataciones tbody');
         tbody.innerHTML = '';
-        cataciones.forEach(c => {
-            const colorClas = c.clasificacion==='Outstanding'?'#ffd700':c.clasificacion==='Excellent'?'#4caf50':c.clasificacion==='Very Good'?'#8bc34a':c.clasificacion==='Good'?'#2196f3':'#9e9e9e';
+        let catacionesFiltradas = todasLasCataciones;
+        
+        if (modoInvitado) {
+            // Invitados solo ven las suyas
+            catacionesFiltradas = catacionesFiltradas.filter(c => c.data.esInvitado && c.data.invitadoId === invitadoId);
+        } else if (filtroCatacionesActual === 'propias') {
+            catacionesFiltradas = catacionesFiltradas.filter(c => !c.data.esInvitado);
+        } else if (filtroCatacionesActual === 'invitados') {
+            catacionesFiltradas = catacionesFiltradas.filter(c => c.data.esInvitado);
+        }
+        
+        catacionesFiltradas.forEach(c => {
+            const d = c.data;
+            const docId = c.id;
+            const f = d.fecha || (d.fechaRegistro ? (d.fechaRegistro.seconds ? new Date(d.fechaRegistro.seconds*1000).toLocaleDateString() : 'N/A') : 'N/A');
+            const colorClas = d.clasificacion==='Outstanding'?'#ffd700':d.clasificacion==='Excellent'?'#4caf50':d.clasificacion==='Very Good'?'#8bc34a':d.clasificacion==='Good'?'#2196f3':'#9e9e9e';
+            const autorBadge = d.esInvitado ? '<span class="invitado-badge">👥 Inv.</span>' : '<span style="color:#2e7d32; font-size:0.75rem;">✅ Reg.</span>';
+            
             tbody.innerHTML += `<tr>
-                <td>${c.fecha||'N/A'}</td>
-                <td>${c.nombre||'N/A'}</td>
-                <td>${c.variedad||'N/A'}</td>
-                <td style="font-weight:bold; color:var(--primary);">${(c.puntajeTotal||0).toFixed(2)}</td>
-                <td style="background:${colorClas}; color:white; font-weight:bold;">${c.clasificacion||'N/A'}</td>
+                <td>${f}</td>
+                <td>${d.nombre||'N/A'}</td>
+                <td>${d.variedad||'N/A'}</td>
+                <td style="font-weight:bold; color:var(--primary);">${(d.puntajeTotal||0).toFixed(2)}</td>
+                <td style="background:${colorClas}; color:white; font-weight:bold;">${d.clasificacion||'N/A'}</td>
+                <td>${autorBadge}</td>
                 <td style="white-space:nowrap;">
-                    <button class="btn btn-small btn-view" onclick="verCatacionLocal('${c.idLocal}')">👁️ Ver</button>
-                    <button class="btn btn-small btn-pdf" onclick="verCatacionLocal('${c.idLocal}'); setTimeout(()=>generarPDFCatacion(),600);">📄 PDF</button>
-                    <button class="btn btn-small btn-danger" onclick="eliminarCatacionLocal('${c.idLocal}')">🗑️</button>
+                    <button class="btn btn-small btn-view" onclick="verCatacionCompleta('${docId}')">👁️ Ver</button>
+                    <button class="btn btn-small btn-pdf" onclick="verCatacionCompleta('${docId}'); setTimeout(()=>generarPDFCatacion(),600);">📄 PDF</button>
                 </td>
             </tr>`;
         });
-    }
-
-    window.verCatacionLocal = (idLocal) => {
-        const cataciones = JSON.parse(localStorage.getItem('cataciones_invitado') || '[]');
-        const c = cataciones.find(x => x.idLocal === idLocal);
-        if (!c) return alert("No encontrada.");
-        catacionActualEnModal = c;
-        mostrarCatacionEnModal(c);
-    };
-
-    window.eliminarCatacionLocal = (idLocal) => {
-        if (!confirm("¿Eliminar esta catación?")) return;
-        let cataciones = JSON.parse(localStorage.getItem('cataciones_invitado') || '[]');
-        cataciones = cataciones.filter(x => x.idLocal !== idLocal);
-        localStorage.setItem('cataciones_invitado', JSON.stringify(cataciones));
-        cargarCatacionesLocales();
-    };
-
-    function mostrarCatacionEnModal(c) {
-        document.getElementById('modal-catacion-titulo').innerText = `☕ ${c.nombre} - ${c.puntajeTotal.toFixed(2)} pts`;
-        let catHTML = SCA_CATEGORIAS.map(cat => `
-            <div class="detail-item">
-                <div class="label">${cat.n}</div>
-                <div class="value" style="font-size:1.2rem; font-weight:bold; color:${getColorBarra(c[cat.k]||0, cat.min)};">${(c[cat.k]||0).toFixed(2)}</div>
-            </div>
-        `).join('');
-        document.getElementById('modal-catacion-contenido').innerHTML = `
-            <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Datos de la Muestra</h4>
-            <div class="detail-grid">
-                <div class="detail-item"><div class="label">Nombre</div><div class="value">${c.nombre}</div></div>
-                <div class="detail-item"><div class="label">Fecha</div><div class="value">${c.fecha||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Origen</div><div class="value">${c.origen||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Altitud</div><div class="value">${c.altitud||'N/A'} msnm</div></div>
-                <div class="detail-item"><div class="label">Catador</div><div class="value">${c.catador||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Tostado</div><div class="value">${c.tostado||'N/A'}</div></div>
-            </div>
-            <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">🎯 Evaluación Sensorial</h4>
-            <div class="detail-grid">${catHTML}</div>
-            <div class="detail-item" style="background:var(--danger); color:white;">
-                <div class="label" style="color:white;">Defectos (restados)</div>
-                <div class="value" style="color:white; font-size:1.3rem;">-${(c.defectos||0).toFixed(2)}</div>
-            </div>
-            <div class="sca-total-card" style="margin-top:1rem;">
-                <h3 style="color:white; margin-bottom:0.5rem;">PUNTAJE TOTAL</h3>
-                <div class="sca-total-score">${(c.puntajeTotal||0).toFixed(2)}</div>
-                <div class="sca-classification ${c.clasificacion==='Outstanding'?'outstanding':c.clasificacion==='Excellent'?'excellent':c.clasificacion==='Very Good'?'verygood':c.clasificacion==='Good'?'good':'below'}">${c.clasificacion}</div>
-            </div>
-            ${c.notas?`<h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📝 Notas de Cata</h4><div class="detail-item"><div class="value">${c.notas}</div></div>`:''}
-        `;
-        document.getElementById('modal-ver-catacion').style.display = 'flex';
     }
 
     window.guardarCatacion = async () => {
@@ -1310,6 +1419,7 @@
                 notas: document.getElementById('c-notas').value,
                 defectos: parseFloat(document.getElementById('c-defectos').value) || 0,
                 puntajeTotal: parseFloat(document.getElementById('c-total').innerText) || 0,
+                fechaRegistro: serverTimestamp()
             };
             SCA_CATEGORIAS.forEach(c => data[c.k] = parseFloat(document.getElementById('c-'+c.k).value) || 0);
             
@@ -1319,17 +1429,20 @@
             else if (data.puntajeTotal >= 75) data.clasificacion = 'Good';
             else data.clasificacion = 'Below Specialty';
             
+            // Guardar en Firebase (tanto invitados como usuarios)
             if (modoInvitado) {
-                data.fechaRegistro = new Date().toISOString();
-                guardarCatacionLocal(data);
-                alert("✅ Ficha guardada localmente (modo invitado).");
-                cargarCatacionesLocales();
+                data.esInvitado = true;
+                data.invitadoId = invitadoId;
+                data.autorNombre = 'Invitado';
             } else {
-                data.fechaRegistro = serverTimestamp();
-                await addDoc(collection(db,"cataciones"), data);
-                alert("✅ Ficha guardada.");
-                cargarDatosIniciales();
+                data.esInvitado = false;
+                data.autorUid = currentAuthUid;
+                data.autorNombre = currentAuthEmail;
             }
+            
+            await addDoc(collection(db,"cataciones"), data);
+            alert("✅ Ficha guardada.");
+            cargarCataciones();
             
             document.getElementById('c-nombre').value = '';
             document.getElementById('c-catador').value = '';
@@ -1341,12 +1454,54 @@
         finally { btn.disabled = false; btn.innerText = "💾 Guardar Ficha de Catación"; }
     };
 
+    async function cargarCataciones() {
+        try {
+            const snap = await getDocs(query(collection(db,"cataciones"), orderBy("fechaRegistro","desc")));
+            todasLasCataciones = [];
+            snap.forEach(d => todasLasCataciones.push({ id: d.id, data: d.data() }));
+            renderTablaCataciones();
+        } catch (e) { console.error("Error cargando cataciones:", e); }
+    }
+
     window.verCatacionCompleta = async (id) => {
         try {
             const s = await getDoc(doc(db,"cataciones",id));
             if (!s.exists()) return alert("No encontrada.");
             const c = s.data(); catacionActualEnModal = {id,...c};
-            mostrarCatacionEnModal(c);
+            document.getElementById('modal-catacion-titulo').innerText = `☕ ${c.nombre} - ${c.puntajeTotal.toFixed(2)} pts`;
+            let catHTML = SCA_CATEGORIAS.map(cat => `
+                <div class="detail-item">
+                    <div class="label">${cat.n}</div>
+                    <div class="value" style="font-size:1.2rem; font-weight:bold; color:${getColorBarra(c[cat.k]||0, cat.min)};">${(c[cat.k]||0).toFixed(2)}</div>
+                </div>
+            `).join('');
+            document.getElementById('modal-catacion-contenido').innerHTML = `
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Datos de la Muestra</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Nombre</div><div class="value">${c.nombre}</div></div>
+                    <div class="detail-item"><div class="label">Fecha</div><div class="value">${c.fecha||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Origen</div><div class="value">${c.origen||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Altitud</div><div class="value">${c.altitud||'N/A'} msnm</div></div>
+                    <div class="detail-item"><div class="label">Catador</div><div class="value">${c.catador||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Tostado</div><div class="value">${c.tostado||'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Autor</div><div class="value">${c.autorNombre||'N/A'} ${c.esInvitado?'<span class="invitado-badge">Invitado</span>':''}</div></div>
+                </div>
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">🎯 Evaluación Sensorial</h4>
+                <div class="detail-grid">${catHTML}</div>
+                <div class="detail-item" style="background:var(--danger); color:white;">
+                    <div class="label" style="color:white;">Defectos (restados)</div>
+                    <div class="value" style="color:white; font-size:1.3rem;">-${(c.defectos||0).toFixed(2)}</div>
+                </div>
+                <div class="sca-total-card" style="margin-top:1rem;">
+                    <h3 style="color:white; margin-bottom:0.5rem;">PUNTAJE TOTAL</h3>
+                    <div class="sca-total-score">${(c.puntajeTotal||0).toFixed(2)}</div>
+                    <div class="sca-classification ${c.clasificacion==='Outstanding'?'outstanding':c.clasificacion==='Excellent'?'excellent':c.clasificacion==='Very Good'?'verygood':c.clasificacion==='Good'?'good':'below'}">${c.clasificacion}</div>
+                </div>
+                ${c.notas?`<h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📝 Notas de Cata</h4><div class="detail-item"><div class="value">${c.notas}</div></div>`:''}
+            `;
+            document.getElementById('modal-ver-catacion').style.display = 'flex';
         } catch(e) { alert("Error: "+e.message); }
     };
 
@@ -1413,29 +1568,25 @@
         try {
             // Ventas
             const sv = await getDocs(query(collection(db,"ventas"),orderBy("fecha","desc")));
-            const tv = document.querySelector('#tabla-ventas tbody'); tv.innerHTML=''; let totalVentas=0;
+            todasLasVentas = [];
+            let totalVentas = 0;
             sv.forEach(d => {
-                const v=d.data();
-                totalVentas += (v.cantidad * v.precio);
-                const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A';
-                const nombreProd = preciosListaActual[v.tipo] ? preciosListaActual[v.tipo].nombre : v.tipo;
-                const unidad = preciosListaActual[v.tipo] ? preciosListaActual[v.tipo].unidad : '';
-                tv.innerHTML+=`<tr><td>${f}</td><td>${nombreProd}</td><td>${v.cantidad} ${unidad}</td><td>Q${v.precio.toFixed(2)}</td><td>Q${(v.cantidad*v.precio).toFixed(2)}</td><td>${v.pago}</td></tr>`;
+                const v = d.data();
+                todasLasVentas.push({ id: d.id, data: v });
+                if (v.estadoPago === 'pagado') totalVentas += (v.cantidad * v.precio);
             });
             document.getElementById('dash-ventas').innerText = "Q "+totalVentas.toFixed(2);
+            renderTablaVentas();
 
             // Inventario detallado
             const si = await getDocs(collection(db,"inventario"));
             const ti = document.querySelector('#tabla-inventario tbody'); ti.innerHTML='';
-            
-            // Agrupar por estado+presentación
             const grupos = {
                 'Tostado-Entero': 0, 'Tostado-Molido': 0,
                 'Oro': 0, 'Pergamino': 0,
                 'Miel-Botella': 0, 'Miel-Galon': 0,
                 'Licor-Botella': 0, 'Licor-Litro': 0, 'Licor-Galon': 0
             };
-            
             si.forEach(d => {
                 const v=d.data();
                 const key = v.estado === 'Tostado' ? `Tostado-${v.presentacion||'Entero'}` : v.estado;
@@ -1443,25 +1594,31 @@
                 
                 const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A';
                 const nombreProd = preciosListaActual[v.estado] ? preciosListaActual[v.estado].nombre : v.estado;
-                let detalles = '';
-                if (v.estado==='Tostado') detalles = `${v.presentacion} · ${v.variedad} · ${v.proceso}`;
-                else if (['Pergamino','Oro','Tostado'].includes(v.estado)) detalles = `${v.variedad} · ${v.proceso}`;
-                else detalles = v.finca || '';
+                const presentacion = v.estado === 'Tostado' ? (v.presentacion || 'N/A') : '-';
+                const variedad = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.variedad || 'N/A') : '-';
+                const proceso = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.proceso || 'N/A') : '-';
+                const fechaTostado = v.estado === 'Tostado' ? (v.fechaTostado || 'N/A') : '-';
                 const unidad = preciosListaActual[v.estado] ? preciosListaActual[v.estado].unidad : '';
-                ti.innerHTML+=`<tr><td>${f}</td><td>${nombreProd}</td><td style="font-size:0.8rem;">${detalles}</td><td>${v.cantidad.toFixed(1)} ${unidad}</td></tr>`;
+                
+                ti.innerHTML += `<tr>
+                    <td>${f}</td>
+                    <td>${nombreProd}</td>
+                    <td>${presentacion}</td>
+                    <td>${variedad}</td>
+                    <td>${proceso}</td>
+                    <td>${fechaTostado}</td>
+                    <td><strong>${v.cantidad.toFixed(1)}</strong> ${unidad}</td>
+                </tr>`;
             });
             
-            // Renderizar dashboard detallado
             document.getElementById('dash-cafe-grid').innerHTML = 
                 renderDashMiniCard('☕ Tostado Entero', grupos['Tostado-Entero'], 'lb') +
                 renderDashMiniCard('☕ Tostado Molido', grupos['Tostado-Molido'], 'lb') +
                 renderDashMiniCard('🌱 Café Oro', grupos['Oro'], 'lb') +
                 renderDashMiniCard('🌾 Café Pergamino', grupos['Pergamino'], 'lb');
-            
             document.getElementById('dash-miel-grid').innerHTML = 
                 renderDashMiniCard('🍯 Miel Botella 750ml', grupos['Miel-Botella'], 'u.') +
                 renderDashMiniCard('🍯 Miel Galón', grupos['Miel-Galon'], 'u.');
-            
             document.getElementById('dash-licor-grid').innerHTML = 
                 renderDashMiniCard('🍷 Licor Botella 750ml', grupos['Licor-Botella'], 'u.') +
                 renderDashMiniCard('🍷 Licor Litro', grupos['Licor-Litro'], 'u.') +
@@ -1473,14 +1630,7 @@
             sc.forEach(d => { const c=d.data(); const f=c.fechaTostado||(c.fechaRegistro?new Date(c.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tc2.innerHTML+=`<tr><td>${f}</td><td>${c.lote}</td><td>${c.variedad}</td><td>${c.proceso}</td><td>Q${(c.costoTotal||0).toFixed(2)}</td><td>Q${(c.precioSugerido||0).toFixed(2)}</td><td><button class="btn btn-small btn-view" onclick="verCostoDetalle('${d.id}')">👁️ Ver</button></td></tr>`; });
 
             // Cataciones
-            const scC = await getDocs(query(collection(db,"cataciones"),orderBy("fechaRegistro","desc")));
-            const tcC = document.querySelector('#tabla-cataciones tbody'); tcC.innerHTML='';
-            scC.forEach(d => {
-                const c=d.data();
-                const f=c.fecha||(c.fechaRegistro?new Date(c.fechaRegistro.seconds*1000).toLocaleDateString():'N/A');
-                const colorClas = c.clasificacion==='Outstanding'?'#ffd700':c.clasificacion==='Excellent'?'#4caf50':c.clasificacion==='Very Good'?'#8bc34a':c.clasificacion==='Good'?'#2196f3':'#9e9e9e';
-                tcC.innerHTML+=`<tr><td>${f}</td><td>${c.nombre||'N/A'}</td><td>${c.variedad||'N/A'}</td><td style="font-weight:bold; color:var(--primary);">${(c.puntajeTotal||0).toFixed(2)}</td><td style="background:${colorClas}; color:white; font-weight:bold;">${c.clasificacion||'N/A'}</td><td style="white-space:nowrap;"><button class="btn btn-small btn-view" onclick="verCatacionCompleta('${d.id}')">👁️ Ver</button><button class="btn btn-small btn-pdf" onclick="verCatacionCompleta('${d.id}'); setTimeout(()=>generarPDFCatacion(),600);">📄 PDF</button></td></tr>`;
-            });
+            await cargarCataciones();
 
             // Muestras
             const sm = await getDocs(query(collection(db,"muestreos"),orderBy("fechaRegistro","desc")));
@@ -1492,7 +1642,6 @@
     // ===== INICIALIZACIÓN =====
     construirCategoriasSCA();
     calcularCatacion();
-    
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
