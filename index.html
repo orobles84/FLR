@@ -79,7 +79,7 @@
         .yellow-input { background-color: #fff9c4 !important; border: 1px solid #fbc02d !important; }
         .form-group input[readonly] { background-color: #e9ecef; }
         .table-wrapper { overflow-x: auto; margin-top: 1rem; -webkit-overflow-scrolling: touch; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 500px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 700px; }
         th, td { border: 1px solid #ddd; padding: 10px 8px; text-align: left; vertical-align: middle; }
         th { background-color: var(--primary); color: white; position: sticky; top: 0; }
         tr:nth-child(even) { background-color: #f9f9f9; }
@@ -93,6 +93,8 @@
         .pago-pendiente { background: #ffcdd2; color: #b71c1c; }
         .pago-transferencia { background: #fff3cd; color: #856404; }
         .pago-pagado { background: #c8e6c9; color: #1b5e20; }
+
+        .cliente-nota { font-weight: bold; color: var(--primary); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .dash-group-title { color: var(--primary); font-weight: bold; margin: 1rem 0 0.5rem; font-size: 1rem; border-bottom: 1px solid var(--accent); padding-bottom: 0.25rem; }
         .dash-mini-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 1rem; }
@@ -244,7 +246,7 @@
 
         <div id="ventas" class="section">
             <h2>💰 Registro de Ventas</h2>
-            <div class="info-box"><strong>💡 Tip:</strong> Para café tostado, selecciona el lote específico. El precio se carga desde tu Lista de Precios.</div>
+            <div class="info-box"><strong>💡 Tip:</strong> Para café tostado, selecciona la presentación (Entero/Molido) y el lote específico. El precio se carga desde tu Lista de Precios.</div>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Producto</label>
@@ -268,8 +270,8 @@
                 <div class="form-group" id="venta-presentacion-group" style="display:none;">
                     <label>Presentación Café</label>
                     <select id="venta-presentacion" onchange="cargarLotesDisponibles()">
-                        <option value="Entero">Grano Entero</option>
-                        <option value="Molido">Molido</option>
+                        <option value="Entero">☕ Grano Entero</option>
+                        <option value="Molido">⚙️ Molido</option>
                     </select>
                 </div>
                 <div class="form-group" id="venta-lote-group" style="display:none;">
@@ -287,7 +289,7 @@
                         <option value="Pendiente">⏳ Pendiente</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Cliente / Notas</label><input type="text" id="venta-notas" class="yellow-input"></div>
+                <div class="form-group"><label>📋 Cliente / Notas (Referencia)</label><input type="text" id="venta-notas" class="yellow-input" placeholder="Ej: Juan Pérez, Pedido #123, etc."></div>
             </div>
             <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
             
@@ -299,13 +301,28 @@
                 <button class="filter-btn" onclick="filtrarVentas('pagado', this)">🟢 Pagadas</button>
             </div>
             <div class="table-wrapper">
-                <table id="tabla-ventas"><thead><tr><th>Fecha</th><th>Producto</th><th>Lote</th><th>Cant.</th><th>Total</th><th>Pago</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-ventas">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>📋 Cliente / Notas</th>
+                            <th>Producto</th>
+                            <th>Lote</th>
+                            <th>Cant.</th>
+                            <th>Total</th>
+                            <th>Pago</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
 
         <div id="inventario" class="section">
             <h2>📦 Gestión de Inventario</h2>
-            <div class="info-box"><strong>💡 Nota:</strong> Si agregas un producto con las mismas características (estado, presentación, variedad, proceso, fecha tostado, finca) que uno existente, se <strong>sumará</strong> automáticamente al inventario existente.</div>
+            <div class="info-box"><strong>💡 Nota:</strong> Si agregas un producto con las mismas características que uno existente, se <strong>sumará</strong> automáticamente.</div>
             <div class="form-grid">
                 <div class="form-group">
                     <label>Producto</label>
@@ -568,7 +585,7 @@
                     <option value="pendiente">🔴 Pendiente</option>
                 </select>
             </div>
-            <div class="form-group" style="grid-column: 1 / -1;"><label>Cliente / Notas</label><input type="text" id="ev-notas" class="yellow-input"></div>
+            <div class="form-group" style="grid-column: 1 / -1;"><label>📋 Cliente / Notas</label><input type="text" id="ev-notas" class="yellow-input"></div>
         </div>
         <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
             <button class="btn btn-success" style="flex:1; min-width:150px;" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
@@ -653,7 +670,7 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.4</div>
+<div class="version-tag">v2026.09.5</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -715,17 +732,15 @@
         { k:'global', n:'10. Puntaje Global', d:'Impresión general', min:6, def:7.5 }
     ];
 
-    // ===== UI =====
     window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); };
     window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; muestraActualEnModal = null; catacionActualEnModal = null; };
 
     function showError(id, msg) { const el = document.getElementById(id); if(el){ el.innerText = msg; el.style.display = 'block'; } else { alert(msg); } }
 
-    // ===== MIGRACIÓN: derivar estadoPago del método de pago antiguo =====
     function derivarEstadoPagoDeMetodo(pago) {
         if (pago === 'Pendiente') return 'pendiente';
         if (pago === 'Transferencia') return 'transferencia';
-        return 'pagado'; // Efectivo, Tarjeta u otros
+        return 'pagado';
     }
 
     function obtenerOCrearInvitadoId() {
@@ -819,6 +834,8 @@
             cargarPreciosLista();
             cargarDatosIniciales();
             calcularCotizador();
+            // 🔑 Inicializar el formulario de ventas para mostrar campos según producto por defecto
+            onVentaTipoChange();
         } else {
             cargarCataciones();
         }
@@ -915,7 +932,6 @@
         if (window.innerWidth < 1024) toggleSidebar();
     };
 
-    // ===== LISTA DE PRECIOS =====
     async function cargarPreciosLista() {
         try {
             const snap = await getDoc(doc(db, "precios", "catalogo"));
@@ -974,13 +990,17 @@
         }
     };
 
-    // ===== VENTAS =====
+    // 🔑 VENTAS - Inicialización correcta del formulario
     window.onVentaTipoChange = async () => {
         const tipo = document.getElementById('venta-tipo').value;
         const isTostado = tipo === 'Tostado';
+        // Mostrar/ocultar presentación (Entero/Molido)
         document.getElementById('venta-presentacion-group').style.display = isTostado ? 'flex' : 'none';
+        // Mostrar/ocultar selector de lote
         document.getElementById('venta-lote-group').style.display = isTostado ? 'flex' : 'none';
+        // Cargar precio desde lista
         if (preciosListaActual[tipo]) document.getElementById('venta-precio').value = preciosListaActual[tipo].precio;
+        // Cargar lotes si es tostado
         if (isTostado) await cargarLotesDisponibles();
     };
 
@@ -1013,7 +1033,6 @@
         }
     };
 
-    // ===== INVENTARIO (con suma inteligente) =====
     window.toggleInvFields = () => {
         const est = document.getElementById('inv-estado').value;
         const isTostado = est === 'Tostado';
@@ -1037,7 +1056,6 @@
         if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0.");
 
         try {
-            // Buscar si ya existe un item con las mismas características
             const snap = await getDocs(collection(db, "inventario"));
             let itemExistente = null;
             let docIdExistente = null;
@@ -1057,12 +1075,10 @@
             }
 
             if (itemExistente) {
-                // Sumar al existente
                 const nuevaCantidad = (itemExistente.cantidad || 0) + cantidad;
                 await updateDoc(doc(db, "inventario", docIdExistente), { cantidad: nuevaCantidad });
-                alert(`✅ Se sumaron ${cantidad} al inventario existente.\n\nProducto: ${preciosListaActual[est]?.nombre || est}\nCantidad anterior: ${(itemExistente.cantidad || 0).toFixed(1)}\nNueva cantidad: ${nuevaCantidad.toFixed(1)}`);
+                alert(`✅ Se sumaron ${cantidad} al inventario existente.\n\nCantidad anterior: ${(itemExistente.cantidad || 0).toFixed(1)}\nNueva cantidad: ${nuevaCantidad.toFixed(1)}`);
             } else {
-                // Crear nuevo
                 await addDoc(collection(db,"inventario"), {
                     estado: est, presentacion, cantidad, finca, variedad, proceso, fechaTostado,
                     fecha: serverTimestamp()
@@ -1076,7 +1092,6 @@
         }
     };
 
-    // ===== GUARDAR VENTA =====
     window.guardarVenta = async () => {
         const tipo = document.getElementById('venta-tipo').value;
         const pres = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
@@ -1084,6 +1099,7 @@
         const prec = parseFloat(document.getElementById('venta-precio').value) || 0;
         const pago = document.getElementById('venta-pago').value;
         const loteDocId = tipo === 'Tostado' ? document.getElementById('venta-lote').value : null;
+        const notas = document.getElementById('venta-notas').value;
         
         if (cant <= 0) return alert("Cantidad debe ser mayor a 0.");
         if (tipo === 'Tostado' && !loteDocId) return alert("⚠️ Selecciona un lote disponible.");
@@ -1105,7 +1121,7 @@
             estadoPago: estadoPago,
             loteDocId: loteDocId,
             loteInfo: loteData ? `${loteData.fechaTostado || 'S/F'} - ${loteData.variedad || 'N/A'} - ${loteData.proceso || 'N/A'}` : 'N/A',
-            notas: document.getElementById('venta-notas').value,
+            notas: notas,
             fecha: serverTimestamp()
         });
 
@@ -1129,7 +1145,6 @@
         document.getElementById('venta-notas').value = '';
     };
 
-    // ===== EDITAR VENTA =====
     window.editarVenta = async (docId) => {
         try {
             const snap = await getDoc(doc(db, "ventas", docId));
@@ -1168,24 +1183,19 @@
         const v = ventaActualEditando.data;
         const diffCantidad = nuevaCantidad - v.cantidad;
         
-        // Si cambió la cantidad, ajustar inventario
         if (diffCantidad !== 0 && v.tipo === 'Tostado' && v.loteDocId) {
             try {
                 const loteSnap = await getDoc(doc(db, "inventario", v.loteDocId));
                 if (loteSnap.exists()) {
                     const loteData = loteSnap.data();
-                    // Si aumenta la venta, verificar stock
                     if (diffCantidad > 0 && loteData.cantidad < diffCantidad) {
                         return alert(`❌ Stock insuficiente en el lote.\nDisponible: ${loteData.cantidad.toFixed(2)} lb\nNecesario: ${diffCantidad.toFixed(2)} lb`);
                     }
-                    // Ajustar: restar la diferencia (si es positiva = más venta, si es negativa = menos venta = devolver stock)
                     await updateDoc(doc(db, "inventario", v.loteDocId), { cantidad: loteData.cantidad - diffCantidad });
                 }
             } catch (e) { return alert("Error ajustando inventario: " + e.message); }
         } else if (diffCantidad !== 0 && v.tipo !== 'Tostado') {
-            // Para otros productos, ajuste simple
             if (diffCantidad > 0) {
-                // Aumentó venta, descontar más
                 let pend = diffCantidad;
                 const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",v.tipo)));
                 for (const d of snap.docs) {
@@ -1196,15 +1206,13 @@
                 }
                 if (pend > 0) return alert(`⚠️ Venta actualizada, pero faltan ${pend.toFixed(2)} en inventario.`);
             } else {
-                // Disminuyó venta, devolver stock al primer lote encontrado
                 const devolver = Math.abs(diffCantidad);
                 const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",v.tipo)));
                 let agregado = 0;
                 for (const d of snap.docs) {
                     if (agregado >= devolver) break;
                     const invData = d.data();
-                    const invRef = doc(db, "inventario", d.id);
-                    await updateDoc(invRef, { cantidad: (invData.cantidad || 0) + (devolver - agregado) });
+                    await updateDoc(doc(db, "inventario", d.id), { cantidad: (invData.cantidad || 0) + (devolver - agregado) });
                     agregado = devolver;
                 }
             }
@@ -1225,9 +1233,8 @@
         } catch (e) { alert("Error: " + e.message); }
     };
 
-    // ===== ELIMINAR VENTA =====
     window.eliminarVenta = async (docId) => {
-        if (!confirm("⚠️ ¿Eliminar esta venta?\n\nNota: El inventario NO se restaurará automáticamente. Si necesitas devolver stock, hazlo manualmente desde Inventario.")) return;
+        if (!confirm("⚠️ ¿Eliminar esta venta?\n\nNota: El inventario NO se restaurará automáticamente.")) return;
         try {
             await deleteDoc(doc(db, "ventas", docId));
             alert("✅ Venta eliminada.");
@@ -1235,7 +1242,6 @@
         } catch (e) { alert("Error: " + e.message); }
     };
 
-    // ===== EDITAR INVENTARIO =====
     window.editarInventario = async (docId) => {
         try {
             const snap = await getDoc(doc(db, "inventario", docId));
@@ -1306,7 +1312,6 @@
         } catch (e) { alert("Error: " + e.message); }
     };
 
-    // ===== FILTRAR Y RENDERIZAR VENTAS =====
     window.filtrarVentas = (filtro, btn) => {
         filtroVentasActual = filtro;
         document.querySelectorAll('#ventas .filter-btn').forEach(b => b.classList.remove('active'));
@@ -1314,6 +1319,7 @@
         renderTablaVentas();
     };
 
+    // 🔑 TABLA DE VENTAS CON CLIENTE/NOTAS COMO COLUMNA PRINCIPAL
     function renderTablaVentas() {
         const tbody = document.querySelector('#tabla-ventas tbody');
         tbody.innerHTML = '';
@@ -1327,6 +1333,7 @@
             const f = d.fecha ? new Date(d.fecha.seconds*1000).toLocaleDateString() : 'N/A';
             const nombreProd = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : d.tipo;
             const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : '';
+            const clienteNotas = d.notas || '<span style="color:#999; font-style:italic;">-</span>';
             
             let estadoBadge = '';
             if (d.estadoPago === 'pendiente') estadoBadge = '<span class="pago-badge pago-pendiente">🔴 PENDIENTE</span>';
@@ -1335,6 +1342,7 @@
             
             tbody.innerHTML += `<tr>
                 <td>${f}</td>
+                <td class="cliente-nota" title="${(d.notas||'').replace(/"/g,'&quot;')}">${clienteNotas}</td>
                 <td>${nombreProd}</td>
                 <td style="font-size:0.75rem;">${d.loteInfo || '-'}</td>
                 <td>${d.cantidad} ${unidad}</td>
@@ -1349,7 +1357,6 @@
         });
     }
 
-    // ===== COSTOS =====
     window.calcularPrecioSugerido = () => {
         const v = parseFloat(document.getElementById('costo-verde').value)||0;
         const t = parseFloat(document.getElementById('costo-tostado').value)||0;
@@ -1419,7 +1426,6 @@
         } catch(e) { alert("Error: "+e.message); }
     };
 
-    // ===== COTIZADOR =====
     window.actualizarCMarket = () => {
         const c = parseFloat(document.getElementById('cmarket-input').value)||0;
         document.getElementById('cmarket-price').innerText = c.toFixed(2)+' ¢/lb';
@@ -1458,7 +1464,6 @@
         document.getElementById('seguro-total').innerText='US$ '+segT.toFixed(2);
     };
 
-    // ===== MUESTREO =====
     window.calcularMuestreo = () => {
         const pp = parseFloat(document.getElementById('m-peso-perg').value)||0;
         const po = parseFloat(document.getElementById('m-peso-oro').value)||0;
@@ -1548,7 +1553,6 @@
         alert("✅ PDF descargado.");
     };
 
-    // ===== CATACIÓN =====
     function getColorBarra(valor) {
         if (valor < 6.5) return '#f44336';
         if (valor < 7) return '#ff5722';
@@ -1769,7 +1773,6 @@
         alert("✅ PDF descargado.");
     };
 
-    // ===== DASHBOARD =====
     function renderDashMiniCard(label, value, unidad) {
         const isEmpty = value === 0;
         return `<div class="dash-mini-card ${isEmpty?'empty':''}">
@@ -1780,7 +1783,6 @@
 
     async function cargarDatosIniciales() {
         try {
-            // VENTAS con migración automática
             const sv = await getDocs(query(collection(db,"ventas"),orderBy("fecha","desc")));
             todasLasVentas = [];
             let totalVentas = 0;
@@ -1788,7 +1790,6 @@
             
             for (const d of sv.docs) {
                 const v = d.data();
-                // Migración: si no tiene estadoPago, derivarlo del método de pago
                 if (!v.estadoPago) {
                     const estadoDerivado = derivarEstadoPagoDeMetodo(v.pago);
                     v.estadoPago = estadoDerivado;
@@ -1798,16 +1799,14 @@
                 if (v.estadoPago === 'pagado') totalVentas += (v.cantidad * v.precio);
             }
             
-            // Ejecutar migraciones en paralelo
             if (promesasMigracion.length > 0) {
                 await Promise.all(promesasMigracion);
-                console.log(`✅ Migradas ${promesasMigracion.length} ventas antiguas con estado de pago.`);
+                console.log(`✅ Migradas ${promesasMigracion.length} ventas antiguas.`);
             }
             
             document.getElementById('dash-ventas').innerText = "Q "+totalVentas.toFixed(2);
             renderTablaVentas();
 
-            // INVENTARIO
             const si = await getDocs(collection(db,"inventario"));
             const ti = document.querySelector('#tabla-inventario tbody'); ti.innerHTML='';
             const grupos = {
@@ -1857,22 +1856,18 @@
                 renderDashMiniCard('🍷 Licor Litro', grupos['Licor-Litro'], 'u.') +
                 renderDashMiniCard('🍷 Licor Galón', grupos['Licor-Galon'], 'u.');
 
-            // COSTOS
             const sc = await getDocs(query(collection(db,"costosTostado"),orderBy("fechaRegistro","desc")));
             const tc2 = document.querySelector('#tabla-costos tbody'); tc2.innerHTML='';
             sc.forEach(d => { const c=d.data(); const f=c.fechaTostado||(c.fechaRegistro?new Date(c.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tc2.innerHTML+=`<tr><td>${f}</td><td>${c.lote}</td><td>${c.variedad}</td><td>${c.proceso}</td><td>Q${(c.costoTotal||0).toFixed(2)}</td><td>Q${(c.precioSugerido||0).toFixed(2)}</td><td><button class="btn btn-small btn-view" onclick="verCostoDetalle('${d.id}')">👁️ Ver</button></td></tr>`; });
 
-            // CATACIONES
             await cargarCataciones();
 
-            // MUESTRAS
             const sm = await getDocs(query(collection(db,"muestreos"),orderBy("fechaRegistro","desc")));
             const tm = document.querySelector('#tabla-muestreos tbody'); tm.innerHTML='';
             sm.forEach(d => { const m=d.data(); const f=m.fecha||(m.fechaRegistro?new Date(m.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tm.innerHTML+=`<tr><td>${f}</td><td>${m.nombre||'N/A'}</td><td>${m.lote||'N/A'}</td><td>${m.rendimiento||'0%'}</td><td>${m.humedad||'0'}%</td><td style="white-space:nowrap;"><button class="btn btn-small btn-view" onclick="verMuestraCompleta('${d.id}')">👁️ Ver</button><button class="btn btn-small btn-pdf" onclick="verMuestraCompleta('${d.id}'); setTimeout(()=>generarPDFMuestra(),600);">📄 PDF</button></td></tr>`; });
         } catch(e) { console.error("Error cargando datos:", e); }
     }
 
-    // ===== INIT =====
     construirCategoriasSCA();
     calcularCatacion();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
