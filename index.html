@@ -20,6 +20,7 @@
         html, body { overflow-x: hidden; }
         body { background-color: var(--bg-color); color: var(--text-color); background-size: cover; background-attachment: fixed; min-height: 100vh; }
 
+        /* AUTH */
         #auth-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 1rem; background: linear-gradient(rgba(44,94,46,0.85), rgba(139,90,43,0.85)), url('https://images.unsplash.com/photo-1511537632536-b7a575805d75?auto=format&fit=crop&w=1920') center/cover; }
         .auth-box { background: var(--white); padding: 1.5rem; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.3); width: 100%; max-width: 420px; text-align: center; }
         .auth-logo { width: 100px; height: 100px; margin-bottom: 1rem; }
@@ -143,7 +144,7 @@
         .sca-scale-legend { display: flex; justify-content: space-between; font-size: 0.7rem; color: rgba(255,255,255,0.8); margin-top: 0.25rem; }
 
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 300; justify-content: center; align-items: center; padding: 1rem; overflow-y: auto; }
-        .modal-content-large { background: white; padding: 1.5rem; border-radius: 12px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; margin: auto; }
+        .modal-content-large { background: white; padding: 1.5rem; border-radius: 12px; max-width: 900px; width: 100%; max-height: 90vh; overflow-y: auto; margin: auto; }
         .modal-content-large h3 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin-bottom: 1rem; }
         .detail-grid { display: grid; grid-template-columns: 1fr; gap: 0.5rem; margin-bottom: 1rem; }
         .detail-item { background: #f9f9f9; padding: 10px; border-radius: 6px; border-left: 3px solid var(--accent); }
@@ -158,6 +159,14 @@
         .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
 
         .actions-cell { white-space: nowrap; display: flex; gap: 3px; flex-wrap: wrap; }
+
+        /* TABLA DE TOSTADO ESPECÍFICA */
+        .tostado-table input { width: 100%; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
+        .tostado-table th { background: var(--secondary); font-size: 0.8rem; }
+        .tostado-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem; background: #fff9c4; padding: 1rem; border-radius: 8px; border: 1px solid #fbc02d; }
+        .tostado-summary-item { text-align: center; }
+        .tostado-summary-item .label { font-size: 0.8rem; font-weight: bold; color: var(--secondary); }
+        .tostado-summary-item .value { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
 
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
@@ -469,6 +478,80 @@
             </div>
         </div>
 
+        <!-- NUEVO MENÚ: CONTROL DE TOSTADO -->
+        <div id="tostado" class="section">
+            <h2>🔥 Control de Perfiles de Tostado</h2>
+            <div class="info-box"><strong>📋 Instrucciones:</strong> Registra los datos de cada prueba de tueste. La tabla de temperaturas permite capturar los datos minuto a minuto como en tu Excel.</div>
+            
+            <h3>📝 Datos Generales del Tostado</h3>
+            <div class="form-grid">
+                <div class="form-group"><label>Fecha</label><input type="date" id="t-fecha" class="yellow-input"></div>
+                <div class="form-group"><label>Nombre / Código Prueba</label><input type="text" id="t-nombre" class="yellow-input" placeholder="Ej: 130526-01"></div>
+                <div class="form-group"><label>Tostador</label><input type="text" id="t-tostador" class="yellow-input" value="BEHMOR"></div>
+                <div class="form-group"><label>Tipo de Café</label><input type="text" id="t-cafe" class="yellow-input" placeholder="Ej: Catimor Lavado"></div>
+                <div class="form-group"><label>Peso Carga (g)</label><input type="number" id="t-peso-carga" class="yellow-input" step="0.1"></div>
+                <div class="form-group"><label>Peso Final (g)</label><input type="number" id="t-peso-final" class="yellow-input" step="0.1"></div>
+                <div class="form-group"><label>Potencia Inicial</label><input type="text" id="t-potencia-ini" class="yellow-input" placeholder="Ej: P3"></div>
+            </div>
+
+            <h3>🌡️ Registro de Temperaturas (Minuto a Minuto)</h3>
+            <div class="table-wrapper">
+                <table class="tostado-table" id="tabla-temp-tostado">
+                    <thead>
+                        <tr>
+                            <th>Tiempo (min)</th>
+                            <th>Temp Out (°F)</th>
+                            <th>Temp In (°F)</th>
+                            <th>Potencia</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-temp-tostado">
+                        <!-- Se genera dinámicamente con JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>⏱️ Tiempos Clave</h3>
+            <div class="tostado-summary">
+                <div class="tostado-summary-item">
+                    <div class="label">Primer Crack</div>
+                    <input type="text" id="t-crack" class="yellow-input" placeholder="Ej: 7:00" style="text-align:center; font-weight:bold;">
+                </div>
+                <div class="tostado-summary-item">
+                    <div class="label">Tiempo Desarrollo</div>
+                    <input type="text" id="t-des" class="yellow-input" placeholder="Ej: 1:30" style="text-align:center; font-weight:bold;">
+                </div>
+                <div class="tostado-summary-item">
+                    <div class="label">Salida / Drop</div>
+                    <input type="text" id="t-salida" class="yellow-input" placeholder="Ej: 8:30" style="text-align:center; font-weight:bold;">
+                </div>
+            </div>
+
+            <h3>👅 Notas de Catación / Observaciones</h3>
+            <div class="form-group">
+                <textarea id="t-notas" class="yellow-input" rows="3" placeholder="Ej: Cítrico, chocolate, naranja, caramelo, sedoso, posgusto prolongado..."></textarea>
+            </div>
+
+            <button class="btn btn-save" onclick="guardarTostado()">💾 Guardar Perfil de Tostado</button>
+
+            <h3>📊 Historial de Tostados</h3>
+            <div class="table-wrapper">
+                <table id="tabla-historial-tostados">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Código</th>
+                            <th>Café</th>
+                            <th>Peso Carga</th>
+                            <th>Peso Final</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
         <div id="catacion" class="section">
             <h2>☕ Catación SCA - Escala Oficial</h2>
             <div class="info-box"><strong>📋 Escala SCA:</strong> Cada categoría se puntúa de 6 a 10. Puntaje total sobre 100. <strong>Specialty</strong> a partir de 80 puntos.</div>
@@ -560,6 +643,17 @@
 </div>
 
 <!-- MODALES -->
+<div class="modal-overlay" id="modal-ver-tostado">
+    <div class="modal-content-large">
+        <h3 id="modal-tostado-titulo">Detalle de Tostado</h3>
+        <div id="modal-tostado-contenido"></div>
+        <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
+            <button class="btn btn-pdf" style="flex:1; min-width:150px;" onclick="generarPDFTostado()">📄 Descargar PDF</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-ver-tostado')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
 <div class="modal-overlay" id="modal-editar-venta">
     <div class="modal-content-large">
         <h3>✏️ Editar Venta</h3>
@@ -670,7 +764,7 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.5</div>
+<div class="version-tag">v2026.09.6</div>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -694,6 +788,7 @@
     let currentAuthEmail = null;
     let muestraActualEnModal = null;
     let catacionActualEnModal = null;
+    let tostadoActualEnModal = null;
     let ventaActualEditando = null;
     let inventarioActualEditando = null;
     let isManualLogin = false;
@@ -733,7 +828,7 @@
     ];
 
     window.toggleSidebar = () => { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('overlay').classList.toggle('show'); };
-    window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; muestraActualEnModal = null; catacionActualEnModal = null; };
+    window.cerrarModal = (id) => { document.getElementById(id).style.display = 'none'; muestraActualEnModal = null; catacionActualEnModal = null; tostadoActualEnModal = null; };
 
     function showError(id, msg) { const el = document.getElementById(id); if(el){ el.innerText = msg; el.style.display = 'block'; } else { alert(msg); } }
 
@@ -788,6 +883,22 @@
         container.appendChild(defDiv);
     }
 
+    // 🔥 GENERAR TABLA DE TOSTADO DINÁMICA
+    function generarTablaTostado() {
+        const tbody = document.getElementById('tbody-temp-tostado');
+        tbody.innerHTML = '';
+        for (let i = 0; i <= 15; i++) {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="font-weight:bold; text-align:center;">${i}</td>
+                <td><input type="number" id="t-out-${i}" placeholder="°F"></td>
+                <td><input type="number" id="t-in-${i}" placeholder="°F"></td>
+                <td><input type="text" id="t-pot-${i}" placeholder="P"></td>
+            `;
+            tbody.appendChild(row);
+        }
+    }
+
     function construirMenu() {
         const container = document.getElementById('menu-container');
         container.innerHTML = '';
@@ -809,6 +920,7 @@
                 { id:'precios', icon:'🏷️', label:'Lista de Precios' },
                 { id:'costos', icon:'🧮', label:'Costos Tostado' },
                 { id:'cotizador', icon:'💵', label:'Cotizador Verde' },
+                { id:'tostado', icon:'🔥', label:'Control Tostado' }, // NUEVO
                 { id:'catacion', icon:'☕', label:'Catación SCA' },
                 { id:'muestreo', icon:'🔬', label:'Muestreo Lab' }
             ];
@@ -834,12 +946,12 @@
             cargarPreciosLista();
             cargarDatosIniciales();
             calcularCotizador();
-            // 🔑 Inicializar el formulario de ventas para mostrar campos según producto por defecto
             onVentaTipoChange();
         } else {
             cargarCataciones();
         }
         calcularCatacion();
+        generarTablaTostado(); // Generar tabla al entrar
     }
 
     window.login = async () => {
@@ -990,17 +1102,12 @@
         }
     };
 
-    // 🔑 VENTAS - Inicialización correcta del formulario
     window.onVentaTipoChange = async () => {
         const tipo = document.getElementById('venta-tipo').value;
         const isTostado = tipo === 'Tostado';
-        // Mostrar/ocultar presentación (Entero/Molido)
         document.getElementById('venta-presentacion-group').style.display = isTostado ? 'flex' : 'none';
-        // Mostrar/ocultar selector de lote
         document.getElementById('venta-lote-group').style.display = isTostado ? 'flex' : 'none';
-        // Cargar precio desde lista
         if (preciosListaActual[tipo]) document.getElementById('venta-precio').value = preciosListaActual[tipo].precio;
-        // Cargar lotes si es tostado
         if (isTostado) await cargarLotesDisponibles();
     };
 
@@ -1319,7 +1426,6 @@
         renderTablaVentas();
     };
 
-    // 🔑 TABLA DE VENTAS CON CLIENTE/NOTAS COMO COLUMNA PRINCIPAL
     function renderTablaVentas() {
         const tbody = document.querySelector('#tabla-ventas tbody');
         tbody.innerHTML = '';
@@ -1462,6 +1568,250 @@
         document.getElementById('cif-total').innerText='US$ '+cifT.toFixed(2);
         document.getElementById('flete-total').innerText='US$ '+flt.toFixed(2);
         document.getElementById('seguro-total').innerText='US$ '+segT.toFixed(2);
+    };
+
+    // 🔥 GUARDAR TOSTADO
+    window.guardarTostado = async () => {
+        const nombre = document.getElementById('t-nombre').value.trim();
+        if (!nombre) return alert("Ingresa un nombre/código para la prueba.");
+        
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerText = "Guardando...";
+
+        try {
+            // Recopilar temperaturas
+            const temperaturas = [];
+            for (let i = 0; i <= 15; i++) {
+                const out = document.getElementById(`t-out-${i}`).value;
+                const inp = document.getElementById(`t-in-${i}`).value;
+                const pot = document.getElementById(`t-pot-${i}`).value;
+                if (out || inp || pot) {
+                    temperaturas.push({ min: i, out, in: inp, pot });
+                }
+            }
+
+            const datos = {
+                fecha: document.getElementById('t-fecha').value,
+                nombre: nombre,
+                tostador: document.getElementById('t-tostador').value,
+                cafe: document.getElementById('t-cafe').value,
+                pesoCarga: parseFloat(document.getElementById('t-peso-carga').value) || 0,
+                pesoFinal: parseFloat(document.getElementById('t-peso-final').value) || 0,
+                potenciaIni: document.getElementById('t-potencia-ini').value,
+                crack: document.getElementById('t-crack').value,
+                des: document.getElementById('t-des').value,
+                salida: document.getElementById('t-salida').value,
+                notas: document.getElementById('t-notas').value,
+                temperaturas: temperaturas,
+                fechaRegistro: serverTimestamp()
+            };
+
+            await addDoc(collection(db, "tostados"), datos);
+            alert("✅ Perfil de tueste guardado correctamente.");
+            
+            // Limpiar formulario
+            document.getElementById('t-nombre').value = '';
+            document.getElementById('t-peso-carga').value = '';
+            document.getElementById('t-peso-final').value = '';
+            document.getElementById('t-crack').value = '';
+            document.getElementById('t-des').value = '';
+            document.getElementById('t-salida').value = '';
+            document.getElementById('t-notas').value = '';
+            // Limpiar inputs de temperatura
+            for (let i = 0; i <= 15; i++) {
+                document.getElementById(`t-out-${i}`).value = '';
+                document.getElementById(`t-in-${i}`).value = '';
+                document.getElementById(`t-pot-${i}`).value = '';
+            }
+            
+            cargarTostados();
+        } catch (e) {
+            alert("Error al guardar: " + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "💾 Guardar Perfil de Tostado";
+        }
+    };
+
+    async function cargarTostados() {
+        try {
+            const snap = await getDocs(query(collection(db, "tostados"), orderBy("fechaRegistro", "desc")));
+            const tbody = document.querySelector('#tabla-historial-tostados tbody');
+            tbody.innerHTML = '';
+            
+            snap.forEach(d => {
+                const t = d.data();
+                const f = t.fecha || (t.fechaRegistro ? new Date(t.fechaRegistro.seconds*1000).toLocaleDateString() : 'N/A');
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${f}</td>
+                        <td><strong>${t.nombre}</strong></td>
+                        <td>${t.cafe || 'N/A'}</td>
+                        <td>${t.pesoCarga} g</td>
+                        <td>${t.pesoFinal} g</td>
+                        <td class="actions-cell">
+                            <button class="btn btn-xs btn-view" onclick="verTostadoDetalle('${d.id}')">👁️ Ver</button>
+                            <button class="btn btn-xs btn-pdf" onclick="verTostadoDetalle('${d.id}'); setTimeout(()=>generarPDFTostado(), 500);">📄 PDF</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        } catch (e) { console.error("Error cargando tostados:", e); }
+    }
+
+    window.verTostadoDetalle = async (id) => {
+        try {
+            const snap = await getDoc(doc(db, "tostados", id));
+            if (!snap.exists()) return alert("No encontrado.");
+            const t = snap.data();
+            tostadoActualEnModal = { id, ...t };
+            
+            document.getElementById('modal-tostado-titulo').innerText = `🔥 Tueste: ${t.nombre}`;
+            
+            let tempRows = t.temperaturas.map(temp => `
+                <tr>
+                    <td style="font-weight:bold; text-align:center;">${temp.min}</td>
+                    <td>${temp.out || '-'}</td>
+                    <td>${temp.in || '-'}</td>
+                    <td>${temp.pot || '-'}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('modal-tostado-contenido').innerHTML = `
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Datos Generales</h4>
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="label">Fecha</div><div class="value">${t.fecha || 'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Tostador</div><div class="value">${t.tostador || 'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Café</div><div class="value">${t.cafe || 'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Potencia Inicial</div><div class="value">${t.potenciaIni || 'N/A'}</div></div>
+                    <div class="detail-item"><div class="label">Peso Carga</div><div class="value">${t.pesoCarga} g</div></div>
+                    <div class="detail-item"><div class="label">Peso Final</div><div class="value">${t.pesoFinal} g</div></div>
+                </div>
+                
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">⏱️ Tiempos Clave</h4>
+                <div class="tostado-summary">
+                    <div class="tostado-summary-item"><div class="label">Crack</div><div class="value">${t.crack || '-'}</div></div>
+                    <div class="tostado-summary-item"><div class="label">Desarrollo</div><div class="value">${t.des || '-'}</div></div>
+                    <div class="tostado-summary-item"><div class="label">Salida</div><div class="value">${t.salida || '-'}</div></div>
+                </div>
+
+                <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">🌡️ Perfil de Temperaturas</h4>
+                <div class="table-wrapper">
+                    <table class="tostado-table">
+                        <thead><tr><th>Min</th><th>Out (°F)</th><th>In (°F)</th><th>Pot</th></tr></thead>
+                        <tbody>${tempRows}</tbody>
+                    </table>
+                </div>
+
+                ${t.notas ? `<h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">👅 Notas</h4><div class="detail-item"><div class="value">${t.notas}</div></div>` : ''}
+            `;
+            
+            document.getElementById('modal-ver-tostado').style.display = 'flex';
+        } catch (e) { alert("Error: " + e.message); }
+    };
+
+    window.generarPDFTostado = () => {
+        if (!tostadoActualEnModal) return alert("Sin datos.");
+        const t = tostadoActualEnModal;
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Encabezado
+        doc.setFillColor(44, 94, 46);
+        doc.rect(0, 0, 210, 35, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.text("Finca Los Robles", 105, 15, null, null, "center");
+        doc.setFontSize(14);
+        doc.text("PERFIL DE TUESTE", 105, 27, null, null, "center");
+        
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        let y = 45;
+        
+        const ln = (l, v) => {
+            doc.setFont("helvetica", "bold");
+            doc.text(l, 15, y);
+            doc.setFont("helvetica", "normal");
+            doc.text(String(v || "N/A"), 75, y);
+            y += 7;
+        };
+
+        ln("Código:", t.nombre);
+        ln("Fecha:", t.fecha);
+        ln("Tostador:", t.tostador);
+        ln("Café:", t.cafe);
+        ln("Peso Carga:", t.pesoCarga + " g");
+        ln("Peso Final:", t.pesoFinal + " g");
+        ln("Potencia Ini:", t.potenciaIni);
+        
+        y += 5;
+        doc.setDrawColor(212, 175, 55);
+        doc.line(15, y, 195, y);
+        y += 8;
+        
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(139, 90, 43);
+        doc.text("TIEMPOS CLAVE", 15, y);
+        doc.setTextColor(0, 0, 0);
+        y += 5;
+        
+        ln("Primer Crack:", t.crack);
+        ln("Desarrollo:", t.des);
+        ln("Salida:", t.salida);
+        
+        y += 5;
+        doc.line(15, y, 195, y);
+        y += 8;
+        
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(139, 90, 43);
+        doc.text("REGISTRO DE TEMPERATURAS", 15, y);
+        y += 5;
+        
+        // Tabla de temperaturas en PDF
+        doc.setFillColor(44, 94, 46);
+        doc.rect(15, y - 4, 180, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(10);
+        doc.text("Min", 20, y);
+        doc.text("Out (°F)", 60, y);
+        doc.text("In (°F)", 110, y);
+        doc.text("Pot", 160, y);
+        y += 7;
+        
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+        
+        if (t.temperaturas && t.temperaturas.length > 0) {
+            t.temperaturas.forEach(temp => {
+                if (y > 270) { doc.addPage(); y = 20; }
+                doc.text(String(temp.min), 20, y);
+                doc.text(temp.out || '-', 60, y);
+                doc.text(temp.in || '-', 110, y);
+                doc.text(temp.pot || '-', 160, y);
+                y += 6;
+            });
+        }
+        
+        if (t.notas) {
+            y += 5;
+            doc.setFont("helvetica", "bold");
+            doc.text("Notas de Catación:", 15, y);
+            y += 5;
+            doc.setFont("helvetica", "normal");
+            const splitNotes = doc.splitTextToSize(t.notas, 180);
+            doc.text(splitNotes, 15, y);
+        }
+        
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Generado: " + new Date().toLocaleString('es-GT'), 105, 290, null, null, "center");
+        doc.text("Finca Los Robles - Café de Especialidad", 105, 295, null, null, "center");
+        
+        doc.save(`Tueste_${t.nombre}_${t.fecha || Date.now()}.pdf`);
+        alert("✅ PDF descargado.");
     };
 
     window.calcularMuestreo = () => {
@@ -1861,6 +2211,7 @@
             sc.forEach(d => { const c=d.data(); const f=c.fechaTostado||(c.fechaRegistro?new Date(c.fechaRegistro.seconds*1000).toLocaleDateString():'N/A'); tc2.innerHTML+=`<tr><td>${f}</td><td>${c.lote}</td><td>${c.variedad}</td><td>${c.proceso}</td><td>Q${(c.costoTotal||0).toFixed(2)}</td><td>Q${(c.precioSugerido||0).toFixed(2)}</td><td><button class="btn btn-small btn-view" onclick="verCostoDetalle('${d.id}')">👁️ Ver</button></td></tr>`; });
 
             await cargarCataciones();
+            await cargarTostados(); // Cargar historial de tostados
 
             const sm = await getDocs(query(collection(db,"muestreos"),orderBy("fechaRegistro","desc")));
             const tm = document.querySelector('#tabla-muestreos tbody'); tm.innerHTML='';
@@ -1868,8 +2219,10 @@
         } catch(e) { console.error("Error cargando datos:", e); }
     }
 
+    // ===== INIT =====
     construirCategoriasSCA();
     calcularCatacion();
+    generarTablaTostado();
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>
 </body>
