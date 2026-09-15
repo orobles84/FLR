@@ -1,8 +1,10 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
-import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, serverTimestamp, updateDoc, where, deleteDoc } from "firebase/firestore";
-import { jsPDF } from "jspdf";
-import Chart from "chart.js/auto";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, serverTimestamp, updateDoc, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const getJsPDF = () => (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
+const getChart = () => window.Chart;
+
 
 const firebaseConfig = {
     apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
@@ -968,7 +970,12 @@ function renderizarGraficaTostado(temperaturas) {
     }
 
     const ctx = canvas.getContext('2d');
-    chartTostadoInstance = new Chart(ctx, {
+    const ChartClass = getChart();
+    if (!ChartClass) {
+        console.warn("Chart.js no está cargado.");
+        return;
+    }
+    chartTostadoInstance = new ChartClass(ctx, {
         type: 'line',
         data: {
             labels: labels,
@@ -1133,7 +1140,8 @@ window.verTostadoDetalle = async (id, autoPDF = false) => {
 window.generarPDFTostado = () => {
     if (!tostadoActualEnModal) return alert("Sin datos de tostado cargados.");
     const t = tostadoActualEnModal;
-    const doc = new jsPDF();
+    const jsPDFClass = getJsPDF();
+    const doc = new jsPDFClass();
     
     // Encabezado
     doc.setFillColor(44, 94, 46);
