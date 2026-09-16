@@ -354,6 +354,7 @@
                 <div style="position:relative; height:280px; width:100%;">
                     <canvas id="chartVentasMeses"></canvas>
                 </div>
+                <div id="resumen-ventas-meses-bar" style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px; font-size: 0.85rem; justify-content: space-around; background: #f4f6f4; border-radius: 8px; padding: 8px 12px; border: 1px solid #dcdfdc;"></div>
             </div>
 
             <!-- RANKING "¿QUÉ ES LO QUE MÁS VENDO?" -->
@@ -361,27 +362,27 @@
                 <div class="chart-header">
                     <div>
                         <h3 style="color:var(--primary); margin:0; font-size:1.15rem;">🏆 ¿Qué es lo que más vendo? (Análisis de Productos)</h3>
-                        <p style="font-size:0.8rem; color:#666; margin:2px 0 0;">Volumen de ventas, ingresos e impacto por producto</p>
+                        <p style="font-size:0.8rem; color:#666; margin:2px 0 0;">Volumen de ventas, ingresos e impacto por producto con barras comparativas</p>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center;">
                         <label style="font-size:0.85rem; font-weight:bold; color:#555;">Periodo:</label>
                         <select id="dash-filtro-periodo-top" onchange="actualizarTopProductosDashboard()" style="padding:4px 8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; font-weight:bold;">
-                            <option value="mes_actual">Mes Actual</option>
                             <option value="ano_actual" selected>Todo el Año Actual</option>
+                            <option value="mes_actual">Mes Actual</option>
                             <option value="historico">Todo el Histórico</option>
                         </select>
                     </div>
                 </div>
-                <div class="dash-charts-grid" style="margin-bottom:0;">
+                <div class="dash-charts-grid" style="margin-bottom:0; gap: 1.25rem;">
                     <div style="overflow-x:auto;">
                         <table class="ranking-table" id="tabla-ranking-productos">
                             <thead>
                                 <tr>
-                                    <th style="width:40px;">#</th>
+                                    <th style="width:40px; text-align:center;">#</th>
                                     <th>Producto</th>
-                                    <th>Cantidad</th>
-                                    <th>Total (Q)</th>
-                                    <th>% Aportación</th>
+                                    <th style="text-align:right;">Cantidad</th>
+                                    <th style="text-align:right;">Total (Q)</th>
+                                    <th style="text-align:left; min-width:140px;">% y Aportación</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -389,7 +390,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <div style="position:relative; height:250px; display:flex; align-items:center; justify-content:center;">
+                    <div style="position:relative; min-height:280px; height:280px; width:100%;">
                         <canvas id="chartTopProductos"></canvas>
                     </div>
                 </div>
@@ -1009,7 +1010,7 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.8</div>
+<div class="version-tag">v2026.09.9</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
