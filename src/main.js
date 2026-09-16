@@ -308,6 +308,14 @@ window.showSection = (id, el) => {
     if (targetSection) targetSection.classList.add('active');
     if (el) el.classList.add('active');
     if (window.innerWidth < 1024) window.toggleSidebar();
+
+    if (id === 'dashboard') {
+        setTimeout(() => {
+            if (typeof window.actualizarDashboardMetas === 'function') window.actualizarDashboardMetas();
+            if (typeof window.actualizarGraficasDashboard === 'function') window.actualizarGraficasDashboard();
+            if (typeof window.actualizarTopProductosDashboard === 'function') window.actualizarTopProductosDashboard();
+        }, 100);
+    }
 };
 
 async function cargarPreciosLista() {
@@ -1547,7 +1555,7 @@ window.generarPDFTostado = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.7", 105, 290, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.9", 105, 290, { align: "center" });
 
     doc.save(`Tueste_${t.nombre || 'Perfil'}_${t.fecha || Date.now()}.pdf`);
     alert("✅ Reporte PDF de Tostado generado con gráfica incluida.");
@@ -1838,7 +1846,7 @@ window.generarPDFMuestra = () => {
 
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.7", 105, 290, {align:"center"});
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.9", 105, 290, {align:"center"});
     
     d.save(`Muestra_${m.lote||'Lote'}_${m.fecha||Date.now()}.pdf`);
     alert("✅ PDF de Muestreo descargado con datos de zarandas incluidos.");
@@ -2305,13 +2313,38 @@ window.generarPDFCatacion = () => {
     // Pie de página
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.8", 105, 290, { align: "center" });
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.9", 105, 290, { align: "center" });
 
     d.save(`Catacion_${(c.nombre || 'Muestra').replace(/\s+/g, '_')}_${c.fecha || Date.now()}.pdf`);
     alert("✅ Ficha de catación en PDF descargada exitosamente.");
 };
 
 // --- GESTIÓN DE METAS Y ESTADÍSTICAS MENSUALES DEL DASHBOARD ---
+
+function extraerFechaVenta(d) {
+    if (!d) return null;
+    if (d.fecha && typeof d.fecha.toDate === 'function') {
+        return d.fecha.toDate();
+    }
+    if (d.fecha && typeof d.fecha.seconds === 'number') {
+        return new Date(d.fecha.seconds * 1000);
+    }
+    if (d.fechaVentaPersonalizada && typeof d.fechaVentaPersonalizada === 'string' && d.fechaVentaPersonalizada.trim()) {
+        const dt = new Date(d.fechaVentaPersonalizada + 'T12:00:00');
+        if (!isNaN(dt.getTime())) return dt;
+    }
+    if (typeof d.fecha === 'string' && d.fecha.trim()) {
+        const dt = new Date(d.fecha);
+        if (!isNaN(dt.getTime())) return dt;
+    }
+    if (d.fechaRegistro && typeof d.fechaRegistro.toDate === 'function') {
+        return d.fechaRegistro.toDate();
+    }
+    if (d.fechaRegistro && typeof d.fechaRegistro.seconds === 'number') {
+        return new Date(d.fechaRegistro.seconds * 1000);
+    }
+    return null;
+}
 
 window.configurarMetaMensual = () => {
     const valor = prompt("🎯 Ingresa el monto de la Meta Mensual de Ventas (en Quetzales Q):", metaMensualActual);
@@ -2327,25 +2360,23 @@ window.configurarMetaMensual = () => {
     }
 };
 
-function actualizarDashboardMetas() {
+window.actualizarDashboardMetas = function() {
     const ahora = new Date();
+    const mesesNombres = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     const mesActual = ahora.getMonth();
     const anioActual = ahora.getFullYear();
+
+    const mesNomEl = document.getElementById('dash-mes-actual-nombre');
+    if (mesNomEl) mesNomEl.innerText = `${mesesNombres[mesActual]} ${anioActual}`;
 
     let ventasMesActualPagadas = 0;
     let ventasMesActualPendientes = 0;
 
     todasLasVentas.forEach(v => {
         const d = v.data;
-        let fechaVenta = null;
-        if (d.fecha && d.fecha.seconds) {
-            fechaVenta = new Date(d.fecha.seconds * 1000);
-        } else if (d.fechaVentaPersonalizada) {
-            fechaVenta = new Date(d.fechaVentaPersonalizada);
-        }
-
-        if (fechaVenta && !isNaN(fechaVenta.getTime()) && fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
-            const monto = d.total !== undefined ? d.total : (d.cantidad * d.precio);
+        const fechaVenta = extraerFechaVenta(d) || ahora;
+        if (fechaVenta && fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
+            const monto = d.total !== undefined ? Number(d.total) : (Number(d.cantidad || 0) * Number(d.precio || 0));
             if (d.estadoPago === 'pagado') {
                 ventasMesActualPagadas += monto;
             } else {
@@ -2354,87 +2385,141 @@ function actualizarDashboardMetas() {
         }
     });
 
-    const metaEl = document.getElementById('dash-meta-mes');
-    if (metaEl) metaEl.innerText = 'Q ' + metaMensualActual.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const metaActualEl = document.getElementById('dash-meta-actual-monto') || document.getElementById('dash-meta-mes');
+    if (metaActualEl) metaActualEl.innerText = 'Q ' + metaMensualActual.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const pct = metaMensualActual > 0 ? (ventasMesActualPagadas / metaMensualActual) * 100 : 0;
-    const progEl = document.getElementById('dash-progreso-meta');
-    if (progEl) progEl.innerText = pct.toFixed(1) + '%';
+    
+    const alcanzadoLbl = document.getElementById('dash-meta-alcanzado-lbl') || document.getElementById('dash-progreso-meta');
+    if (alcanzadoLbl) alcanzadoLbl.innerText = `${pct.toFixed(1)}%`;
 
-    const fillEl = document.getElementById('meta-progreso-fill');
-    if (fillEl) fillEl.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    const barFill = document.getElementById('dash-meta-bar-fill') || document.getElementById('meta-progreso-fill');
+    if (barFill) barFill.style.width = Math.min(100, Math.max(0, pct)) + '%';
+
+    const recaudadoEl = document.getElementById('dash-meta-recaudado');
+    if (recaudadoEl) recaudadoEl.innerText = `Cobrado: Q ${ventasMesActualPagadas.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    const restanteEl = document.getElementById('dash-meta-restante');
+    if (restanteEl) {
+        const restante = metaMensualActual - ventasMesActualPagadas;
+        if (restante > 0) {
+            restanteEl.innerText = `Faltan: Q ${restante.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        } else {
+            restanteEl.innerHTML = `<span style="color:#ffe082; font-weight:bold;">🎉 ¡Meta superada (+Q ${Math.abs(restante).toFixed(2)})!</span>`;
+        }
+    }
 
     const txtEl = document.getElementById('meta-progreso-texto');
     if (txtEl) {
         const restante = Math.max(0, metaMensualActual - ventasMesActualPagadas);
         txtEl.innerHTML = `Ventas del mes actual: <strong>Q ${ventasMesActualPagadas.toFixed(2)}</strong> de <strong>Q ${metaMensualActual.toFixed(2)}</strong> (${pct.toFixed(1)}%). ${restante > 0 ? `Faltan Q ${restante.toFixed(2)} para alcanzar la meta.` : '🎉 ¡Meta mensual alcanzada y superada!'}`;
     }
-}
+};
 
-function actualizarGraficasDashboard() {
-    const canvas = document.getElementById('chart-ventas-meses');
+window.actualizarGraficasDashboard = function() {
+    const canvas = document.getElementById('chartVentasMeses') || document.getElementById('chart-ventas-meses');
     if (!canvas) return;
     const ChartClass = getChart();
-    if (!ChartClass) return;
-
-    const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const buckets = {};
-
-    // Asegurar los últimos 6 meses incluidos en orden
-    const ahora = new Date();
-    for (let i = 5; i >= 0; i--) {
-        const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const key = `${yyyy}-${mm}`;
-        buckets[key] = {
-            label: `${mesesNombres[d.getMonth()]} ${yyyy}`,
-            pagado: 0,
-            pendiente: 0
-        };
+    if (!ChartClass) {
+        setTimeout(actualizarGraficasDashboard, 300);
+        return;
     }
 
-    todasLasVentas.forEach(v => {
-        const d = v.data;
-        let fechaVenta = null;
-        if (d.fecha && d.fecha.seconds) {
-            fechaVenta = new Date(d.fecha.seconds * 1000);
-        } else if (d.fechaVentaPersonalizada) {
-            fechaVenta = new Date(d.fechaVentaPersonalizada);
+    const filtroAno = document.getElementById('dash-filtro-ano')?.value || '2026';
+    const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+    const labels = [];
+    const dataPagados = [];
+    const dataPendientes = [];
+    const dataMeta = [];
+
+    const ahora = new Date();
+
+    if (filtroAno === '2026' || filtroAno === '2025') {
+        const yyyy = parseInt(filtroAno);
+        for (let m = 0; m < 12; m++) {
+            labels.push(`${mesesNombres[m]} ${yyyy}`);
+            dataPagados.push(0);
+            dataPendientes.push(0);
+            dataMeta.push(metaMensualActual);
         }
 
-        if (fechaVenta && !isNaN(fechaVenta.getTime())) {
-            const yyyy = fechaVenta.getFullYear();
-            const mm = String(fechaVenta.getMonth() + 1).padStart(2, '0');
-            const key = `${yyyy}-${mm}`;
-            const monto = d.total !== undefined ? d.total : (d.cantidad * d.precio);
+        todasLasVentas.forEach(v => {
+            const d = v.data;
+            const f = extraerFechaVenta(d) || ahora;
+            if (f.getFullYear() === yyyy) {
+                const m = f.getMonth();
+                const monto = d.total !== undefined ? Number(d.total) : (Number(d.cantidad || 0) * Number(d.precio || 0));
+                if (d.estadoPago === 'pendiente') {
+                    dataPendientes[m] += monto;
+                } else {
+                    dataPagados[m] += monto;
+                }
+            }
+        });
+    } else {
+        // 'todos' los años: Agrupar por mes-año
+        const buckets = {};
+        for (let i = 11; i >= 0; i--) {
+            const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            buckets[key] = { label: `${mesesNombres[d.getMonth()]} ${d.getFullYear()}`, pagado: 0, pendiente: 0 };
+        }
 
+        todasLasVentas.forEach(v => {
+            const d = v.data;
+            const f = extraerFechaVenta(d) || ahora;
+            const key = `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}`;
+            const monto = d.total !== undefined ? Number(d.total) : (Number(d.cantidad || 0) * Number(d.precio || 0));
             if (!buckets[key]) {
-                buckets[key] = {
-                    label: `${mesesNombres[fechaVenta.getMonth()]} ${yyyy}`,
-                    pagado: 0,
-                    pendiente: 0
-                };
+                buckets[key] = { label: `${mesesNombres[f.getMonth()]} ${f.getFullYear()}`, pagado: 0, pendiente: 0 };
             }
             if (d.estadoPago === 'pendiente') {
                 buckets[key].pendiente += monto;
             } else {
                 buckets[key].pagado += monto;
             }
-        }
-    });
+        });
 
-    const sortedKeys = Object.keys(buckets).sort();
-    const keysToShow = sortedKeys.slice(-8);
-    const labels = keysToShow.map(k => buckets[k].label);
-    const dataPagados = keysToShow.map(k => buckets[k].pagado);
-    const dataPendientes = keysToShow.map(k => buckets[k].pendiente);
-    const dataMeta = keysToShow.map(() => metaMensualActual);
+        const sortedKeys = Object.keys(buckets).sort();
+        sortedKeys.forEach(k => {
+            labels.push(buckets[k].label);
+            dataPagados.push(buckets[k].pagado);
+            dataPendientes.push(buckets[k].pendiente);
+            dataMeta.push(metaMensualActual);
+        });
+    }
 
     if (chartVentasMesesInstance) {
         chartVentasMesesInstance.destroy();
         chartVentasMesesInstance = null;
     }
+
+    // Plugin para mostrar los valores en Quetzales sobre cada barra
+    const pluginValoresBarras = {
+        id: 'pluginValoresBarrasVentas',
+        afterDatasetsDraw(chart) {
+            const ctx = chart.ctx;
+            chart.data.datasets.forEach((dataset, i) => {
+                if (dataset.type === 'line') return;
+                const meta = chart.getDatasetMeta(i);
+                if (!meta || meta.hidden) return;
+                meta.data.forEach((bar, index) => {
+                    const val = dataset.data[index];
+                    if (val && val > 0) {
+                        ctx.save();
+                        ctx.fillStyle = dataset.label.includes('Pagadas') ? '#1e4220' : '#8B5A2B';
+                        ctx.font = 'bold 9px Segoe UI, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        const txt = val >= 1000 ? `Q${(val / 1000).toFixed(1)}k` : `Q${val.toFixed(0)}`;
+                        ctx.fillText(txt, bar.x, bar.y - 2);
+                        ctx.restore();
+                    }
+                });
+            });
+        }
+    };
 
     chartVentasMesesInstance = new ChartClass(canvas.getContext('2d'), {
         type: 'bar',
@@ -2444,28 +2529,28 @@ function actualizarGraficasDashboard() {
                 {
                     label: 'Ventas Pagadas (Q)',
                     data: dataPagados,
-                    backgroundColor: '#2C5E2E',
+                    backgroundColor: 'rgba(44, 94, 46, 0.85)',
                     borderColor: '#1E3F20',
-                    borderWidth: 1,
+                    borderWidth: 1.5,
                     borderRadius: 4
                 },
                 {
                     label: 'Ventas Pendientes (Q)',
                     data: dataPendientes,
-                    backgroundColor: '#E0A96D',
-                    borderColor: '#C88A4B',
-                    borderWidth: 1,
+                    backgroundColor: 'rgba(212, 175, 55, 0.85)',
+                    borderColor: '#B8860B',
+                    borderWidth: 1.5,
                     borderRadius: 4
                 },
                 {
                     type: 'line',
                     label: 'Meta Mensual (Q)',
                     data: dataMeta,
-                    borderColor: '#D4AF37',
+                    borderColor: '#E65100',
+                    backgroundColor: '#E65100',
                     borderWidth: 2,
-                    borderDash: [6, 4],
-                    pointRadius: 4,
-                    pointBackgroundColor: '#D4AF37',
+                    borderDash: [5, 4],
+                    pointRadius: 3,
                     fill: false
                 }
             ]
@@ -2475,51 +2560,108 @@ function actualizarGraficasDashboard() {
             maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             scales: {
-                x: { grid: { display: false } },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 10, weight: 'bold' } }
+                },
                 y: {
                     beginAtZero: true,
                     ticks: {
-                        callback: val => 'Q ' + val.toLocaleString('es-GT')
+                        callback: val => 'Q ' + Number(val).toLocaleString('es-GT')
                     }
                 }
             },
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: ctx => `${ctx.dataset.label}: Q ${ctx.parsed.y.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+                        label: ctx => `${ctx.dataset.label}: Q ${Number(ctx.parsed.y).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
                     }
                 },
                 legend: { position: 'top' }
             }
-        }
+        },
+        plugins: [pluginValoresBarras]
     });
-}
 
-function actualizarTopProductosDashboard() {
+    // Actualizar banner de resumen de ventas mensuales
+    const resumenEl = document.getElementById('resumen-ventas-meses-bar');
+    if (resumenEl) {
+        let totalPeriodoPagado = dataPagados.reduce((a, b) => a + b, 0);
+        let totalPeriodoPendiente = dataPendientes.reduce((a, b) => a + b, 0);
+        let maxIdx = 0;
+        let maxVal = -1;
+        dataPagados.forEach((val, idx) => {
+            const totMes = val + dataPendientes[idx];
+            if (totMes > maxVal) {
+                maxVal = totMes;
+                maxIdx = idx;
+            }
+        });
+        const mejorMes = labels[maxIdx] || 'N/A';
+
+        resumenEl.innerHTML = `
+            <div>💰 <strong>Total Facturado:</strong> Q ${(totalPeriodoPagado + totalPeriodoPendiente).toLocaleString('es-GT', { minimumFractionDigits: 2 })}</div>
+            <div>✅ <strong>Cobrado:</strong> <span style="color:var(--primary); font-weight:bold;">Q ${totalPeriodoPagado.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span></div>
+            <div>⏳ <strong>Pendiente:</strong> <span style="color:var(--warning); font-weight:bold;">Q ${totalPeriodoPendiente.toLocaleString('es-GT', { minimumFractionDigits: 2 })}</span></div>
+            <div>🌟 <strong>Mes récord:</strong> ${mejorMes} (Q ${maxVal > 0 ? maxVal.toLocaleString('es-GT', { minimumFractionDigits: 2 }) : '0.00'})</div>
+        `;
+    }
+};
+
+window.actualizarTopProductosDashboard = function() {
+    const filtro = document.getElementById('dash-filtro-periodo-top')?.value || 'ano_actual';
+    const ahora = new Date();
+    const mesActual = ahora.getMonth();
+    const anioActual = ahora.getFullYear();
+
+    // Filtrar ventas según el periodo seleccionado
+    let ventasFiltradas = todasLasVentas.filter(v => {
+        const d = v.data;
+        const f = extraerFechaVenta(d) || ahora;
+        if (filtro === 'mes_actual') {
+            return f.getMonth() === mesActual && f.getFullYear() === anioActual;
+        }
+        if (filtro === 'ano_actual') {
+            return f.getFullYear() === anioActual;
+        }
+        return true; // 'historico'
+    });
+
     const prodStats = {};
     let granTotalVentas = 0;
 
-    todasLasVentas.forEach(v => {
+    ventasFiltradas.forEach(v => {
         const d = v.data;
         if (d.items && Array.isArray(d.items) && d.items.length > 0) {
             d.items.forEach(it => {
-                const nombre = it.nombre || it.tipo;
-                if (!prodStats[nombre]) {
-                    prodStats[nombre] = { nombre, cantidad: 0, unidad: it.unidad || 'un.', totalQ: 0 };
+                let nombre = it.nombre || it.tipo || 'Producto';
+                if (it.presentacion && it.presentacion !== '-' && !nombre.toLowerCase().includes(it.presentacion.toLowerCase())) {
+                    nombre += ` (${it.presentacion})`;
                 }
-                const sub = it.subtotal !== undefined ? it.subtotal : (it.cantidad * it.precio);
-                prodStats[nombre].cantidad += (parseFloat(it.cantidad) || 0);
+                const unidad = it.unidad || (preciosListaActual[it.tipo] ? preciosListaActual[it.tipo].unidad : 'un.');
+                const cant = parseFloat(it.cantidad) || 0;
+                const sub = it.subtotal !== undefined ? Number(it.subtotal) : (cant * Number(it.precio || 0));
+
+                if (!prodStats[nombre]) {
+                    prodStats[nombre] = { nombre, cantidad: 0, unidad, totalQ: 0 };
+                }
+                prodStats[nombre].cantidad += cant;
                 prodStats[nombre].totalQ += sub;
                 granTotalVentas += sub;
             });
         } else {
-            const nombre = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : d.tipo;
-            const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : 'un.';
-            if (!prodStats[nombre]) {
-                prodStats[nombre] = { nombre, cantidad: 0, unidad: unidad, totalQ: 0 };
+            let nombre = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : (d.tipo || 'Café');
+            if (d.presentacion && d.presentacion !== '-' && !nombre.toLowerCase().includes(d.presentacion.toLowerCase())) {
+                nombre += ` (${d.presentacion})`;
             }
-            const sub = (d.cantidad * d.precio);
-            prodStats[nombre].cantidad += (parseFloat(d.cantidad) || 0);
+            const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : 'un.';
+            const cant = parseFloat(d.cantidad) || 0;
+            const sub = d.total !== undefined ? Number(d.total) : (cant * Number(d.precio || 0));
+
+            if (!prodStats[nombre]) {
+                prodStats[nombre] = { nombre, cantidad: 0, unidad, totalQ: 0 };
+            }
+            prodStats[nombre].cantidad += cant;
             prodStats[nombre].totalQ += sub;
             granTotalVentas += sub;
         }
@@ -2527,23 +2669,31 @@ function actualizarTopProductosDashboard() {
 
     const listaOrdenada = Object.values(prodStats).sort((a, b) => b.totalQ - a.totalQ);
 
-    const tbody = document.querySelector('#tabla-top-productos tbody');
+    const tbody = document.querySelector('#tabla-ranking-productos tbody') || document.querySelector('#tabla-top-productos tbody');
     if (tbody) {
         if (listaOrdenada.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:1.5rem; color:#888;">No hay ventas registradas aún.</td></tr>';
+            const periodoTxt = filtro === 'mes_actual' ? 'este mes' : (filtro === 'ano_actual' ? 'este año' : 'el historial');
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:1.5rem; color:#666;">
+                No hay ventas registradas en ${periodoTxt}.
+                ${todasLasVentas.length > 0 ? '<br><small style="color:#888;">(Selecciona <strong>"Todo el Histórico"</strong> o <strong>"Todo el Año Actual"</strong> arriba para ver ventas)</small>' : ''}
+            </td></tr>`;
         } else {
             tbody.innerHTML = listaOrdenada.map((p, idx) => {
                 const pct = granTotalVentas > 0 ? (p.totalQ / granTotalVentas) * 100 : 0;
                 const posBadge = idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `#${idx + 1}`;
                 return `<tr>
-                    <td style="font-weight:bold; text-align:center;">${posBadge}</td>
-                    <td><strong>${p.nombre}</strong></td>
-                    <td style="text-align:right;">${p.cantidad.toFixed(1)} ${p.unidad}</td>
-                    <td style="text-align:right; font-weight:bold; color:var(--primary);">Q ${p.totalQ.toFixed(2)}</td>
-                    <td style="text-align:right;">
-                        <span style="display:inline-block; min-width:45px; font-weight:bold;">${pct.toFixed(1)}%</span>
-                        <div style="background:#eee; height:6px; border-radius:3px; overflow:hidden; width:100%; margin-top:3px;">
-                            <div style="background:var(--primary); height:100%; width:${pct}%;"></div>
+                    <td style="font-weight:bold; text-align:center;">
+                        <span class="ranking-rank ${idx === 0 ? 'gold' : ''}">${posBadge}</span>
+                    </td>
+                    <td><strong style="color:#2C5E2E;">${p.nombre}</strong></td>
+                    <td style="text-align:right; font-weight:600;">${p.cantidad.toLocaleString('es-GT', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${p.unidad}</td>
+                    <td style="text-align:right; font-weight:bold; color:var(--primary); font-size:0.95rem;">Q ${p.totalQ.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="text-align:left; min-width:140px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="flex:1; background:#e2e8e2; height:12px; border-radius:6px; overflow:hidden;">
+                                <div style="background:linear-gradient(90deg, #2C5E2E 0%, #D4AF37 100%); height:100%; width:${Math.min(100, Math.max(2, pct))}%; border-radius:6px;"></div>
+                            </div>
+                            <span style="font-weight:bold; font-size:0.8rem; min-width:42px; text-align:right;">${pct.toFixed(1)}%</span>
                         </div>
                     </td>
                 </tr>`;
@@ -2551,59 +2701,120 @@ function actualizarTopProductosDashboard() {
         }
     }
 
-    const canvas = document.getElementById('chart-top-productos');
+    const canvas = document.getElementById('chartTopProductos') || document.getElementById('chart-top-productos');
     if (!canvas) return;
     const ChartClass = getChart();
-    if (!ChartClass) return;
+    if (!ChartClass) {
+        setTimeout(actualizarTopProductosDashboard, 300);
+        return;
+    }
 
     if (chartTopProductosInstance) {
         chartTopProductosInstance.destroy();
         chartTopProductosInstance = null;
     }
 
-    if (listaOrdenada.length === 0) return;
-
-    const top5 = listaOrdenada.slice(0, 5);
-    const otros = listaOrdenada.slice(5);
-    const labels = top5.map(p => p.nombre);
-    const data = top5.map(p => p.totalQ);
-
-    if (otros.length > 0) {
-        labels.push('Otros Productos');
-        data.push(otros.reduce((acc, p) => acc + p.totalQ, 0));
+    if (listaOrdenada.length === 0) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
     }
 
-    const colores = ['#2C5E2E', '#D4AF37', '#8B5A2B', '#E0A96D', '#5C8D89', '#9E9E9E'];
+    // Mostrar los 7 productos más vendidos en barras horizontales acompañadas de su valor exacto
+    const topItems = listaOrdenada.slice(0, 7);
+    const labels = topItems.map(p => p.nombre.length > 20 ? p.nombre.substring(0, 18) + '...' : p.nombre);
+    const fullNames = topItems.map(p => p.nombre);
+    const dataValores = topItems.map(p => p.totalQ);
+    const dataCantidades = topItems.map(p => `${p.cantidad.toFixed(1)} ${p.unidad}`);
+
+    const paletaColores = [
+        'rgba(44, 94, 46, 0.9)',
+        'rgba(212, 175, 55, 0.9)',
+        'rgba(139, 90, 43, 0.9)',
+        'rgba(62, 120, 65, 0.9)',
+        'rgba(194, 149, 50, 0.9)',
+        'rgba(160, 106, 59, 0.9)',
+        'rgba(92, 141, 137, 0.9)'
+    ];
+
+    const pluginValoresBarrasHorizontales = {
+        id: 'pluginValoresBarrasHorizontales',
+        afterDatasetsDraw(chart) {
+            const ctx = chart.ctx;
+            const meta = chart.getDatasetMeta(0);
+            if (!meta || meta.hidden) return;
+            meta.data.forEach((bar, index) => {
+                const val = chart.data.datasets[0].data[index];
+                if (val !== undefined && val !== null) {
+                    ctx.save();
+                    ctx.fillStyle = '#1e4220';
+                    ctx.font = 'bold 11px Segoe UI, sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.textBaseline = 'middle';
+                    const txt = ` Q ${Number(val).toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                    ctx.fillText(txt, bar.x + 4, bar.y);
+                    ctx.restore();
+                }
+            });
+        }
+    };
 
     chartTopProductosInstance = new ChartClass(canvas.getContext('2d'), {
-        type: 'doughnut',
+        type: 'bar',
         data: {
             labels: labels,
             datasets: [{
-                data: data,
-                backgroundColor: colores.slice(0, labels.length),
-                borderWidth: 2,
-                borderColor: '#ffffff'
+                label: 'Total Vendido (Q)',
+                data: dataValores,
+                backgroundColor: paletaColores.slice(0, topItems.length),
+                borderColor: '#ffffff',
+                borderWidth: 1.5,
+                borderRadius: 5
             }]
         },
         options: {
+            indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
+            layout: {
+                padding: { right: 85 } // Margen para que el texto de valor Q no se corte
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: val => 'Q ' + Number(val).toLocaleString('es-GT')
+                    },
+                    grid: { color: '#f0f0f0' }
+                },
+                y: {
+                    grid: { display: false },
+                    ticks: {
+                        font: { size: 10, weight: 'bold' }
+                    }
+                }
+            },
             plugins: {
-                legend: { position: 'bottom' },
+                legend: { display: false },
                 tooltip: {
                     callbacks: {
+                        title: ctx => fullNames[ctx[0].dataIndex] || ctx[0].label,
                         label: ctx => {
-                            const val = ctx.parsed;
+                            const val = ctx.parsed.x;
                             const pct = granTotalVentas > 0 ? ((val / granTotalVentas) * 100).toFixed(1) : 0;
-                            return ` ${ctx.label}: Q ${val.toFixed(2)} (${pct}%)`;
+                            const cant = dataCantidades[ctx.dataIndex];
+                            return [
+                                `Total: Q ${Number(val).toLocaleString('es-GT', { minimumFractionDigits: 2 })} (${pct}% del total)`,
+                                `Cantidad: ${cant}`
+                            ];
                         }
                     }
                 }
             }
-        }
+        },
+        plugins: [pluginValoresBarrasHorizontales]
     });
-}
+};
 
 function renderDashMiniCard(label, value, unidad) {
     const isEmpty = value === 0;
@@ -2615,10 +2826,21 @@ function renderDashMiniCard(label, value, unidad) {
 
 async function cargarDatosIniciales() {
     try {
-        const sv = await getDocs(query(collection(db,"ventas"),orderBy("fecha","desc")));
+        let sv;
+        try {
+            sv = await getDocs(query(collection(db,"ventas"), orderBy("fecha","desc")));
+        } catch(e) {
+            sv = await getDocs(collection(db,"ventas"));
+        }
+        if (!sv || sv.empty) {
+            sv = await getDocs(collection(db,"ventas"));
+        }
+
         todasLasVentas = [];
         let totalVentasPagadas = 0;
         let totalVentasPendientes = 0;
+        let countVentasPagadas = 0;
+        let countVentasPendientes = 0;
         const promesasMigracion = [];
         
         for (const d of sv.docs) {
@@ -2631,11 +2853,13 @@ async function cargarDatosIniciales() {
             }
             todasLasVentas.push({ id: d.id, data: v });
             
-            const montoVenta = v.total !== undefined ? v.total : (v.cantidad * v.precio);
+            const montoVenta = v.total !== undefined ? Number(v.total) : (Number(v.cantidad || 0) * Number(v.precio || 0));
             if (v.estadoPago === 'pagado') {
                 totalVentasPagadas += montoVenta;
+                countVentasPagadas++;
             } else {
                 totalVentasPendientes += montoVenta;
+                countVentasPendientes++;
             }
         }
         
@@ -2644,12 +2868,18 @@ async function cargarDatosIniciales() {
             console.log(`✅ Migradas ${promesasMigracion.length} ventas antiguas a estados vigentes.`);
         }
         
-        // Actualizar KPIs de ventas
+        // Actualizar KPIs de ventas principales
         const dashVentasEl = document.getElementById('dash-ventas');
         if (dashVentasEl) dashVentasEl.innerText = "Q " + totalVentasPagadas.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        const subVentas = document.getElementById('dash-ventas-sub');
+        if (subVentas) subVentas.innerText = `${countVentasPagadas} venta(s) cobrada(s)`;
 
         const dashPendientesEl = document.getElementById('dash-ventas-pendientes');
         if (dashPendientesEl) dashPendientesEl.innerText = "Q " + totalVentasPendientes.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const subPend = document.getElementById('dash-ventas-pend-sub');
+        if (subPend) subPend.innerText = `${countVentasPendientes} venta(s) pendiente(s)`;
 
         // Actualizar metas y gráficos mensuales
         actualizarDashboardMetas();
