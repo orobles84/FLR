@@ -34,6 +34,11 @@ let filtroCatacionesActual = 'todas';
 let todasLasVentas = [];
 let todasLasCataciones = [];
 let chartTostadoInstance = null;
+let carritoVenta = [];
+let chartVentasMesesInstance = null;
+let chartTopProductosInstance = null;
+let chartCatacionCirculoInstance = null;
+let metaMensualActual = parseFloat(localStorage.getItem('flr_meta_mensual')) || 10000;
 
 const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
@@ -461,58 +466,313 @@ window.guardarInventario = async () => {
     }
 };
 
-window.guardarVenta = async () => {
+// --- LÓGICA DE VENTAS MULTI-PRODUCTO (CARRITO) ---
+
+window.agregarItemAlCarrito = async () => {
     const tipo = document.getElementById('venta-tipo').value;
-    const pres = tipo === 'Tostado' ? document.getElementById('venta-presentacion').value : 'N/A';
+    const isTostado = tipo === 'Tostado';
+    const pres = isTostado ? document.getElementById('venta-presentacion').value : 'N/A';
     const cant = parseFloat(document.getElementById('venta-cantidad').value) || 0;
     const prec = parseFloat(document.getElementById('venta-precio').value) || 0;
-    const pago = document.getElementById('venta-pago').value;
-    const loteDocId = tipo === 'Tostado' ? document.getElementById('venta-lote').value : null;
-    const notas = document.getElementById('venta-notas').value;
+    const loteSelect = document.getElementById('venta-lote');
     
-    if (cant <= 0) return alert("Cantidad debe ser mayor a 0.");
-    if (tipo === 'Tostado' && !loteDocId) return alert("⚠️ Selecciona un lote disponible.");
-    
-    let loteData = null;
-    if (tipo === 'Tostado') {
-        const loteSnap = await getDoc(doc(db, "inventario", loteDocId));
-        if (!loteSnap.exists()) return alert("❌ Lote no encontrado.");
-        loteData = loteSnap.data();
-        if (loteData.cantidad < cant) {
-            return alert(`❌ Stock insuficiente.\n\nDisponible: ${loteData.cantidad.toFixed(2)} lb\nSolicitado: ${cant.toFixed(2)} lb\nFaltan: ${(cant - loteData.cantidad).toFixed(2)} lb`);
+    if (cant <= 0) return alert("⚠️ La cantidad debe ser mayor a 0.");
+    if (prec < 0) return alert("⚠️ El precio unitario no puede ser negativo.");
+
+    let loteDocId = null;
+    let loteInfo = 'N/A';
+
+    if (isTostado) {
+        loteDocId = loteSelect ? loteSelect.value : null;
+        if (!loteDocId) return alert("⚠️ Por favor selecciona un lote de café tostado disponible.");
+        
+        const selectedOpt = loteSelect.selectedOptions ? loteSelect.selectedOptions[0] : null;
+        loteInfo = selectedOpt ? selectedOpt.textContent.trim() : 'Lote Tostado';
+        
+        // Validar stock disponible considerando lo que ya esté en el carrito
+        const stockDisponible = selectedOpt ? (parseFloat(selectedOpt.dataset.cantidad) || 0) : 0;
+        const yaEnCarrito = carritoVenta
+            .filter(it => it.loteDocId === loteDocId)
+            .reduce((acc, it) => acc + it.cantidad, 0);
+
+        if ((yaEnCarrito + cant) > stockDisponible) {
+            return alert(`❌ Stock insuficiente en este lote.\n\nDisponible en inventario: ${stockDisponible.toFixed(2)} lb\nYa en tu carrito: ${yaEnCarrito.toFixed(2)} lb\nIntentas agregar: ${cant.toFixed(2)} lb`);
         }
     }
-    
-    // Estado de pago es únicamente 'pagado' o 'pendiente'
-    const estadoPago = derivarEstadoPagoDeMetodo(pago);
-    
-    await addDoc(collection(db,"ventas"), {
-        tipo, presentacion: pres, cantidad: cant, precio: prec, pago,
-        estadoPago: estadoPago,
-        loteDocId: loteDocId,
-        loteInfo: loteData ? `${loteData.fechaTostado || 'S/F'} - ${loteData.variedad || 'N/A'} - ${loteData.proceso || 'N/A'}` : 'N/A',
-        notas: notas,
-        fecha: serverTimestamp()
+
+    const prodInfo = preciosListaActual[tipo] || { nombre: tipo, unidad: 'un.' };
+    const subtotal = cant * prec;
+
+    carritoVenta.push({
+        id: 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        tipo,
+        nombre: prodInfo.nombre,
+        unidad: prodInfo.unidad,
+        presentacion: pres,
+        loteDocId,
+        loteInfo,
+        cantidad: cant,
+        precio: prec,
+        subtotal: subtotal
     });
 
-    if (tipo === 'Tostado' && loteDocId) {
-        await updateDoc(doc(db,"inventario", loteDocId), { cantidad: loteData.cantidad - cant });
-    } else if (tipo !== 'Tostado') {
-        let pend = cant;
-        const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",tipo)));
-        for (const d of snap.docs) {
-            if (pend <= 0) break;
-            const inv = d.data();
-            if (inv.cantidad >= pend) { await updateDoc(doc(db,"inventario",d.id), { cantidad: inv.cantidad - pend }); pend = 0; }
-            else { await updateDoc(doc(db,"inventario",d.id), { cantidad: 0 }); pend -= inv.cantidad; }
-        }
-        if (pend > 0) alert(`⚠️ Venta registrada, pero faltan ${pend.toFixed(2)} en inventario.`);
-    }
-    
-    alert("✅ Venta registrada.");
-    cargarDatosIniciales();
+    // Limpiar input de cantidad para el siguiente producto
     document.getElementById('venta-cantidad').value = '';
-    document.getElementById('venta-notas').value = '';
+    window.renderCarritoVenta();
+};
+
+window.quitarItemDelCarrito = (itemId) => {
+    carritoVenta = carritoVenta.filter(it => it.id !== itemId);
+    window.renderCarritoVenta();
+};
+
+window.limpiarCarritoVenta = () => {
+    if (carritoVenta.length === 0) return;
+    if (confirm("¿Deseas vaciar todos los productos agregados a la venta actual?")) {
+        carritoVenta = [];
+        window.renderCarritoVenta();
+    }
+};
+
+window.renderCarritoVenta = () => {
+    const tbody = document.getElementById('carrito-items-body');
+    const totalDisplay = document.getElementById('venta-total-display');
+    const badgeCount = document.getElementById('cart-count');
+    const resumenLabel = document.getElementById('venta-items-resumen-lbl');
+    const btnGuardar = document.getElementById('btn-guardar-venta-final');
+
+    if (!tbody) return;
+
+    if (carritoVenta.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="cart-empty-msg">No hay productos agregados a esta venta aún. Selecciona un producto arriba y pulsa <strong>"➕ Agregar a la Venta"</strong>.</td></tr>`;
+        if (totalDisplay) totalDisplay.innerText = "Q 0.00";
+        if (badgeCount) badgeCount.innerText = "0";
+        if (resumenLabel) resumenLabel.innerText = "0 productos agregados";
+        if (btnGuardar) btnGuardar.disabled = true;
+        return;
+    }
+
+    let total = 0;
+    let totalUnidades = 0;
+    let html = '';
+
+    carritoVenta.forEach((it, idx) => {
+        total += it.subtotal;
+        totalUnidades += it.cantidad;
+        const presBadge = it.presentacion !== 'N/A' ? `<span class="cart-badge">${it.presentacion}</span>` : '';
+        const loteTxt = it.loteDocId ? `<small style="color:#555;">${it.loteInfo}</small>` : '<span style="color:#999;">-</span>';
+
+        html += `<tr>
+            <td><strong>${it.nombre}</strong> ${presBadge}</td>
+            <td style="font-size:0.8rem;">${loteTxt}</td>
+            <td><strong>${it.cantidad.toFixed(2)}</strong> ${it.unidad}</td>
+            <td>Q ${it.precio.toFixed(2)}</td>
+            <td><strong>Q ${it.subtotal.toFixed(2)}</strong></td>
+            <td style="text-align:center;">
+                <button class="btn btn-xs btn-danger" title="Quitar de la venta" onclick="quitarItemDelCarrito('${it.id}')">🗑️</button>
+            </td>
+        </tr>`;
+    });
+
+    tbody.innerHTML = html;
+    if (totalDisplay) totalDisplay.innerText = "Q " + total.toFixed(2);
+    if (badgeCount) badgeCount.innerText = carritoVenta.length;
+    if (resumenLabel) resumenLabel.innerText = `${carritoVenta.length} producto(s) agregados (${totalUnidades.toFixed(1)} unidades en total)`;
+    if (btnGuardar) btnGuardar.disabled = false;
+};
+
+window.onMetodoPagoChange = () => {
+    const pago = document.getElementById('venta-pago').value;
+    const estSelect = document.getElementById('venta-estado-pago');
+    if (estSelect) {
+        estSelect.value = derivarEstadoPagoDeMetodo(pago);
+    }
+};
+
+window.guardarVenta = async () => {
+    // Si no ha presionado "Agregar a la venta" pero llenó una cantidad > 0, auto-agregar
+    if (carritoVenta.length === 0) {
+        const cantInput = parseFloat(document.getElementById('venta-cantidad').value) || 0;
+        if (cantInput > 0) {
+            await window.agregarItemAlCarrito();
+        }
+    }
+
+    if (carritoVenta.length === 0) {
+        return alert("⚠️ Debes agregar al menos un producto a la venta utilizando el botón '➕ Agregar a la Venta'.");
+    }
+
+    const pago = document.getElementById('venta-pago').value;
+    let estadoPago = document.getElementById('venta-estado-pago').value;
+    if (estadoPago !== 'pendiente') estadoPago = 'pagado';
+    const notas = document.getElementById('venta-notas').value.trim();
+    const fechaPersonalizada = document.getElementById('venta-fecha-registro') ? document.getElementById('venta-fecha-registro').value : '';
+
+    const btnGuardar = document.getElementById('btn-guardar-venta-final');
+    if (btnGuardar) { btnGuardar.disabled = true; btnGuardar.innerText = "Registrando Venta..."; }
+
+    try {
+        // 1. Validar stock en tiempo real en Firestore antes de procesar
+        for (const it of carritoVenta) {
+            if (it.tipo === 'Tostado' && it.loteDocId) {
+                const loteSnap = await getDoc(doc(db, "inventario", it.loteDocId));
+                if (!loteSnap.exists()) {
+                    throw new Error(`El lote de café tostado "${it.nombre}" no existe en inventario.`);
+                }
+                const loteData = loteSnap.data();
+                if (loteData.cantidad < it.cantidad) {
+                    throw new Error(`Stock insuficiente para ${it.nombre} (${it.presentacion}).\nDisponible: ${loteData.cantidad.toFixed(2)} lb\nSolicitado: ${it.cantidad.toFixed(2)} lb`);
+                }
+            }
+        }
+
+        // 2. Calcular totales
+        const totalMonto = carritoVenta.reduce((acc, it) => acc + it.subtotal, 0);
+        const totalCantidad = carritoVenta.reduce((acc, it) => acc + it.cantidad, 0);
+        
+        // Nombres y lotes resumidos para compatibilidad con vistas legacy
+        const nombresResumen = carritoVenta.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(' + ');
+        const lotesResumen = carritoVenta.filter(it => it.loteDocId).map(it => it.loteInfo).join(' | ') || 'N/A';
+
+        const ventaDoc = {
+            items: carritoVenta,
+            total: totalMonto,
+            cantidad: totalCantidad,
+            tipo: nombresResumen,
+            loteInfo: lotesResumen,
+            pago: pago,
+            estadoPago: estadoPago,
+            notas: notas,
+            fechaVentaPersonalizada: fechaPersonalizada || null,
+            fecha: serverTimestamp()
+        };
+
+        const docRef = await addDoc(collection(db, "ventas"), ventaDoc);
+
+        // 3. Descontar inventario de cada producto
+        for (const it of carritoVenta) {
+            if (it.tipo === 'Tostado' && it.loteDocId) {
+                const loteSnap = await getDoc(doc(db, "inventario", it.loteDocId));
+                if (loteSnap.exists()) {
+                    const cantActual = loteSnap.data().cantidad || 0;
+                    await updateDoc(doc(db, "inventario", it.loteDocId), { cantidad: Math.max(0, cantActual - it.cantidad) });
+                }
+            } else {
+                let pend = it.cantidad;
+                const snap = await getDocs(query(collection(db, "inventario"), where("estado", "==", it.tipo)));
+                for (const d of snap.docs) {
+                    if (pend <= 0) break;
+                    const inv = d.data();
+                    if (inv.cantidad >= pend) {
+                        await updateDoc(doc(db, "inventario", d.id), { cantidad: inv.cantidad - pend });
+                        pend = 0;
+                    } else {
+                        await updateDoc(doc(db, "inventario", d.id), { cantidad: 0 });
+                        pend -= inv.cantidad;
+                    }
+                }
+            }
+        }
+
+        alert(`✅ Venta registrada exitosamente.\n\nTotal: Q ${totalMonto.toFixed(2)}\nEstado: ${estadoPago.toUpperCase()}\nProductos: ${carritoVenta.length}`);
+        
+        // Limpiar formulario y carrito
+        carritoVenta = [];
+        window.renderCarritoVenta();
+        document.getElementById('venta-cantidad').value = '';
+        document.getElementById('venta-notas').value = '';
+        
+        cargarDatosIniciales();
+    } catch (e) {
+        alert("❌ Error al registrar venta: " + e.message);
+    } finally {
+        if (btnGuardar) { btnGuardar.disabled = false; btnGuardar.innerText = "💾 Confirmar y Registrar Venta"; }
+    }
+};
+
+window.verVentaDetalle = (docId) => {
+    const v = todasLasVentas.find(item => item.id === docId);
+    if (!v) return alert("Venta no encontrada.");
+    const d = v.data;
+
+    const fechaTxt = d.fecha ? new Date(d.fecha.seconds * 1000).toLocaleString('es-GT') : (d.fechaVentaPersonalizada || 'N/A');
+    const clienteTxt = d.notas || '<span style="color:#999; font-style:italic;">No especificado</span>';
+    const estadoBadge = d.estadoPago === 'pendiente' 
+        ? '<span class="pago-badge pago-pendiente">🔴 PENDIENTE DE PAGO</span>' 
+        : '<span class="pago-badge pago-pagado">🟢 PAGADO</span>';
+
+    const totalVenta = d.total !== undefined ? d.total : (d.cantidad * d.precio);
+    
+    let itemsHTML = '';
+    if (d.items && Array.isArray(d.items) && d.items.length > 0) {
+        itemsHTML = `
+            <table style="width:100%; border-collapse:collapse; margin-top:1rem; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:var(--primary); color:white; text-align:left;">
+                        <th style="padding:8px;">Producto</th>
+                        <th style="padding:8px;">Detalle / Lote</th>
+                        <th style="padding:8px; text-align:right;">Cantidad</th>
+                        <th style="padding:8px; text-align:right;">Precio Unit.</th>
+                        <th style="padding:8px; text-align:right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${d.items.map(it => `
+                        <tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:8px;"><strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `(${it.presentacion})` : ''}</td>
+                            <td style="padding:8px; font-size:0.8rem; color:#555;">${it.loteInfo || '-'}</td>
+                            <td style="padding:8px; text-align:right;">${it.cantidad} ${it.unidad}</td>
+                            <td style="padding:8px; text-align:right;">Q ${(it.precio||0).toFixed(2)}</td>
+                            <td style="padding:8px; text-align:right; font-weight:bold;">Q ${(it.subtotal || it.cantidad*it.precio).toFixed(2)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } else {
+        // Venta clásica de un solo producto
+        const nombreProd = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : d.tipo;
+        const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : '';
+        itemsHTML = `
+            <table style="width:100%; border-collapse:collapse; margin-top:1rem; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:var(--primary); color:white; text-align:left;">
+                        <th style="padding:8px;">Producto</th>
+                        <th style="padding:8px;">Lote</th>
+                        <th style="padding:8px; text-align:right;">Cantidad</th>
+                        <th style="padding:8px; text-align:right;">Precio Unit.</th>
+                        <th style="padding:8px; text-align:right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:8px;"><strong>${nombreProd}</strong></td>
+                        <td style="padding:8px; font-size:0.8rem; color:#555;">${d.loteInfo || '-'}</td>
+                        <td style="padding:8px; text-align:right;">${d.cantidad} ${unidad}</td>
+                        <td style="padding:8px; text-align:right;">Q ${(d.precio||0).toFixed(2)}</td>
+                        <td style="padding:8px; text-align:right; font-weight:bold;">Q ${(d.cantidad*d.precio).toFixed(2)}</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+
+    const contenido = `
+        <div class="detail-grid" style="margin-bottom:1rem;">
+            <div class="detail-item"><div class="label">Fecha de Venta</div><div class="value">${fechaTxt}</div></div>
+            <div class="detail-item"><div class="label">Estado de Pago</div><div class="value">${estadoBadge}</div></div>
+            <div class="detail-item"><div class="label">Método de Pago</div><div class="value">${d.pago || 'Efectivo'}</div></div>
+            <div class="detail-item"><div class="label">Cliente / Referencia</div><div class="value">${clienteTxt}</div></div>
+        </div>
+        <h4 style="color:var(--primary); margin:1rem 0 0.5rem;">📦 Productos en esta Venta</h4>
+        ${itemsHTML}
+        <div style="display:flex; justify-content:flex-end; margin-top:1rem; padding:12px; background:#f5f5f0; border-radius:8px;">
+            <span style="font-size:1.2rem; font-weight:bold; color:var(--primary);">TOTAL DE LA VENTA: Q ${totalVenta.toFixed(2)}</span>
+        </div>
+    `;
+
+    document.getElementById('modal-venta-contenido').innerHTML = contenido;
+    document.getElementById('modal-ver-venta').style.display = 'flex';
 };
 
 window.editarVenta = async (docId) => {
@@ -705,10 +965,41 @@ function renderTablaVentas() {
     ventasFiltradas.forEach(v => {
         const d = v.data;
         const docId = v.id;
-        const f = d.fecha ? new Date(d.fecha.seconds*1000).toLocaleDateString() : 'N/A';
-        const nombreProd = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : d.tipo;
-        const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : '';
+        const f = d.fecha ? new Date(d.fecha.seconds*1000).toLocaleDateString() : (d.fechaVentaPersonalizada || 'N/A');
         const clienteNotas = d.notas || '<span style="color:#999; font-style:italic;">-</span>';
+        
+        let nombreProdHTML = '';
+        let loteInfoHTML = '';
+        let cantidadHTML = '';
+        let totalMonto = 0;
+
+        if (d.items && Array.isArray(d.items) && d.items.length > 0) {
+            totalMonto = d.total !== undefined ? d.total : d.items.reduce((s, it) => s + (it.subtotal || it.cantidad * it.precio), 0);
+            const totalCant = d.cantidad !== undefined ? d.cantidad : d.items.reduce((s, it) => s + (parseFloat(it.cantidad) || 0), 0);
+
+            if (d.items.length === 1) {
+                const it = d.items[0];
+                nombreProdHTML = `<strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `<span class="cart-badge">${it.presentacion}</span>` : ''}`;
+                loteInfoHTML = `<span style="font-size:0.75rem;">${it.loteInfo || '-'}</span>`;
+                cantidadHTML = `${it.cantidad} ${it.unidad}`;
+            } else {
+                nombreProdHTML = `<div style="display:flex; flex-direction:column; gap:2px;">
+                    <span class="badge-multi-items">📦 ${d.items.length} productos</span>
+                    <small style="color:#555;">${d.items.map(it => it.nombre).join(', ').substring(0, 40)}...</small>
+                </div>`;
+                const lotes = d.items.filter(it => it.loteDocId).map(it => it.loteInfo);
+                loteInfoHTML = lotes.length > 0 ? `<span style="font-size:0.75rem;">${lotes.join('<br>')}</span>` : '-';
+                cantidadHTML = `<strong>${totalCant.toFixed(1)}</strong> un.`;
+            }
+        } else {
+            // Venta tradicional de un solo producto
+            const nombreProd = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : d.tipo;
+            const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : '';
+            nombreProdHTML = `<strong>${nombreProd}</strong> ${d.presentacion && d.presentacion !== 'N/A' ? `<span class="cart-badge">${d.presentacion}</span>` : ''}`;
+            loteInfoHTML = `<span style="font-size:0.75rem;">${d.loteInfo || '-'}</span>`;
+            cantidadHTML = `${d.cantidad} ${unidad}`;
+            totalMonto = (d.cantidad * d.precio);
+        }
         
         let estadoBadge = '';
         if (d.estadoPago === 'pendiente') {
@@ -720,15 +1011,16 @@ function renderTablaVentas() {
         tbody.innerHTML += `<tr>
             <td>${f}</td>
             <td class="cliente-nota" title="${(d.notas||'').replace(/"/g,'&quot;')}">${clienteNotas}</td>
-            <td>${nombreProd}</td>
-            <td style="font-size:0.75rem;">${d.loteInfo || '-'}</td>
-            <td>${d.cantidad} ${unidad}</td>
-            <td>Q${(d.cantidad*d.precio).toFixed(2)}</td>
-            <td>${d.pago}</td>
+            <td>${nombreProdHTML}</td>
+            <td>${loteInfoHTML}</td>
+            <td>${cantidadHTML}</td>
+            <td><strong>Q ${totalMonto.toFixed(2)}</strong></td>
+            <td>${d.pago || 'Efectivo'}</td>
             <td>${estadoBadge}</td>
             <td class="actions-cell">
-                <button class="btn btn-xs btn-edit" onclick="editarVenta('${docId}')">✏️</button>
-                <button class="btn btn-xs btn-danger" onclick="eliminarVenta('${docId}')">🗑️</button>
+                <button class="btn btn-xs btn-view" title="Ver detalle completo" onclick="verVentaDetalle('${docId}')">👁️</button>
+                <button class="btn btn-xs btn-edit" title="Editar venta" onclick="editarVenta('${docId}')">✏️</button>
+                <button class="btn btn-xs btn-danger" title="Eliminar venta" onclick="eliminarVenta('${docId}')">🗑️</button>
             </td>
         </tr>`;
     });
@@ -1397,7 +1689,9 @@ window.verMuestraCompleta = async (id) => {
 window.generarPDFMuestra = () => {
     if (!muestraActualEnModal) return alert("Sin datos de muestra.");
     const m = muestraActualEnModal;
-    const d = new jsPDF();
+    const jsPDFClass = getJsPDF();
+    if (!jsPDFClass) return alert("⚠️ La librería de PDF aún no está disponible. Espera un segundo o recarga la página.");
+    const d = new jsPDFClass();
 
     // Encabezado
     d.setFillColor(44,94,46); 
@@ -1696,85 +1990,620 @@ async function cargarCataciones() {
 
 window.verCatacionCompleta = async (id) => {
     try {
-        const s = await getDoc(doc(db,"cataciones",id));
-        if (!s.exists()) return alert("No encontrada.");
-        const c = s.data(); catacionActualEnModal = {id,...c};
-        document.getElementById('modal-catacion-titulo').innerText = `☕ ${c.nombre} - ${c.puntajeTotal.toFixed(2)} pts`;
-        let catHTML = SCA_CATEGORIAS.map(cat => `
-            <div class="detail-item">
-                <div class="label">${cat.n}</div>
-                <div class="value" style="font-size:1.2rem; font-weight:bold; color:${getColorBarra(c[cat.k]||0)};">${(c[cat.k]||0).toFixed(2)}</div>
+        const s = await getDoc(doc(db, "cataciones", id));
+        if (!s.exists()) return alert("Ficha de catación no encontrada.");
+        const c = s.data(); 
+        catacionActualEnModal = { id, ...c };
+
+        const modalTitulo = document.getElementById('modal-catacion-titulo');
+        if (modalTitulo) modalTitulo.innerText = `☕ ${c.nombre || 'Muestra'} - ${(c.puntajeTotal || 0).toFixed(2)} pts`;
+
+        // Atributos sensoriales SCA
+        const atributosSensoriales = [
+            { k: 'fragancia', n: 'Fragancia / Aroma', val: c.fragancia || 0 },
+            { k: 'sabor', n: 'Sabor', val: c.sabor || 0 },
+            { k: 'retrgusto', n: 'Retrogusto', val: c.retrgusto || 0 },
+            { k: 'acidez', n: 'Acidez', val: c.acidez || 0 },
+            { k: 'cuerpo', n: 'Cuerpo', val: c.cuerpo || 0 },
+            { k: 'balance', n: 'Balance', val: c.balance || 0 },
+            { k: 'uniformidad', n: 'Uniformidad', val: c.uniformidad || 0 },
+            { k: 'limpieza', n: 'Limpieza de Taza', val: c.limpieza || 0 },
+            { k: 'dulzura', n: 'Dulzura', val: c.dulzura || 0 },
+            { k: 'global', n: 'Apreciación Global', val: c.global || 0 }
+        ];
+
+        // Badges circulares de puntuación
+        const circulosHTML = atributosSensoriales.map(a => `
+            <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; background:#fff; border:1px solid #e0e0e0; border-radius:12px; padding:10px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-width:85px;">
+                <div style="width:48px; height:48px; border-radius:50%; background:${getColorBarra(a.val)}; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:1.1rem; box-shadow:0 2px 4px rgba(0,0,0,0.15);">
+                    ${a.val.toFixed(2)}
+                </div>
+                <div style="font-size:0.75rem; font-weight:bold; color:var(--primary); margin-top:6px; text-align:center; line-height:1.1;">${a.n}</div>
             </div>
         `).join('');
-        document.getElementById('modal-catacion-contenido').innerHTML = `
-            <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Datos</h4>
-            <div class="detail-grid">
-                <div class="detail-item"><div class="label">Nombre</div><div class="value">${c.nombre}</div></div>
-                <div class="detail-item"><div class="label">Fecha</div><div class="value">${c.fecha||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Origen</div><div class="value">${c.origen||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Altitud</div><div class="value">${c.altitud||'N/A'} msnm</div></div>
-                <div class="detail-item"><div class="label">Catador</div><div class="value">${c.catador||'N/A'}</div></div>
-                <div class="detail-item"><div class="label">Autor</div><div class="value">${c.autorNombre||'N/A'} ${c.esInvitado?'<span class="invitado-badge">Invitado</span>':''}</div></div>
+
+        const contenido = `
+            <div class="detail-grid" style="margin-bottom:1rem;">
+                <div class="detail-item"><div class="label">Muestra / Café</div><div class="value"><strong>${c.nombre || 'N/A'}</strong></div></div>
+                <div class="detail-item"><div class="label">Fecha</div><div class="value">${c.fecha || 'N/A'}</div></div>
+                <div class="detail-item"><div class="label">Variedad</div><div class="value">${c.variedad || 'N/A'}</div></div>
+                <div class="detail-item"><div class="label">Proceso</div><div class="value">${c.proceso || 'N/A'}</div></div>
+                <div class="detail-item"><div class="label">Origen / Finca</div><div class="value">${c.origen || 'N/A'}</div></div>
+                <div class="detail-item"><div class="label">Altitud</div><div class="value">${c.altitud ? c.altitud + ' msnm' : 'N/A'}</div></div>
+                <div class="detail-item"><div class="label">Catador</div><div class="value">${c.catador || 'N/A'}</div></div>
+                <div class="detail-item"><div class="label">Registrado por</div><div class="value">${c.autorNombre || 'N/A'} ${c.esInvitado ? '<span class="invitado-badge">Invitado</span>' : ''}</div></div>
             </div>
-            <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">🎯 Evaluación</h4>
-            <div class="detail-grid">${catHTML}</div>
-            <div class="detail-item" style="background:var(--danger); color:white;">
-                <div class="label" style="color:white;">Defectos</div>
-                <div class="value" style="color:white; font-size:1.3rem;">-${(c.defectos||0).toFixed(2)}</div>
+
+            <!-- VISUALIZACIÓN CIRCULAR SENSORIAL SCA (RUEDA DE PERFIL DE TAZA) -->
+            <div style="background:#fafafa; border:1px solid #e0d8c3; border-radius:12px; padding:1.25rem; margin:1rem 0;">
+                <div style="text-align:center; margin-bottom:1rem;">
+                    <h4 style="color:var(--primary); margin:0 0 4px 0; font-size:1.15rem;">🎯 Perfil Sensorial Circular SCA (Rueda de Taza)</h4>
+                    <small style="color:#666;">Diagrama radial de evaluación según el protocolo internacional SCA</small>
+                </div>
+
+                <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:1.5rem;">
+                    <!-- Canvas Circular Radar Chart -->
+                    <div style="position:relative; width:340px; height:320px; max-width:100%;">
+                        <canvas id="catacionRadarCanvas"></canvas>
+                    </div>
+
+                    <!-- Resumen del Puntaje Total -->
+                    <div style="flex:1; min-width:240px; max-width:320px;">
+                        <div class="sca-total-card" style="margin:0;">
+                            <h3 style="color:white; margin-bottom:0.35rem; font-size:1rem; letter-spacing:1px;">PUNTAJE TOTAL SCA</h3>
+                            <div class="sca-total-score" style="font-size:2.8rem;">${(c.puntajeTotal || 0).toFixed(2)}</div>
+                            <div class="sca-classification ${c.clasificacion==='Outstanding'?'outstanding':c.clasificacion==='Excellent'?'excellent':c.clasificacion==='Very Good'?'verygood':c.clasificacion==='Good'?'good':'below'}">
+                                ${c.clasificacion || 'N/A'}
+                            </div>
+                        </div>
+
+                        <div style="margin-top:10px; background:#fff; border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center;">
+                            <span style="font-size:0.85rem; color:#666;">Defectos de Taza: </span>
+                            <strong style="color:var(--danger); font-size:1.05rem;">-${(c.defectos || 0).toFixed(2)} pts</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Círculos de Puntaje por Atributo -->
+                <div style="margin-top:1.25rem;">
+                    <div style="font-size:0.85rem; font-weight:bold; color:#777; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.5px;">Atributos Evaluados en Círculo:</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(80px, 1fr)); gap:8px;">
+                        ${circulosHTML}
+                    </div>
+                </div>
             </div>
-            <div class="sca-total-card" style="margin-top:1rem;">
-                <h3 style="color:white; margin-bottom:0.5rem;">PUNTAJE TOTAL</h3>
-                <div class="sca-total-score">${(c.puntajeTotal||0).toFixed(2)}</div>
-                <div class="sca-classification ${c.clasificacion==='Outstanding'?'outstanding':c.clasificacion==='Excellent'?'excellent':c.clasificacion==='Very Good'?'verygood':c.clasificacion==='Good'?'good':'below'}">${c.clasificacion}</div>
-            </div>
-            ${c.notas?`<h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📝 Notas</h4><div class="detail-item"><div class="value">${c.notas}</div></div>`:''}
+
+            ${c.notas ? `
+                <div style="background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:12px; margin-top:1rem;">
+                    <h4 style="color:var(--secondary); margin:0 0 6px 0; font-size:0.95rem;">📝 Notas y Descriptores de Catación:</h4>
+                    <p style="margin:0; color:#444; line-height:1.5;">${c.notas}</p>
+                </div>
+            ` : ''}
         `;
+
+        document.getElementById('modal-catacion-contenido').innerHTML = contenido;
         document.getElementById('modal-ver-catacion').style.display = 'flex';
-    } catch(e) { alert("Error: "+e.message); }
+
+        // Renderizar el gráfico radial / circular de Chart.js
+        setTimeout(() => {
+            const canvas = document.getElementById('catacionRadarCanvas');
+            if (!canvas) return;
+            const ChartClass = getChart();
+            if (!ChartClass) return;
+
+            if (chartCatacionCirculoInstance) {
+                chartCatacionCirculoInstance.destroy();
+                chartCatacionCirculoInstance = null;
+            }
+
+            const ctx = canvas.getContext('2d');
+            chartCatacionCirculoInstance = new ChartClass(ctx, {
+                type: 'radar',
+                data: {
+                    labels: [
+                        'Fragancia',
+                        'Sabor',
+                        'Retrogusto',
+                        'Acidez',
+                        'Cuerpo',
+                        'Balance',
+                        'Uniformidad',
+                        'Limpieza',
+                        'Dulzura',
+                        'Global'
+                    ],
+                    datasets: [{
+                        label: 'Puntaje',
+                        data: [
+                            c.fragancia || 0,
+                            c.sabor || 0,
+                            c.retrgusto || 0,
+                            c.acidez || 0,
+                            c.cuerpo || 0,
+                            c.balance || 0,
+                            c.uniformidad || 0,
+                            c.limpieza || 0,
+                            c.dulzura || 0,
+                            c.global || 0
+                        ],
+                        backgroundColor: 'rgba(44, 94, 46, 0.35)',
+                        borderColor: '#2C5E2E',
+                        pointBackgroundColor: '#D4AF37',
+                        pointBorderColor: '#ffffff',
+                        pointHoverBackgroundColor: '#ffffff',
+                        pointHoverBorderColor: '#2C5E2E',
+                        pointRadius: 4,
+                        borderWidth: 2.5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 10,
+                            ticks: {
+                                stepSize: 2,
+                                backdropColor: 'transparent',
+                                color: '#777',
+                                font: { size: 9 }
+                            },
+                            pointLabels: {
+                                font: { size: 10, weight: 'bold' },
+                                color: '#2C5E2E'
+                            },
+                            grid: { color: '#ddd' },
+                            angleLines: { color: '#ccc' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }, 150);
+
+    } catch (e) {
+        alert("Error al cargar ficha de catación: " + e.message);
+    }
 };
 
 window.generarPDFCatacion = () => {
-    if (!catacionActualEnModal) return alert("Sin datos.");
+    if (!catacionActualEnModal) return alert("⚠️ No hay datos de catación cargados.");
     const c = catacionActualEnModal;
-    const d = new jsPDF();
-    d.setFillColor(44,94,46); d.rect(0,0,210,35,'F');
-    d.setTextColor(255,255,255); d.setFontSize(20); d.text("Finca Los Robles",105,15,{align:"center"});
-    d.setFontSize(14); d.text("FICHA DE CATACIÓN SCA",105,27,{align:"center"});
-    d.setTextColor(0,0,0); d.setFontSize(11); let y=45;
-    const ln = (l,v) => { d.setFont("helvetica","bold"); d.text(l,15,y); d.setFont("helvetica","normal"); d.text(String(v||"N/A"),75,y); y+=7; };
-    d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("DATOS",15,y); d.setTextColor(0,0,0); y+=5;
-    ln("Nombre:",c.nombre); ln("Fecha:",c.fecha); ln("Variedad:",c.variedad); ln("Proceso:",c.proceso);
-    ln("Origen:",c.origen); ln("Catador:",c.catador);
-    y+=3; d.line(15,y,195,y); y+=8;
-    d.setFont("helvetica","bold"); d.setTextColor(139,90,43); d.text("EVALUACIÓN SCA",15,y); y+=5;
-    d.setFillColor(44,94,46); d.rect(15,y-4,180,7,'F');
-    d.setTextColor(255,255,255); d.setFontSize(10);
-    d.text("Categoría",20,y); d.text("Puntaje",170,y); y+=7;
-    d.setTextColor(0,0,0); d.setFont("helvetica","normal");
-    SCA_CATEGORIAS.forEach(cat => {
-        d.text(cat.n.substring(3),20,y);
-        d.setFont("helvetica","bold"); d.text((c[cat.k]||0).toFixed(2),170,y);
-        y+=6; d.setFont("helvetica","normal");
+    
+    // Obtener clase jsPDF segura
+    const jsPDFClass = getJsPDF();
+    if (!jsPDFClass) {
+        return alert("⚠️ La librería de PDF se está cargando. Por favor espera un segundo e intenta de nuevo.");
+    }
+    const d = new jsPDFClass();
+
+    // Encabezado institucional
+    d.setFillColor(44, 94, 46);
+    d.rect(0, 0, 210, 32, 'F');
+    d.setTextColor(255, 255, 255);
+    d.setFont("helvetica", "bold");
+    d.setFontSize(20);
+    d.text("Finca Los Robles", 105, 14, { align: "center" });
+    d.setFontSize(13);
+    d.setFont("helvetica", "normal");
+    d.text("FICHA DE CATACIÓN SCA Y PERFIL SENSORIAL", 105, 25, { align: "center" });
+
+    d.setTextColor(0, 0, 0);
+    d.setFontSize(10);
+    let y = 38;
+
+    // Caja de datos generales
+    d.setFillColor(245, 245, 220);
+    d.rect(14, y, 182, 32, 'F');
+    d.setDrawColor(212, 175, 55);
+    d.rect(14, y, 182, 32, 'S');
+
+    d.setFont("helvetica", "bold");
+    d.setTextColor(44, 94, 46);
+    d.text("Muestra: " + (c.nombre || "N/A"), 18, y + 6);
+    d.text("Fecha: " + (c.fecha || "N/A"), 110, y + 6);
+
+    d.setFont("helvetica", "normal");
+    d.setTextColor(0, 0, 0);
+    d.text("Variedad: " + (c.variedad || "N/A"), 18, y + 14);
+    d.text("Proceso: " + (c.proceso || "N/A"), 110, y + 14);
+    d.text("Origen / Finca: " + (c.origen || "N/A"), 18, y + 22);
+    d.text("Altitud: " + (c.altitud ? c.altitud + " msnm" : "N/A"), 110, y + 22);
+    d.text("Catador: " + (c.catador || "N/A"), 18, y + 29);
+    d.text("Registrado por: " + (c.autorNombre || "N/A"), 110, y + 29);
+
+    y += 38;
+
+    // Gráfica Circular Sensorial (Radar) extraída del Canvas
+    const canvas = document.getElementById('catacionRadarCanvas');
+    if (canvas) {
+        try {
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            d.setFont("helvetica", "bold");
+            d.setTextColor(139, 90, 43);
+            d.text("RUEDA CIRCULAR DE PERFIL SENSORIAL SCA", 110, y);
+            d.addImage(imgData, 'PNG', 105, y + 4, 92, 85);
+        } catch (err) {
+            console.error("No se pudo añadir gráfico circular al PDF:", err);
+        }
+    }
+
+    // Tabla de Evaluación SCA en la columna izquierda
+    d.setFont("helvetica", "bold");
+    d.setTextColor(139, 90, 43);
+    d.text("EVALUACIÓN DE ATRIBUTOS SCA", 14, y);
+    y += 4;
+
+    d.setFillColor(44, 94, 46);
+    d.rect(14, y, 86, 7, 'F');
+    d.setTextColor(255, 255, 255);
+    d.setFontSize(9);
+    d.text("Atributo", 18, y + 5);
+    d.text("Puntaje", 82, y + 5);
+    y += 7;
+
+    d.setTextColor(0, 0, 0);
+    d.setFont("helvetica", "normal");
+    
+    SCA_CATEGORIAS.forEach((cat, idx) => {
+        if (idx % 2 === 1) {
+            d.setFillColor(248, 248, 248);
+            d.rect(14, y, 86, 6, 'F');
+        }
+        d.text(cat.n.substring(3), 18, y + 4.5);
+        d.setFont("helvetica", "bold");
+        d.text((c[cat.k] || 0).toFixed(2), 85, y + 4.5);
+        d.setFont("helvetica", "normal");
+        y += 6;
     });
-    y+=2; d.setFont("helvetica","bold");
-    d.text("Defectos:",20,y); d.setTextColor(211,47,47); d.text("-"+(c.defectos||0).toFixed(2),170,y);
-    y+=8;
-    d.setFillColor(44,94,46); d.rect(15,y,180,20,'F');
-    d.setTextColor(255,255,255); d.setFontSize(14);
-    d.text("PUNTAJE TOTAL:",25,y+8);
-    d.setTextColor(212,175,55); d.setFontSize(18);
-    d.text((c.puntajeTotal||0).toFixed(2),170,y+12,{align:"right"});
-    y+=25;
-    d.setFillColor(212,175,55); d.rect(15,y,180,12,'F');
-    d.setTextColor(44,94,46); d.setFontSize(12);
-    d.text("Clasificación: "+(c.clasificacion||"N/A"),105,y+8,{align:"center"});
-    d.setFontSize(8); d.setTextColor(100,100,100);
-    d.text("Generado: "+new Date().toLocaleString('es-GT'),105,290,{align:"center"});
-    d.save(`Catacion_${c.nombre||'SinNombre'}_${c.fecha||Date.now()}.pdf`);
-    alert("✅ PDF descargado.");
+
+    // Fila defectos
+    d.setFillColor(255, 235, 238);
+    d.rect(14, y, 86, 6, 'F');
+    d.setFont("helvetica", "bold");
+    d.setTextColor(211, 47, 47);
+    d.text("Defectos", 18, y + 4.5);
+    d.text("-" + (c.defectos || 0).toFixed(2), 85, y + 4.5);
+    y += 12;
+
+    // Caja de Puntaje Total y Clasificación
+    y = Math.max(y, 136);
+    d.setFillColor(44, 94, 46);
+    d.rect(14, y, 182, 22, 'F');
+    d.setTextColor(255, 255, 255);
+    d.setFontSize(13);
+    d.setFont("helvetica", "bold");
+    d.text("PUNTAJE TOTAL SCA:", 24, y + 10);
+    d.setTextColor(212, 175, 55);
+    d.setFontSize(22);
+    d.text((c.puntajeTotal || 0).toFixed(2), 95, y + 15);
+
+    d.setFillColor(212, 175, 55);
+    d.rect(125, y + 4, 65, 14, 'F');
+    d.setTextColor(44, 94, 46);
+    d.setFontSize(11);
+    d.text(c.clasificacion || "N/A", 157, y + 13, { align: "center" });
+
+    y += 28;
+
+    // Notas de catación
+    if (c.notas) {
+        d.setFont("helvetica", "bold");
+        d.setTextColor(139, 90, 43);
+        d.setFontSize(10);
+        d.text("Notas y Descriptores del Catador:", 14, y);
+        y += 5;
+        d.setFont("helvetica", "normal");
+        d.setTextColor(0, 0, 0);
+        const splitNotes = d.splitTextToSize(c.notas, 182);
+        d.text(splitNotes, 14, y);
+    }
+
+    // Pie de página
+    d.setFontSize(8);
+    d.setTextColor(110, 110, 110);
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.8", 105, 290, { align: "center" });
+
+    d.save(`Catacion_${(c.nombre || 'Muestra').replace(/\s+/g, '_')}_${c.fecha || Date.now()}.pdf`);
+    alert("✅ Ficha de catación en PDF descargada exitosamente.");
 };
+
+// --- GESTIÓN DE METAS Y ESTADÍSTICAS MENSUALES DEL DASHBOARD ---
+
+window.configurarMetaMensual = () => {
+    const valor = prompt("🎯 Ingresa el monto de la Meta Mensual de Ventas (en Quetzales Q):", metaMensualActual);
+    if (valor !== null) {
+        const num = parseFloat(valor);
+        if (isNaN(num) || num <= 0) {
+            return alert("⚠️ Por favor ingresa un número válido mayor a 0.");
+        }
+        metaMensualActual = num;
+        localStorage.setItem('flr_meta_mensual', metaMensualActual);
+        actualizarDashboardMetas();
+        actualizarGraficasDashboard();
+    }
+};
+
+function actualizarDashboardMetas() {
+    const ahora = new Date();
+    const mesActual = ahora.getMonth();
+    const anioActual = ahora.getFullYear();
+
+    let ventasMesActualPagadas = 0;
+    let ventasMesActualPendientes = 0;
+
+    todasLasVentas.forEach(v => {
+        const d = v.data;
+        let fechaVenta = null;
+        if (d.fecha && d.fecha.seconds) {
+            fechaVenta = new Date(d.fecha.seconds * 1000);
+        } else if (d.fechaVentaPersonalizada) {
+            fechaVenta = new Date(d.fechaVentaPersonalizada);
+        }
+
+        if (fechaVenta && !isNaN(fechaVenta.getTime()) && fechaVenta.getMonth() === mesActual && fechaVenta.getFullYear() === anioActual) {
+            const monto = d.total !== undefined ? d.total : (d.cantidad * d.precio);
+            if (d.estadoPago === 'pagado') {
+                ventasMesActualPagadas += monto;
+            } else {
+                ventasMesActualPendientes += monto;
+            }
+        }
+    });
+
+    const metaEl = document.getElementById('dash-meta-mes');
+    if (metaEl) metaEl.innerText = 'Q ' + metaMensualActual.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const pct = metaMensualActual > 0 ? (ventasMesActualPagadas / metaMensualActual) * 100 : 0;
+    const progEl = document.getElementById('dash-progreso-meta');
+    if (progEl) progEl.innerText = pct.toFixed(1) + '%';
+
+    const fillEl = document.getElementById('meta-progreso-fill');
+    if (fillEl) fillEl.style.width = Math.min(100, Math.max(0, pct)) + '%';
+
+    const txtEl = document.getElementById('meta-progreso-texto');
+    if (txtEl) {
+        const restante = Math.max(0, metaMensualActual - ventasMesActualPagadas);
+        txtEl.innerHTML = `Ventas del mes actual: <strong>Q ${ventasMesActualPagadas.toFixed(2)}</strong> de <strong>Q ${metaMensualActual.toFixed(2)}</strong> (${pct.toFixed(1)}%). ${restante > 0 ? `Faltan Q ${restante.toFixed(2)} para alcanzar la meta.` : '🎉 ¡Meta mensual alcanzada y superada!'}`;
+    }
+}
+
+function actualizarGraficasDashboard() {
+    const canvas = document.getElementById('chart-ventas-meses');
+    if (!canvas) return;
+    const ChartClass = getChart();
+    if (!ChartClass) return;
+
+    const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const buckets = {};
+
+    // Asegurar los últimos 6 meses incluidos en orden
+    const ahora = new Date();
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const key = `${yyyy}-${mm}`;
+        buckets[key] = {
+            label: `${mesesNombres[d.getMonth()]} ${yyyy}`,
+            pagado: 0,
+            pendiente: 0
+        };
+    }
+
+    todasLasVentas.forEach(v => {
+        const d = v.data;
+        let fechaVenta = null;
+        if (d.fecha && d.fecha.seconds) {
+            fechaVenta = new Date(d.fecha.seconds * 1000);
+        } else if (d.fechaVentaPersonalizada) {
+            fechaVenta = new Date(d.fechaVentaPersonalizada);
+        }
+
+        if (fechaVenta && !isNaN(fechaVenta.getTime())) {
+            const yyyy = fechaVenta.getFullYear();
+            const mm = String(fechaVenta.getMonth() + 1).padStart(2, '0');
+            const key = `${yyyy}-${mm}`;
+            const monto = d.total !== undefined ? d.total : (d.cantidad * d.precio);
+
+            if (!buckets[key]) {
+                buckets[key] = {
+                    label: `${mesesNombres[fechaVenta.getMonth()]} ${yyyy}`,
+                    pagado: 0,
+                    pendiente: 0
+                };
+            }
+            if (d.estadoPago === 'pendiente') {
+                buckets[key].pendiente += monto;
+            } else {
+                buckets[key].pagado += monto;
+            }
+        }
+    });
+
+    const sortedKeys = Object.keys(buckets).sort();
+    const keysToShow = sortedKeys.slice(-8);
+    const labels = keysToShow.map(k => buckets[k].label);
+    const dataPagados = keysToShow.map(k => buckets[k].pagado);
+    const dataPendientes = keysToShow.map(k => buckets[k].pendiente);
+    const dataMeta = keysToShow.map(() => metaMensualActual);
+
+    if (chartVentasMesesInstance) {
+        chartVentasMesesInstance.destroy();
+        chartVentasMesesInstance = null;
+    }
+
+    chartVentasMesesInstance = new ChartClass(canvas.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Ventas Pagadas (Q)',
+                    data: dataPagados,
+                    backgroundColor: '#2C5E2E',
+                    borderColor: '#1E3F20',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Ventas Pendientes (Q)',
+                    data: dataPendientes,
+                    backgroundColor: '#E0A96D',
+                    borderColor: '#C88A4B',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    type: 'line',
+                    label: 'Meta Mensual (Q)',
+                    data: dataMeta,
+                    borderColor: '#D4AF37',
+                    borderWidth: 2,
+                    borderDash: [6, 4],
+                    pointRadius: 4,
+                    pointBackgroundColor: '#D4AF37',
+                    fill: false
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { grid: { display: false } },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: val => 'Q ' + val.toLocaleString('es-GT')
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: Q ${ctx.parsed.y.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+                    }
+                },
+                legend: { position: 'top' }
+            }
+        }
+    });
+}
+
+function actualizarTopProductosDashboard() {
+    const prodStats = {};
+    let granTotalVentas = 0;
+
+    todasLasVentas.forEach(v => {
+        const d = v.data;
+        if (d.items && Array.isArray(d.items) && d.items.length > 0) {
+            d.items.forEach(it => {
+                const nombre = it.nombre || it.tipo;
+                if (!prodStats[nombre]) {
+                    prodStats[nombre] = { nombre, cantidad: 0, unidad: it.unidad || 'un.', totalQ: 0 };
+                }
+                const sub = it.subtotal !== undefined ? it.subtotal : (it.cantidad * it.precio);
+                prodStats[nombre].cantidad += (parseFloat(it.cantidad) || 0);
+                prodStats[nombre].totalQ += sub;
+                granTotalVentas += sub;
+            });
+        } else {
+            const nombre = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].nombre : d.tipo;
+            const unidad = preciosListaActual[d.tipo] ? preciosListaActual[d.tipo].unidad : 'un.';
+            if (!prodStats[nombre]) {
+                prodStats[nombre] = { nombre, cantidad: 0, unidad: unidad, totalQ: 0 };
+            }
+            const sub = (d.cantidad * d.precio);
+            prodStats[nombre].cantidad += (parseFloat(d.cantidad) || 0);
+            prodStats[nombre].totalQ += sub;
+            granTotalVentas += sub;
+        }
+    });
+
+    const listaOrdenada = Object.values(prodStats).sort((a, b) => b.totalQ - a.totalQ);
+
+    const tbody = document.querySelector('#tabla-top-productos tbody');
+    if (tbody) {
+        if (listaOrdenada.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:1.5rem; color:#888;">No hay ventas registradas aún.</td></tr>';
+        } else {
+            tbody.innerHTML = listaOrdenada.map((p, idx) => {
+                const pct = granTotalVentas > 0 ? (p.totalQ / granTotalVentas) * 100 : 0;
+                const posBadge = idx === 0 ? '🥇 1' : idx === 1 ? '🥈 2' : idx === 2 ? '🥉 3' : `#${idx + 1}`;
+                return `<tr>
+                    <td style="font-weight:bold; text-align:center;">${posBadge}</td>
+                    <td><strong>${p.nombre}</strong></td>
+                    <td style="text-align:right;">${p.cantidad.toFixed(1)} ${p.unidad}</td>
+                    <td style="text-align:right; font-weight:bold; color:var(--primary);">Q ${p.totalQ.toFixed(2)}</td>
+                    <td style="text-align:right;">
+                        <span style="display:inline-block; min-width:45px; font-weight:bold;">${pct.toFixed(1)}%</span>
+                        <div style="background:#eee; height:6px; border-radius:3px; overflow:hidden; width:100%; margin-top:3px;">
+                            <div style="background:var(--primary); height:100%; width:${pct}%;"></div>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+    }
+
+    const canvas = document.getElementById('chart-top-productos');
+    if (!canvas) return;
+    const ChartClass = getChart();
+    if (!ChartClass) return;
+
+    if (chartTopProductosInstance) {
+        chartTopProductosInstance.destroy();
+        chartTopProductosInstance = null;
+    }
+
+    if (listaOrdenada.length === 0) return;
+
+    const top5 = listaOrdenada.slice(0, 5);
+    const otros = listaOrdenada.slice(5);
+    const labels = top5.map(p => p.nombre);
+    const data = top5.map(p => p.totalQ);
+
+    if (otros.length > 0) {
+        labels.push('Otros Productos');
+        data.push(otros.reduce((acc, p) => acc + p.totalQ, 0));
+    }
+
+    const colores = ['#2C5E2E', '#D4AF37', '#8B5A2B', '#E0A96D', '#5C8D89', '#9E9E9E'];
+
+    chartTopProductosInstance = new ChartClass(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colores.slice(0, labels.length),
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const val = ctx.parsed;
+                            const pct = granTotalVentas > 0 ? ((val / granTotalVentas) * 100).toFixed(1) : 0;
+                            return ` ${ctx.label}: Q ${val.toFixed(2)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
 
 function renderDashMiniCard(label, value, unidad) {
     const isEmpty = value === 0;
@@ -1788,7 +2617,8 @@ async function cargarDatosIniciales() {
     try {
         const sv = await getDocs(query(collection(db,"ventas"),orderBy("fecha","desc")));
         todasLasVentas = [];
-        let totalVentas = 0;
+        let totalVentasPagadas = 0;
+        let totalVentasPendientes = 0;
         const promesasMigracion = [];
         
         for (const d of sv.docs) {
@@ -1800,7 +2630,13 @@ async function cargarDatosIniciales() {
                 promesasMigracion.push(updateDoc(doc(db, "ventas", d.id), { estadoPago: estadoDerivado }));
             }
             todasLasVentas.push({ id: d.id, data: v });
-            if (v.estadoPago === 'pagado') totalVentas += (v.cantidad * v.precio);
+            
+            const montoVenta = v.total !== undefined ? v.total : (v.cantidad * v.precio);
+            if (v.estadoPago === 'pagado') {
+                totalVentasPagadas += montoVenta;
+            } else {
+                totalVentasPendientes += montoVenta;
+            }
         }
         
         if (promesasMigracion.length > 0) {
@@ -1808,8 +2644,18 @@ async function cargarDatosIniciales() {
             console.log(`✅ Migradas ${promesasMigracion.length} ventas antiguas a estados vigentes.`);
         }
         
+        // Actualizar KPIs de ventas
         const dashVentasEl = document.getElementById('dash-ventas');
-        if (dashVentasEl) dashVentasEl.innerText = "Q "+totalVentas.toFixed(2);
+        if (dashVentasEl) dashVentasEl.innerText = "Q " + totalVentasPagadas.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const dashPendientesEl = document.getElementById('dash-ventas-pendientes');
+        if (dashPendientesEl) dashPendientesEl.innerText = "Q " + totalVentasPendientes.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Actualizar metas y gráficos mensuales
+        actualizarDashboardMetas();
+        actualizarGraficasDashboard();
+        actualizarTopProductosDashboard();
+
         renderTablaVentas();
 
         const si = await getDocs(collection(db,"inventario"));
