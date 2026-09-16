@@ -181,6 +181,53 @@
         .chart-legend-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; font-weight: bold; }
         .chart-legend-color { width: 14px; height: 14px; border-radius: 3px; }
 
+        /* LOGOS */
+        .top-bar-logo-img { height: 42px; width: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent); margin-right: 0.5rem; }
+        .sidebar-logo-img { width: 85px; height: 85px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); margin: 0 auto 0.5rem; display: block; }
+        .auth-logo-img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); margin: 0 auto 1rem; display: block; }
+
+        /* DASHBOARD CHARTS & METAS */
+        .dash-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .dash-charts-grid { display: grid; grid-template-columns: 1fr; gap: 1.25rem; margin-bottom: 2rem; }
+        @media (min-width: 900px) {
+            .dash-charts-grid { grid-template-columns: 3fr 2fr; }
+        }
+        .meta-card { background: linear-gradient(135deg, #2C5E2E 0%, #1e4220 100%); color: white; padding: 1.25rem; border-radius: 12px; border-left: 5px solid var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .meta-progress-bar { width: 100%; height: 12px; background: rgba(255,255,255,0.25); border-radius: 6px; overflow: hidden; margin: 0.5rem 0; }
+        .meta-progress-fill { height: 100%; background: var(--accent); border-radius: 6px; transition: width 0.5s ease; }
+        .ranking-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-top: 0.5rem; }
+        .ranking-table th { background: #f0f4f0; color: var(--primary); padding: 8px; text-align: left; font-size: 0.75rem; text-transform: uppercase; border-bottom: 2px solid #ddd; }
+        .ranking-table td { padding: 8px; border-bottom: 1px solid #eee; }
+        .ranking-table tr:hover { background: #f9fbf9; }
+        .ranking-rank { font-weight: bold; width: 26px; height: 26px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: #e8f5e9; color: var(--primary); font-size: 0.8rem; }
+        .ranking-rank.gold { background: #fff8e1; color: #b78103; border: 1px solid #ffe082; }
+
+        /* CARRITO DE VENTAS MULTI-ITEM */
+        .cart-builder-box { background: #ffffff; border: 2px solid #e0e0e0; border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+        .cart-builder-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; }
+        .cart-builder-title { font-size: 1.15rem; font-weight: bold; color: var(--primary); }
+        .cart-table-wrapper { overflow-x: auto; margin-top: 1rem; border-radius: 8px; border: 1px solid #e0e0e0; }
+        .cart-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .cart-table th { background: var(--primary); color: white; padding: 10px; text-align: left; font-size: 0.8rem; }
+        .cart-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .cart-table tr:hover { background: #fcfcfc; }
+        .cart-total-bar { display: flex; justify-content: space-between; align-items: center; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; padding: 1rem 1.25rem; border-radius: 10px; margin-top: 1rem; flex-wrap: wrap; gap: 1rem; }
+        .cart-total-amount { font-size: 1.7rem; font-weight: bold; color: var(--accent); }
+
+        /* RUEDA CIRCULAR CATACIÓN */
+        .catacion-profile-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-top: 1rem; }
+        @media (min-width: 768px) {
+            .catacion-profile-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .catacion-wheel-box { display: flex; flex-direction: column; align-items: center; justify-content: center; background: #ffffff; border: 2px solid var(--accent); border-radius: 12px; padding: 1.25rem; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+        .catacion-sensory-item { display: flex; align-items: center; justify-content: space-between; padding: 0.6rem 0.75rem; border-radius: 8px; margin-bottom: 0.4rem; background: #f9f9f9; border-left: 6px solid #ccc; }
+        .catacion-sensory-name { font-weight: bold; font-size: 0.9rem; }
+        .catacion-sensory-val { font-size: 1.1rem; font-weight: bold; }
+        .catacion-fixed-card { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-top: 1rem; width: 100%; }
+        .catacion-fixed-item { background: #f1f8e9; border: 1px solid #c5e1a5; padding: 8px; border-radius: 6px; text-align: center; }
+        .catacion-fixed-item .lbl { font-size: 0.75rem; color: #558b2f; font-weight: bold; }
+        .catacion-fixed-item .val { font-size: 1rem; font-weight: bold; color: #2e7d32; }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -202,7 +249,8 @@
 
 <div id="auth-screen">
     <div class="auth-box">
-        <svg class="auth-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <img src="public/images/logo.jpg" alt="Finca Los Robles" class="auth-logo-img" onerror="if(!this.dataset.failed){this.dataset.failed='1';this.src='./public/images/logo.jpg';}else{this.style.display='none';document.getElementById('fallback-auth-logo').style.display='block';}">
+        <svg id="fallback-auth-logo" class="auth-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
             <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
             <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFF" text-anchor="middle" font-family="Arial">FLR</text>
             <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
@@ -222,7 +270,8 @@
 <div id="app-screen">
     <div class="top-bar">
         <button class="hamburger" onclick="toggleSidebar()">☰</button>
-        <svg class="top-bar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <img src="public/images/logo.jpg" alt="Finca Los Robles" class="top-bar-logo-img" onerror="if(!this.dataset.failed){this.dataset.failed='1';this.src='./public/images/logo.jpg';}else{this.style.display='none';document.getElementById('fallback-top-logo').style.display='inline-block';}">
+        <svg id="fallback-top-logo" class="top-bar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
             <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
             <text x="50" y="58" font-size="28" font-weight="bold" fill="#FFF" text-anchor="middle" font-family="Arial">FLR</text>
         </svg>
@@ -236,7 +285,8 @@
             <span style="color:var(--accent); font-weight:bold;">Menú</span>
             <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
         </div>
-        <svg class="sidebar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <img src="public/images/logo.jpg" alt="Finca Los Robles" class="sidebar-logo-img" onerror="if(!this.dataset.failed){this.dataset.failed='1';this.src='./public/images/logo.jpg';}else{this.style.display='none';document.getElementById('fallback-sidebar-logo').style.display='block';}">
+        <svg id="fallback-sidebar-logo" class="sidebar-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" style="display:none;">
             <circle cx="50" cy="50" r="48" fill="#2C5E2E" stroke="#D4AF37" stroke-width="3"/>
             <text x="50" y="45" font-size="28" font-weight="bold" fill="#FFF" text-anchor="middle" font-family="Arial">FLR</text>
             <text x="50" y="65" font-size="10" fill="#D4AF37" text-anchor="middle" font-family="Arial">Finca Los Robles</text>
@@ -253,10 +303,98 @@
     <div class="main-content">
         <div id="dashboard" class="section active">
             <h2>📊 Dashboard General</h2>
-            <div class="card" style="background:var(--primary); color:white; border-left-color:var(--accent);">
-                <h3 style="color:white;">💰 Total Ventas Pagadas</h3>
-                <p style="color:var(--accent);" id="dash-ventas">Q 0.00</p>
+            
+            <!-- KPI CARDS -->
+            <div class="dash-kpi-grid">
+                <div class="card" style="background:var(--primary); color:white; border-left-color:var(--accent); margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">💰 Ventas Pagadas (Total)</h3>
+                    <p style="color:var(--accent); font-size:1.8rem; margin:0.3rem 0;" id="dash-ventas">Q 0.00</p>
+                    <span style="font-size:0.8rem; opacity:0.85;" id="dash-ventas-sub">0 ventas cobradas</span>
+                </div>
+                <div class="card" style="background:#8B5A2B; color:white; border-left-color:var(--accent); margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">⏳ Ventas Pendientes</h3>
+                    <p style="color:#ffe082; font-size:1.8rem; margin:0.3rem 0;" id="dash-ventas-pendientes">Q 0.00</p>
+                    <span style="font-size:0.8rem; opacity:0.85;" id="dash-ventas-pend-sub">0 pendientes de cobro</span>
+                </div>
+                <div class="meta-card" style="margin:0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="color:white; font-size:0.95rem; margin:0;">🎯 Meta del Mes (<span id="dash-mes-actual-nombre">Actual</span>)</h3>
+                        <button onclick="configurarMetaMensual()" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:1rem; padding:2px 6px;" title="Editar Meta">✏️</button>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; align-items:baseline; margin:0.4rem 0 0.2rem;">
+                        <span style="font-size:1.4rem; font-weight:bold; color:var(--accent);" id="dash-meta-actual-monto">Q 0.00</span>
+                        <span style="font-size:0.85rem; color:#fff;" id="dash-meta-alcanzado-lbl">0%</span>
+                    </div>
+                    <div class="meta-progress-bar">
+                        <div class="meta-progress-fill" id="dash-meta-bar-fill" style="width:0%;"></div>
+                    </div>
+                    <div style="font-size:0.75rem; opacity:0.9; display:flex; justify-content:space-between;">
+                        <span id="dash-meta-recaudado">Vendido: Q 0.00</span>
+                        <span id="dash-meta-restante">Faltan: Q 0.00</span>
+                    </div>
+                </div>
             </div>
+
+            <!-- VENTAS POR MES Y METAS CHART -->
+            <div class="chart-container-box">
+                <div class="chart-header">
+                    <div>
+                        <h3 style="color:var(--primary); margin:0; font-size:1.15rem;">📈 Ventas por Mes y Cumplimiento de Metas</h3>
+                        <p style="font-size:0.8rem; color:#666; margin:2px 0 0;">Ingresos recaudados mes a mes frente a la meta fijada</p>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label style="font-size:0.85rem; font-weight:bold; color:#555;">Año:</label>
+                        <select id="dash-filtro-ano" onchange="actualizarGraficasDashboard()" style="padding:4px 8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; font-weight:bold;">
+                            <option value="2026" selected>2026</option>
+                            <option value="2025">2025</option>
+                            <option value="todos">Todos los Años</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="position:relative; height:280px; width:100%;">
+                    <canvas id="chartVentasMeses"></canvas>
+                </div>
+            </div>
+
+            <!-- RANKING "¿QUÉ ES LO QUE MÁS VENDO?" -->
+            <div class="chart-container-box">
+                <div class="chart-header">
+                    <div>
+                        <h3 style="color:var(--primary); margin:0; font-size:1.15rem;">🏆 ¿Qué es lo que más vendo? (Análisis de Productos)</h3>
+                        <p style="font-size:0.8rem; color:#666; margin:2px 0 0;">Volumen de ventas, ingresos e impacto por producto</p>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <label style="font-size:0.85rem; font-weight:bold; color:#555;">Periodo:</label>
+                        <select id="dash-filtro-periodo-top" onchange="actualizarTopProductosDashboard()" style="padding:4px 8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; font-weight:bold;">
+                            <option value="mes_actual">Mes Actual</option>
+                            <option value="ano_actual" selected>Todo el Año Actual</option>
+                            <option value="historico">Todo el Histórico</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="dash-charts-grid" style="margin-bottom:0;">
+                    <div style="overflow-x:auto;">
+                        <table class="ranking-table" id="tabla-ranking-productos">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px;">#</th>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Total (Q)</th>
+                                    <th>% Aportación</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="5" style="text-align:center; color:#888; padding:1.5rem;">Cargando datos de ventas...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="position:relative; height:250px; display:flex; align-items:center; justify-content:center;">
+                        <canvas id="chartTopProductos"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <h3>📦 Inventario Detallado</h3>
             <div class="dash-group-title">☕ Café</div>
             <div class="dash-mini-grid" id="dash-cafe-grid"></div>
@@ -268,52 +406,139 @@
 
         <div id="ventas" class="section">
             <h2>💰 Registro de Ventas</h2>
-            <div class="info-box"><strong>💡 Tip:</strong> Para café tostado, selecciona la presentación (Entero/Molido) y el lote específico. El precio se carga desde tu Lista de Precios. Los estados de venta son <strong>Pagado</strong> y <strong>Pendiente</strong>.</div>
-            <div class="form-grid">
-                <div class="form-group">
-                    <label>Producto</label>
-                    <select id="venta-tipo" onchange="onVentaTipoChange()">
-                        <optgroup label="Café">
-                            <option value="Tostado">Café Tostado</option>
-                            <option value="Oro">Café Verde (Oro)</option>
-                            <option value="Pergamino">Café Pergamino</option>
-                        </optgroup>
-                        <optgroup label="Miel">
-                            <option value="Miel-Botella">Miel Botella 750ml</option>
-                            <option value="Miel-Galon">Miel Galón</option>
-                        </optgroup>
-                        <optgroup label="Licor de Guayaba">
-                            <option value="Licor-Botella">Licor Botella 750ml</option>
-                            <option value="Licor-Litro">Licor Litro</option>
-                            <option value="Licor-Galon">Licor Galón</option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div class="form-group" id="venta-presentacion-group" style="display:none;">
-                    <label>Presentación Café</label>
-                    <select id="venta-presentacion" onchange="cargarLotesDisponibles()">
-                        <option value="Entero">☕ Grano Entero</option>
-                        <option value="Molido">⚙️ Molido</option>
-                    </select>
-                </div>
-                <div class="form-group" id="venta-lote-group" style="display:none;">
-                    <label>Lote Disponible</label>
-                    <select id="venta-lote"></select>
-                </div>
-                <div class="form-group"><label>Cantidad</label><input type="number" id="venta-cantidad" class="yellow-input" step="0.01"></div>
-                <div class="form-group"><label>Precio Unitario (Q)</label><input type="number" id="venta-precio" class="yellow-input" step="0.01"></div>
-                <div class="form-group">
-                    <label>Método de Pago</label>
-                    <select id="venta-pago">
-                        <option value="Efectivo">💵 Efectivo</option>
-                        <option value="Tarjeta">💳 Tarjeta</option>
-                        <option value="Transferencia">🏦 Transferencia Bancaria</option>
-                        <option value="Pendiente">⏳ Pendiente</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>📋 Cliente / Notas (Referencia)</label><input type="text" id="venta-notas" class="yellow-input" placeholder="Ej: Juan Pérez, Pedido #123, etc."></div>
+            <div class="info-box">
+                <strong>🛒 Venta Multi-Producto:</strong> Ahora puedes agregar varios productos en una sola transacción (ej: café molido, café en grano, miel y licor). Agrega los productos a la lista con el botón <strong>"➕ Agregar a la Venta"</strong> y luego confirma la venta completa con el botón verde.
             </div>
-            <button class="btn" onclick="guardarVenta()">Registrar Venta y Descontar Inventario</button>
+
+            <!-- BLOQUE 1: AGREGAR PRODUCTO AL CARRITO -->
+            <div class="cart-builder-box">
+                <div class="cart-builder-header">
+                    <div class="cart-builder-title">📦 1. Agregar Producto a la Venta</div>
+                    <span style="font-size:0.85rem; color:#666;">Selecciona el producto y agrégalo al carrito</span>
+                </div>
+                <div class="form-grid" style="margin-bottom:0.75rem;">
+                    <div class="form-group">
+                        <label>Producto</label>
+                        <select id="venta-tipo" onchange="onVentaTipoChange()">
+                            <optgroup label="Café">
+                                <option value="Tostado">Café Tostado</option>
+                                <option value="Oro">Café Verde (Oro)</option>
+                                <option value="Pergamino">Café Pergamino</option>
+                            </optgroup>
+                            <optgroup label="Miel">
+                                <option value="Miel-Botella">Miel Botella 750ml</option>
+                                <option value="Miel-Galon">Miel Galón</option>
+                            </optgroup>
+                            <optgroup label="Licor de Guayaba">
+                                <option value="Licor-Botella">Licor Botella 750ml</option>
+                                <option value="Licor-Litro">Licor Litro</option>
+                                <option value="Licor-Galon">Licor Galón</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group" id="venta-presentacion-group" style="display:none;">
+                        <label>Presentación Café</label>
+                        <select id="venta-presentacion" onchange="cargarLotesDisponibles()">
+                            <option value="Entero">☕ Grano Entero</option>
+                            <option value="Molido">⚙️ Molido</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="venta-lote-group" style="display:none;">
+                        <label>Lote Disponible</label>
+                        <select id="venta-lote"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Cantidad</label>
+                        <input type="number" id="venta-cantidad" class="yellow-input" step="0.01" min="0.01" placeholder="Ej: 2">
+                    </div>
+                    <div class="form-group">
+                        <label>Precio Unitario (Q)</label>
+                        <input type="number" id="venta-precio" class="yellow-input" step="0.01" min="0" placeholder="Ej: 80.00">
+                    </div>
+                    <div class="form-group" style="display:flex; flex-direction:column; justify-content:flex-end;">
+                        <button type="button" class="btn btn-primary" onclick="agregarItemAlCarrito()" style="padding:10px 14px; font-weight:bold; width:100%; display:flex; align-items:center; justify-content:center; gap:6px;">
+                            <span>➕</span> Agregar a la Venta
+                        </button>
+                    </div>
+                </div>
+
+                <!-- TABLA DE ITEMS EN LA VENTA ACTUAL -->
+                <div class="cart-builder-header" style="margin-top:1.25rem; border-top:1px dashed #ddd; padding-top:0.75rem;">
+                    <div class="cart-builder-title" style="font-size:1rem;">🛒 2. Productos en esta Venta (<span id="cart-count">0 ítems</span>)</div>
+                    <button type="button" onclick="limpiarCarritoVenta()" style="background:none; border:none; color:#c62828; cursor:pointer; font-size:0.85rem; text-decoration:underline;">Limpiar lista</button>
+                </div>
+                <div class="cart-table-wrapper">
+                    <table class="cart-table" id="tabla-carrito-ventas">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Producto</th>
+                                <th>Detalle / Presentación</th>
+                                <th style="text-align:center;">Cantidad</th>
+                                <th style="text-align:right;">P. Unitario</th>
+                                <th style="text-align:right;">Subtotal</th>
+                                <th style="text-align:center; width:60px;">Quitar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="carrito-items-body">
+                            <tr>
+                                <td colspan="7" style="text-align:center; padding:1.5rem; color:#888;">
+                                    🛒 No has agregado productos a esta venta aún. Selecciona un producto arriba y haz clic en <strong>"➕ Agregar a la Venta"</strong>.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="cart-total-bar">
+                    <div>
+                        <span style="font-size:0.9rem; opacity:0.9;">Total de esta transacción:</span>
+                        <div class="cart-total-amount" id="venta-total-display">Q 0.00</div>
+                    </div>
+                    <div style="font-size:0.85rem; opacity:0.85;" id="venta-items-resumen-lbl">0 productos en carrito</div>
+                </div>
+            </div>
+
+            <!-- BLOQUE 2: DETALLES DE PAGO Y REGISTRO FINAL -->
+            <div class="cart-builder-box" style="background:#fafdfa; border-color:#c8e6c9;">
+                <div class="cart-builder-header">
+                    <div class="cart-builder-title" style="color:var(--primary-dark);">💳 3. Datos de Pago y Confirmación</div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Método de Pago</label>
+                        <select id="venta-pago" onchange="onMetodoPagoChange()">
+                            <option value="Efectivo">💵 Efectivo (Pagado)</option>
+                            <option value="Tarjeta">💳 Tarjeta (Pagado)</option>
+                            <option value="Transferencia">🏦 Transferencia Bancaria (Pagado)</option>
+                            <option value="Pendiente">⏳ Crédito / Pendiente de Pago</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado de Pago</label>
+                        <select id="venta-estado-pago">
+                            <option value="pagado">🟢 Pagado</option>
+                            <option value="pendiente">🔴 Pendiente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de la Venta</label>
+                        <input type="date" id="venta-fecha-registro" class="yellow-input">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>📋 Cliente / Notas (Referencia)</label>
+                        <input type="text" id="venta-notas" class="yellow-input" placeholder="Ej: Juan Pérez, Pedido especial, Cafetería San Carlos, etc.">
+                    </div>
+                </div>
+                <div style="margin-top:1rem; display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn btn-success" id="btn-guardar-venta-final" onclick="guardarVenta()" style="flex:2; min-width:220px; font-size:1.05rem; padding:12px;">
+                        💾 Registrar Venta Completa (Q 0.00)
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarCarritoVenta()" style="flex:1; min-width:140px;">
+                        🧹 Limpiar Todo
+                    </button>
+                </div>
+            </div>
             
             <h3>Historial de Ventas</h3>
             <div class="filter-bar">
@@ -327,10 +552,9 @@
                         <tr>
                             <th>Fecha</th>
                             <th>📋 Cliente / Notas</th>
-                            <th>Producto</th>
-                            <th>Lote</th>
-                            <th>Cant.</th>
-                            <th>Total</th>
+                            <th>Productos Incluidos</th>
+                            <th style="text-align:center;">Cant. Total</th>
+                            <th style="text-align:right;">Total (Q)</th>
                             <th>Pago</th>
                             <th>Estado</th>
                             <th>Acciones</th>
@@ -775,7 +999,17 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.7</div>
+<div class="modal-overlay" id="modal-ver-venta">
+    <div class="modal-content-large">
+        <h3 id="modal-venta-titulo">🧾 Detalle de Venta Multi-Producto</h3>
+        <div id="modal-venta-contenido"></div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-ver-venta')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="version-tag">v2026.09.8</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
