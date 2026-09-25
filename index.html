@@ -271,6 +271,42 @@
             background: #c8e6c9;
         }
 
+        /* PEDIDOS Y ENTREGAS PENDIENTES */
+        .pedido-badge {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .pedido-pendiente {
+            background: #fff8e1;
+            color: #b78103;
+            border: 1px solid #ffe082;
+        }
+        .pedido-entregado {
+            background: #e8f5e9;
+            color: #1b5e20;
+            border: 1px solid #c8e6c9;
+        }
+        .pedido-cancelado {
+            background: #f5f5f5;
+            color: #757575;
+            border: 1px solid #ddd;
+        }
+        .urgencia-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.73rem;
+            font-weight: bold;
+            margin-top: 3px;
+        }
+        .urgencia-hoy { background: #ffe0b2; color: #e65100; border: 1px solid #ffb74d; }
+        .urgencia-atrasada { background: #ffcdd2; color: #b71c1c; border: 1px solid #ef9a9a; }
+        .urgencia-normal { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+        .urgencia-completada { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -358,6 +394,14 @@
                     <h3 style="color:white; font-size:0.95rem;">⏳ Ventas Pendientes</h3>
                     <p style="color:#ffe082; font-size:1.8rem; margin:0.3rem 0;" id="dash-ventas-pendientes">Q 0.00</p>
                     <span style="font-size:0.8rem; opacity:0.85;" id="dash-ventas-pend-sub">0 pendientes de cobro</span>
+                </div>
+                <div class="card" style="background:#b78103; color:white; border-left-color:#ffe082; margin:0; cursor:pointer;" onclick="window.irASeccionPedidos()" title="Ver pedidos pendientes de entrega">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="color:white; font-size:0.95rem; margin:0;">🚚 Pedidos por Entregar</h3>
+                        <span style="font-size:0.75rem; background:rgba(255,255,255,0.25); padding:2px 8px; border-radius:10px;">Ver ➔</span>
+                    </div>
+                    <p style="color:#fff8e1; font-size:1.8rem; margin:0.3rem 0;" id="dash-pedidos-pendientes">0</p>
+                    <span style="font-size:0.8rem; opacity:0.9;" id="dash-pedidos-pendientes-sub">Q 0.00 por entregar</span>
                 </div>
                 <div class="meta-card" style="margin:0;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -448,10 +492,225 @@
             <div class="dash-mini-grid" id="dash-licor-grid"></div>
         </div>
 
+        <!-- MÓDULO DE CONTROL DE PEDIDOS Y ENTREGAS -->
+        <div id="pedidos" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.75rem;">
+                <h2 style="margin-bottom:0; border-bottom:none;">📋 Control de Pedidos y Entregas</h2>
+                <button type="button" class="btn btn-primary" onclick="toggleFormPedido()" style="width:auto; min-height:40px; padding:8px 16px; font-weight:bold; display:inline-flex; align-items:center; gap:6px;">
+                    <span>➕</span> <span id="btn-toggle-pedido-lbl">Crear Nuevo Pedido</span>
+                </button>
+            </div>
+            <div class="info-box">
+                <strong>🚚 Flujo de Pedidos Antes de la Venta:</strong> Registra los pedidos solicitados por tus clientes previamente. Mantendrás la lista organizada de lo que tienes pendiente de preparar y entregar. Al momento de entregar el producto al cliente, podrás convertir el pedido en una <strong>Venta Registrada</strong> ya sea cobrada (Efectivo/Tarjeta/Transferencia) o en calidad de crédito (Pendiente de Pago).
+            </div>
+
+            <!-- KPIS DE PEDIDOS -->
+            <div class="dash-kpi-grid" style="margin-bottom:1.5rem;">
+                <div class="card" style="background:#b78103; color:white; border-left-color:#ffe082; margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">🟡 Pendientes de Entrega</h3>
+                    <p style="color:#fff8e1; font-size:1.8rem; margin:0.3rem 0;" id="kpi-pedidos-pendientes-count">0</p>
+                    <span style="font-size:0.8rem; opacity:0.9;" id="kpi-pedidos-pendientes-sub">pedidos por entregar</span>
+                </div>
+                <div class="card" style="background:#2C5E2E; color:white; border-left-color:var(--accent); margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">💰 Monto Comprometido</h3>
+                    <p style="color:var(--accent); font-size:1.8rem; margin:0.3rem 0;" id="kpi-pedidos-pendientes-monto">Q 0.00</p>
+                    <span style="font-size:0.8rem; opacity:0.85;">total por cobrar/entregar</span>
+                </div>
+                <div class="card" style="background:#1e4220; color:white; border-left-color:#81c784; margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">🟢 Pedidos Entregados</h3>
+                    <p style="color:#a5d6a7; font-size:1.8rem; margin:0.3rem 0;" id="kpi-pedidos-entregados-count">0</p>
+                    <span style="font-size:0.8rem; opacity:0.85;">convertidos a venta</span>
+                </div>
+                <div class="card" style="background:#8B5A2B; color:white; border-left-color:var(--accent); margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">👥 Clientes con Pedido</h3>
+                    <p style="color:#ffe082; font-size:1.8rem; margin:0.3rem 0;" id="kpi-pedidos-clientes-espera">0</p>
+                    <span style="font-size:0.8rem; opacity:0.85;">esperando entrega</span>
+                </div>
+            </div>
+
+            <!-- FORMULARIO DE NUEVO PEDIDO -->
+            <div class="cart-builder-box" id="contenedor-form-pedido" style="display:none; background:#fffdf8; border:2px solid #ffe082; margin-bottom:2rem;">
+                <div class="cart-builder-header">
+                    <div class="cart-builder-title" style="color:#b78103;">📝 Registrar Nuevo Pedido de Cliente</div>
+                    <button type="button" onclick="toggleFormPedido()" style="background:none; border:none; color:#666; cursor:pointer; font-size:1.2rem;">✖️ Cerrar</button>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; flex-wrap:wrap; gap:6px;">
+                            <label style="margin-bottom:0;">👥 Cliente del Pedido *</label>
+                            <button type="button" class="btn btn-xs btn-primary" onclick="abrirModalNuevoClienteRapido()" style="width:auto; min-height:28px; padding:4px 10px; font-weight:bold;">
+                                ➕ Registrar Nuevo Cliente
+                            </button>
+                        </div>
+                        <select id="ped-cliente-id" onchange="onClienteSeleccionadoPedido()">
+                            <option value="">-- Seleccionar Cliente Registrado --</option>
+                        </select>
+                        <div id="ped-cliente-badge-info" style="display:none; margin-top:8px; font-size:0.85rem; padding:8px 12px; background:#fff8e1; border:1px solid #ffe082; border-radius:6px; color:#b78103;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>📅 Fecha Estimada / Compromiso de Entrega *</label>
+                        <input type="date" id="ped-fecha-entrega" class="yellow-input">
+                    </div>
+                    <div class="form-group">
+                        <label>📍 Dirección / Punto de Entrega</label>
+                        <input type="text" id="ped-direccion" class="yellow-input" placeholder="Ej: Antigua Guatemala, Cafetería San Carlos, Enviar a domicilio...">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>📝 Observaciones / Notas Especiales del Pedido</label>
+                        <input type="text" id="ped-notas" class="yellow-input" placeholder="Ej: Entregar por la mañana, cliente paga en efectivo contra entrega, moler fino...">
+                    </div>
+                </div>
+
+                <!-- SELECTOR DE PRODUCTOS DEL PEDIDO -->
+                <div style="background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:1rem; margin-top:1rem;">
+                    <h4 style="color:var(--primary); margin:0 0 0.75rem 0;">🛒 Agregar Productos al Pedido</h4>
+                    <div class="form-grid" style="margin-bottom:0.5rem;">
+                        <div class="form-group">
+                            <label>Producto</label>
+                            <select id="ped-prod-tipo" onchange="onPedidoProdTipoChange()">
+                                <optgroup label="Café">
+                                    <option value="Tostado">Café Tostado</option>
+                                    <option value="Oro">Café Verde (Oro)</option>
+                                    <option value="Pergamino">Café Pergamino</option>
+                                </optgroup>
+                                <optgroup label="Miel">
+                                    <option value="Miel-Botella">Miel Botella 750ml</option>
+                                    <option value="Miel-Galon">Miel Galón</option>
+                                </optgroup>
+                                <optgroup label="Licor de Guayaba">
+                                    <option value="Licor-Botella">Licor Botella 750ml</option>
+                                    <option value="Licor-Litro">Licor Litro</option>
+                                    <option value="Licor-Galon">Licor Galón</option>
+                                </optgroup>
+                            </select>
+                        </div>
+                        <div class="form-group" id="ped-prod-presentacion-group">
+                            <label>Presentación Café</label>
+                            <select id="ped-prod-presentacion">
+                                <option value="Entero">Grano Entero</option>
+                                <option value="Molido">Molido</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Cantidad Solicitada (<span id="ped-prod-unidad-lbl">libra</span>)</label>
+                            <input type="number" id="ped-prod-cantidad" class="yellow-input" step="0.5" min="0.5" placeholder="Ej: 2">
+                        </div>
+                        <div class="form-group">
+                            <label>Precio Unitario Acordado (Q)</label>
+                            <input type="number" id="ped-prod-precio" class="yellow-input" step="0.01" min="0" placeholder="Ej: 80.00">
+                        </div>
+                        <div class="form-group" style="display:flex; flex-direction:column; justify-content:flex-end;">
+                            <button type="button" class="btn btn-primary" onclick="agregarItemAlCarritoPedido()" style="padding:10px 14px; font-weight:bold; width:100%; display:flex; align-items:center; justify-content:center; gap:6px;">
+                                <span>➕</span> Agregar al Pedido
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TABLA ITEMS DEL PEDIDO -->
+                    <div class="cart-table-wrapper" style="margin-top:0.75rem;">
+                        <table class="cart-table" id="tabla-carrito-pedidos">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Producto</th>
+                                    <th>Presentación</th>
+                                    <th style="text-align:center;">Cantidad</th>
+                                    <th style="text-align:right;">P. Unitario</th>
+                                    <th style="text-align:right;">Subtotal</th>
+                                    <th style="text-align:center; width:60px;">Quitar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="carrito-pedidos-body">
+                                <tr>
+                                    <td colspan="7" style="text-align:center; padding:1.25rem; color:#888;">
+                                        🛒 No has agregado productos a este pedido. Selecciona arriba y haz clic en <strong>"➕ Agregar al Pedido"</strong>.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="cart-total-bar" style="background:linear-gradient(135deg, #b78103 0%, #8c6200 100%); margin-top:0.75rem;">
+                        <div>
+                            <span style="font-size:0.9rem; opacity:0.9;">Total del Pedido Solicitado:</span>
+                            <div class="cart-total-amount" id="ped-total-display">Q 0.00</div>
+                        </div>
+                        <div style="font-size:0.85rem; opacity:0.85;" id="ped-items-resumen-lbl">0 productos en este pedido</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:1.25rem; display:flex; gap:10px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-success" id="btn-guardar-pedido-directo" onclick="guardarPedidoDirecto()" style="flex:2; min-width:220px; font-size:1.05rem; padding:12px; font-weight:bold;">
+                        💾 Guardar Pedido Pendiente de Entrega
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarCarritoPedido()" style="flex:1; min-width:140px;">
+                        🧹 Limpiar Pedido
+                    </button>
+                </div>
+            </div>
+
+            <!-- LISTADO Y FILTRO DE PEDIDOS -->
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.75rem;">
+                <h3 style="margin:0;">📦 Listado de Pedidos</h3>
+                <div class="filter-bar" style="margin:0;" id="pedidos-filters">
+                    <button class="filter-btn active" onclick="filtrarPedidos('pendientes', this)">🟡 Pendientes de Entrega</button>
+                    <button class="filter-btn" onclick="filtrarPedidos('entregados', this)">🟢 Entregados (Ventas)</button>
+                    <button class="filter-btn" onclick="filtrarPedidos('todos', this)">Todos los Pedidos</button>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
+                <input type="text" id="buscar-pedido-input" oninput="filtrarListaPedidos()" placeholder="🔍 Buscar por cliente, folio, teléfono, dirección o productos..." style="flex:1; min-width:260px; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:0.95rem;">
+            </div>
+
+            <div class="table-wrapper">
+                <table id="tabla-pedidos">
+                    <thead>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Fechas (Pedido / Entrega)</th>
+                            <th>👥 Cliente & Contacto</th>
+                            <th>📍 Dirección de Entrega</th>
+                            <th>Productos Solicitados</th>
+                            <th style="text-align:right;">Total (Q)</th>
+                            <th>Estado</th>
+                            <th style="text-align:center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="8" style="text-align:center; padding:1.5rem; color:#888;">Cargando pedidos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         <div id="ventas" class="section">
             <h2>💰 Registro de Ventas</h2>
+
+            <!-- ALERTA DE PEDIDOS PENDIENTES DE ENTREGA -->
+            <div id="banner-pedidos-pendientes-ventas" style="display:none; background:#fff8e1; border:1px solid #ffe082; border-left:5px solid #f57c00; border-radius:8px; padding:12px 16px; margin-bottom:1.25rem; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.6rem;">🚚</span>
+                    <div>
+                        <strong style="color:#b78103; font-size:0.98rem;" id="banner-pedidos-titulo">Tienes pedidos pendientes de entrega</strong>
+                        <div style="font-size:0.85rem; color:#555;" id="banner-pedidos-desc">Puedes entregar los pedidos pendientes y convertirlos a venta, o cargarlos a esta venta.</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-xs btn-primary" onclick="window.irASeccionPedidos()" style="width:auto; padding:6px 12px; font-weight:bold;">
+                        📋 Ver Pedidos Pendientes
+                    </button>
+                    <button type="button" class="btn btn-xs btn-secondary" onclick="window.abrirModalCargarPedidoPendiente()" style="width:auto; padding:6px 12px; background:#b78103; color:white;">
+                        📥 Cargar Pedido al Carrito
+                    </button>
+                </div>
+            </div>
+
             <div class="info-box">
-                <strong>🛒 Venta Multi-Producto:</strong> Ahora puedes agregar varios productos en una sola transacción (ej: café molido, café en grano, miel y licor). Agrega los productos a la lista con el botón <strong>"➕ Agregar a la Venta"</strong> y luego confirma la venta completa con el botón verde.
+                <strong>🛒 Venta Multi-Producto:</strong> Ahora puedes agregar varios productos en una sola transacción (ej: café molido, café en grano, miel y licor). Agrega los productos a la lista con el botón <strong>"➕ Agregar a la Venta"</strong> y luego confirma la venta completa o guárdalo como <strong>Pedido Pendiente</strong> si la entrega/pago es posterior.
             </div>
 
             <!-- BLOQUE 1: AGREGAR PRODUCTO AL CARRITO -->
@@ -587,10 +846,13 @@
                     </div>
                 </div>
                 <div style="margin-top:1rem; display:flex; gap:10px; flex-wrap:wrap;">
-                    <button class="btn btn-success" id="btn-guardar-venta-final" onclick="guardarVenta()" style="flex:2; min-width:220px; font-size:1.05rem; padding:12px;">
+                    <button class="btn btn-success" id="btn-guardar-venta-final" onclick="guardarVenta()" style="flex:2; min-width:200px; font-size:1.02rem; padding:12px; font-weight:bold;">
                         💾 Registrar Venta Completa (Q 0.00)
                     </button>
-                    <button type="button" class="btn btn-secondary" onclick="limpiarCarritoVenta()" style="flex:1; min-width:140px;">
+                    <button type="button" class="btn btn-warning" id="btn-guardar-como-pedido-venta" onclick="abrirModalCrearPedidoDesdeCarrito()" style="flex:2; min-width:200px; font-size:1.02rem; padding:12px; background:#f57c00; color:white; font-weight:bold;">
+                        📋 Guardar como Pedido Pendiente
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="limpiarCarritoVenta()" style="flex:1; min-width:120px;">
                         🧹 Limpiar Todo
                     </button>
                 </div>
@@ -1246,7 +1508,160 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.10</div>
+<!-- MODAL: CREAR PEDIDO DESDE CARRITO DE VENTAS -->
+<div class="modal-overlay" id="modal-crear-pedido-desde-carrito">
+    <div class="modal-content-large" style="max-width:600px;">
+        <h3 style="color:#b78103;">📋 Guardar como Pedido Pendiente de Entrega</h3>
+        <div class="info-box" style="margin-top:0;">
+            El pedido quedará registrado en tu lista de <strong>Pedidos Pendientes</strong>. Cuando lo entregues al cliente, podrás registrar la venta y definir si te pagaron al contado o quedó a crédito.
+        </div>
+        <div id="resumen-pedido-carrito-contenido" style="background:#f9fbf9; border:1px solid #e0e0e0; border-radius:8px; padding:10px; margin-bottom:1rem; font-size:0.9rem;"></div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>📅 Fecha Estimada / Compromiso de Entrega *</label>
+                <input type="date" id="mc-pedido-fecha-entrega" class="yellow-input" required>
+            </div>
+            <div class="form-group">
+                <label>📍 Dirección o Punto de Entrega</label>
+                <input type="text" id="mc-pedido-direccion" class="yellow-input" placeholder="Ej: Cafetería Central, entregar en domicilio...">
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>📝 Observaciones o Instrucciones Especiales</label>
+                <input type="text" id="mc-pedido-notas" class="yellow-input" placeholder="Ej: Llamar antes de salir, cliente paga con transferencia...">
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-success" id="btn-confirmar-pedido-carrito" style="flex:2; min-width:200px; font-weight:bold; background:#b78103;" onclick="confirmarPedidoDesdeCarrito()">
+                💾 Confirmar y Guardar Pedido
+            </button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-crear-pedido-desde-carrito')">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ENTREGAR PEDIDO Y REGISTRAR VENTA -->
+<div class="modal-overlay" id="modal-entregar-pedido">
+    <div class="modal-content-large" style="max-width:680px;">
+        <h3 style="color:var(--primary);" id="modal-entregar-pedido-titulo">🚚 Entregar Pedido y Registrar Venta</h3>
+        <div class="info-box" style="margin-top:0; background:#e8f5e9; border-left-color:#2e7d32; color:#1b5e20;">
+            <strong>Entrega de Mercadería:</strong> Al confirmar la entrega, se creará el registro oficial de <strong>Venta</strong> en el sistema, se descontará del inventario y el pedido quedará marcado como <strong>Entregado</strong>.
+        </div>
+        
+        <div id="modal-entregar-pedido-resumen" style="margin-bottom:1rem;"></div>
+
+        <div class="cart-builder-box" style="background:#fafdfa; border-color:#c8e6c9; padding:1rem; margin-bottom:1rem;">
+            <h4 style="color:var(--primary); margin:0 0 0.75rem 0;">💳 Datos de Cobro al Entregar</h4>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Forma de Liquidación del Pago</label>
+                    <select id="entregar-metodo-pago" onchange="onMetodoPagoEntregaChange()">
+                        <option value="Efectivo">💵 Efectivo (Pagado)</option>
+                        <option value="Transferencia">🏦 Transferencia Bancaria (Pagado)</option>
+                        <option value="Tarjeta">💳 Tarjeta (Pagado)</option>
+                        <option value="Pendiente">⏳ Queda a Crédito / Pendiente de Pago</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Estado de Pago</label>
+                    <select id="entregar-estado-pago">
+                        <option value="pagado">🟢 Pagado (Cobrado al Entregar)</option>
+                        <option value="pendiente">🔴 Pendiente (Queda a Crédito)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fecha de la Venta / Entrega</label>
+                    <input type="date" id="entregar-fecha-venta" class="yellow-input">
+                </div>
+                <div class="form-group">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:28px;">
+                        <input type="checkbox" id="entregar-descontar-inventario" checked style="width:18px; height:18px;">
+                        <span>📦 Descontar automáticamente del inventario</span>
+                    </label>
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Notas de la Entrega / Comprobante</label>
+                    <input type="text" id="entregar-notas" class="yellow-input" placeholder="Ej: Entregado conforme por repartidor, comprobante #123...">
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-success" id="btn-confirmar-entrega-final" style="flex:2; min-width:220px; font-weight:bold; font-size:1.05rem;" onclick="confirmarEntregaPedido()">
+                💾 Confirmar Entrega y Registrar Venta
+            </button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-entregar-pedido')">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: VER DETALLE / HOJA DE PEDIDO -->
+<div class="modal-overlay" id="modal-ver-pedido">
+    <div class="modal-content-large" style="max-width:760px;">
+        <h3 id="modal-ver-pedido-titulo" style="color:var(--primary);">📋 Ficha y Detalle de Pedido</h3>
+        <div id="modal-ver-pedido-contenido"></div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-pdf" style="flex:1; min-width:180px;" onclick="generarPDFHojaPedidoActual()">
+                📄 Descargar Hoja de Pedido PDF
+            </button>
+            <button class="btn btn-success" id="btn-modal-ver-entregar" style="flex:1; min-width:180px;" onclick="entregarPedidoDesdeModalVer()">
+                🚚 Entregar y Registrar Venta
+            </button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-ver-pedido')">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CARGAR PEDIDO PENDIENTE A CARRITO DE VENTAS -->
+<div class="modal-overlay" id="modal-cargar-pedido-a-carrito">
+    <div class="modal-content-large" style="max-width:700px;">
+        <h3 style="color:var(--primary);">📥 Cargar Pedido Pendiente al Carrito de Ventas</h3>
+        <div class="info-box" style="margin-top:0;">
+            Selecciona un pedido de la lista para copiar sus productos, cliente y notas directamente al carrito de ventas.
+        </div>
+        <div id="lista-pedidos-pendientes-cargar" style="max-height:360px; overflow-y:auto; margin:1rem 0;"></div>
+        <div style="display:flex; justify-content:flex-end;">
+            <button class="btn btn-secondary" style="min-width:120px;" onclick="cerrarModal('modal-cargar-pedido-a-carrito')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR PEDIDO PENDIENTE -->
+<div class="modal-overlay" id="modal-editar-pedido">
+    <div class="modal-content-large" style="max-width:600px;">
+        <h3 style="color:#b78103;" id="modal-editar-pedido-titulo">✏️ Editar Pedido Pendiente</h3>
+        <input type="hidden" id="ep-id">
+        <div class="form-grid">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>Cliente</label>
+                <input type="text" id="ep-cliente-nombre" class="yellow-input" readonly>
+            </div>
+            <div class="form-group">
+                <label>📅 Fecha Estimada de Entrega</label>
+                <input type="date" id="ep-fecha-entrega" class="yellow-input">
+            </div>
+            <div class="form-group">
+                <label>📍 Dirección / Punto de Entrega</label>
+                <input type="text" id="ep-direccion" class="yellow-input">
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>📝 Observaciones / Notas</label>
+                <input type="text" id="ep-notas" class="yellow-input">
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-success" style="flex:2; min-width:180px;" onclick="guardarEdicionPedido()">💾 Guardar Cambios</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-editar-pedido')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="version-tag">v2026.09.11</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
