@@ -228,6 +228,49 @@
         .catacion-fixed-item .lbl { font-size: 0.75rem; color: #558b2f; font-weight: bold; }
         .catacion-fixed-item .val { font-size: 1rem; font-weight: bold; color: #2e7d32; }
 
+        /* CLIENTES Y VINCULACIÓN CON VENTAS */
+        .cliente-badge-link {
+            cursor: pointer;
+            color: var(--primary);
+            text-decoration: underline;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .cliente-badge-link:hover {
+            color: var(--secondary);
+        }
+        .badge-tipo-cliente {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: bold;
+            background: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+        }
+        .client-action-btn {
+            background: #e8f5e9;
+            border: 1px solid #c8e6c9;
+            color: #2e7d32;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s;
+        }
+        .client-action-btn:hover {
+            background: #c8e6c9;
+        }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -527,8 +570,20 @@
                         <input type="date" id="venta-fecha-registro" class="yellow-input">
                     </div>
                     <div class="form-group" style="grid-column: 1 / -1;">
-                        <label>📋 Cliente / Notas (Referencia)</label>
-                        <input type="text" id="venta-notas" class="yellow-input" placeholder="Ej: Juan Pérez, Pedido especial, Cafetería San Carlos, etc.">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; flex-wrap:wrap; gap:6px;">
+                            <label style="margin-bottom:0;">👥 Cliente de la Venta</label>
+                            <button type="button" class="btn btn-xs btn-primary" onclick="abrirModalNuevoClienteRapido()" style="width:auto; min-height:28px; padding:4px 10px; display:inline-flex; align-items:center; gap:4px; font-weight:bold;">
+                                ➕ Registrar Nuevo Cliente
+                            </button>
+                        </div>
+                        <select id="venta-cliente-id" onchange="onClienteSeleccionadoVenta()">
+                            <option value="">-- Seleccionar Cliente Registrado (Opcional) --</option>
+                        </select>
+                        <div id="venta-cliente-badge-info" style="display:none; margin-top:8px; font-size:0.85rem; padding:8px 12px; background:#e8f5e9; border:1px solid #c8e6c9; border-radius:6px; color:#2e7d32;"></div>
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>📋 Observaciones / Notas del Pedido o Cliente Ocasional</label>
+                        <input type="text" id="venta-notas" class="yellow-input" placeholder="Ej: Pedido especial, entrega en cafetería, notas del cliente...">
                     </div>
                 </div>
                 <div style="margin-top:1rem; display:flex; gap:10px; flex-wrap:wrap;">
@@ -562,6 +617,126 @@
                         </tr>
                     </thead>
                     <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- MÓDULO DE CLIENTES -->
+        <div id="clientes" class="section">
+            <h2>👥 Base de Datos y Gestión de Clientes</h2>
+            <div class="info-box">
+                <strong>🤝 Cartera de Clientes:</strong> Registra y gestiona los clientes de Finca Los Robles. Podrás asociar clientes a cada venta, revisar su historial completo de compras, analizar sus hábitos de consumo y monitorear saldos pendientes.
+            </div>
+
+            <!-- KPI RESUMEN DE CLIENTES -->
+            <div class="dash-kpi-grid">
+                <div class="card" style="background:#2C5E2E; color:white; border-left-color:var(--accent); margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">👥 Total Clientes Registrados</h3>
+                    <p style="color:var(--accent); font-size:1.8rem; margin:0.3rem 0;" id="kpi-total-clientes">0</p>
+                    <span style="font-size:0.8rem; opacity:0.85;" id="kpi-clientes-activos-sub">0 con compras registradas</span>
+                </div>
+                <div class="card" style="background:#1e4220; color:white; border-left-color:#81c784; margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">💰 Facturado a Clientes</h3>
+                    <p style="color:#a5d6a7; font-size:1.8rem; margin:0.3rem 0;" id="kpi-monto-clientes">Q 0.00</p>
+                    <span style="font-size:0.8rem; opacity:0.85;" id="kpi-pedidos-clientes-sub">0 compras acumuladas</span>
+                </div>
+                <div class="card" style="background:#8B5A2B; color:white; border-left-color:var(--accent); margin:0;">
+                    <h3 style="color:white; font-size:0.95rem;">⏳ Saldo Pendiente por Cobrar</h3>
+                    <p style="color:#ffe082; font-size:1.8rem; margin:0.3rem 0;" id="kpi-clientes-saldo-pendiente">Q 0.00</p>
+                    <span style="font-size:0.8rem; opacity:0.85;" id="kpi-clientes-pend-sub">0 clientes con saldo</span>
+                </div>
+            </div>
+
+            <!-- FORMULARIO REGISTRAR / EDITAR CLIENTE -->
+            <div class="cart-builder-box" style="margin-top:1.5rem;">
+                <div class="cart-builder-header">
+                    <div class="cart-builder-title" id="form-cliente-titulo">➕ Registrar Nuevo Cliente</div>
+                    <button type="button" class="btn btn-secondary btn-small" id="btn-toggle-form-cliente" onclick="toggleFormCliente()">🔽 Mostrar/Ocultar Formulario</button>
+                </div>
+                <div id="contenedor-form-cliente">
+                    <input type="hidden" id="cli-id-editando" value="">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nombre Completo / Razón Social *</label>
+                            <input type="text" id="cli-nombre" class="yellow-input" placeholder="Ej: Carlos Gómez / Cafetería El Roble" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Teléfono / WhatsApp</label>
+                            <input type="tel" id="cli-telefono" class="yellow-input" placeholder="Ej: 5555-1234">
+                        </div>
+                        <div class="form-group">
+                            <label>Correo Electrónico</label>
+                            <input type="email" id="cli-email" class="yellow-input" placeholder="Ej: cliente@correo.com">
+                        </div>
+                        <div class="form-group">
+                            <label>NIT / Identificación Tributaria</label>
+                            <input type="text" id="cli-nit" class="yellow-input" placeholder="Ej: CF o 1234567-8" value="CF">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Cliente</label>
+                            <select id="cli-tipo">
+                                <option value="Consumidor Final">👤 Consumidor Final</option>
+                                <option value="Cafetería / Restaurante">☕ Cafetería / Restaurante</option>
+                                <option value="Distribuidor / Mayorista">📦 Distribuidor / Mayorista</option>
+                                <option value="Empresa / Corporativo">🏢 Empresa / Corporativo</option>
+                                <option value="Familiar / Amigo">⭐ Familiar / Amigo</option>
+                                <option value="Otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección / Ubicación / Entrega</label>
+                            <input type="text" id="cli-direccion" class="yellow-input" placeholder="Ej: Antigua Guatemala, Sacatepéquez">
+                        </div>
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Preferencias de Consumo / Observaciones Adicionales</label>
+                            <input type="text" id="cli-notas" class="yellow-input" placeholder="Ej: Prefiere café molido fino, miel por galón cada mes, horario de entrega matutino...">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:0.5rem;">
+                        <button type="button" class="btn btn-success" id="btn-guardar-cliente" onclick="guardarCliente()" style="flex:2; min-width:200px; font-weight:bold;">
+                            💾 Guardar Cliente
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="limpiarFormCliente()" style="flex:1; min-width:140px;">
+                            🧹 Limpiar Formulario
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIRECTORIO Y BÚSQUEDA DE CLIENTES -->
+            <h3>📋 Directorio de Clientes</h3>
+            <div style="display:flex; gap:10px; margin-bottom:1rem; flex-wrap:wrap;">
+                <input type="text" id="buscar-cliente-input" oninput="filtrarListaClientes()" placeholder="🔍 Buscar por nombre, teléfono, NIT o correo..." style="flex:2; min-width:240px; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:0.95rem;">
+                <select id="filtro-tipo-cliente" onchange="filtrarListaClientes()" style="flex:1; min-width:180px; padding:10px; border:1px solid #ccc; border-radius:8px; font-size:0.95rem;">
+                    <option value="todos">Todos los Tipos</option>
+                    <option value="Consumidor Final">👤 Consumidor Final</option>
+                    <option value="Cafetería / Restaurante">☕ Cafeterías</option>
+                    <option value="Distribuidor / Mayorista">📦 Distribuidores</option>
+                    <option value="Empresa / Corporativo">🏢 Corporativos</option>
+                    <option value="con-compras">🛒 Con Compras</option>
+                    <option value="con-deuda">⏳ Con Saldo Pendiente</option>
+                </select>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="tabla-clientes">
+                    <thead>
+                        <tr>
+                            <th>Cliente</th>
+                            <th>Contacto</th>
+                            <th>Tipo</th>
+                            <th>NIT / Dirección</th>
+                            <th style="text-align:right;">Total Comprado (Q)</th>
+                            <th style="text-align:center;">Compras</th>
+                            <th>Estado Cuenta</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td colspan="8" style="text-align:center; padding:1.5rem; color:#888;">Cargando base de datos de clientes...</td>
+                        </tr>
+                    </tbody>
                 </table>
             </div>
         </div>
@@ -915,7 +1090,11 @@
                     <option value="pendiente">🔴 Pendiente</option>
                 </select>
             </div>
-            <div class="form-group" style="grid-column: 1 / -1;"><label>📋 Cliente / Notas</label><input type="text" id="ev-notas" class="yellow-input"></div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>👥 Cliente Asociado</label>
+                <select id="ev-cliente-id"></select>
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;"><label>📋 Notas / Observaciones</label><input type="text" id="ev-notas" class="yellow-input"></div>
         </div>
         <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
             <button class="btn btn-success" style="flex:1; min-width:150px;" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
@@ -1010,7 +1189,64 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.9</div>
+<div class="modal-overlay" id="modal-historial-cliente">
+    <div class="modal-content-large" style="max-width:960px;">
+        <h3 id="modal-historial-titulo">📜 Historial de Compras y Ficha del Cliente</h3>
+        <div id="modal-historial-contenido"></div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-pdf" style="flex:1; min-width:180px;" onclick="generarPDFHistorialCliente()">📄 Descargar Estado de Cuenta PDF</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:140px;" onclick="cerrarModal('modal-historial-cliente')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal-nuevo-cliente-rapido">
+    <div class="modal-content-large" style="max-width:550px;">
+        <h3>➕ Registrar Nuevo Cliente</h3>
+        <div class="info-box" style="margin-top:0;">
+            El cliente quedará guardado en la base de datos y se seleccionará automáticamente para esta venta.
+        </div>
+        <div class="form-grid">
+            <div class="form-group">
+                <label>Nombre Completo / Negocio *</label>
+                <input type="text" id="rq-cli-nombre" class="yellow-input" placeholder="Ej: María Rodríguez / Café Sol" required>
+            </div>
+            <div class="form-group">
+                <label>Teléfono / WhatsApp</label>
+                <input type="tel" id="rq-cli-telefono" class="yellow-input" placeholder="Ej: 5555-1234">
+            </div>
+            <div class="form-group">
+                <label>Correo Electrónico</label>
+                <input type="email" id="rq-cli-email" class="yellow-input" placeholder="Ej: cliente@correo.com">
+            </div>
+            <div class="form-group">
+                <label>NIT</label>
+                <input type="text" id="rq-cli-nit" class="yellow-input" value="CF">
+            </div>
+            <div class="form-group">
+                <label>Tipo de Cliente</label>
+                <select id="rq-cli-tipo">
+                    <option value="Consumidor Final">👤 Consumidor Final</option>
+                    <option value="Cafetería / Restaurante">☕ Cafetería / Restaurante</option>
+                    <option value="Distribuidor / Mayorista">📦 Distribuidor / Mayorista</option>
+                    <option value="Empresa / Corporativo">🏢 Empresa / Corporativo</option>
+                    <option value="Familiar / Amigo">⭐ Familiar / Amigo</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Notas / Preferencias</label>
+                <input type="text" id="rq-cli-notas" class="yellow-input" placeholder="Ej: Molido medio, compra regular...">
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-success" id="btn-guardar-cliente-rapido" style="flex:2; min-width:180px; font-weight:bold;" onclick="guardarClienteRapido()">💾 Guardar y Seleccionar</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-nuevo-cliente-rapido')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="version-tag">v2026.09.10</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
