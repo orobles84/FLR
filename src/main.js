@@ -43,6 +43,12 @@ let todosLosClientes = [];
 let clienteActualHistorial = null;
 let filtroTipoClienteActual = 'todos';
 let busquedaClienteTerm = '';
+let todosLosPedidos = [];
+let filtroPedidosActual = 'pendientes';
+let busquedaPedidoTerm = '';
+let pedidoActualEnModal = null;
+let pedidoActualEditando = null;
+let carritoPedido = [];
 
 const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
@@ -184,6 +190,7 @@ function construirMenu() {
     } else {
         const items = [
             { id:'dashboard', icon:'📊', label:'Dashboard' },
+            { id:'pedidos', icon:'📋', label:'Pedidos' },
             { id:'ventas', icon:'💰', label:'Ventas' },
             { id:'clientes', icon:'👥', label:'Clientes' },
             { id:'inventario', icon:'📦', label:'Inventario' },
@@ -216,6 +223,7 @@ function entrarAlSistema() {
         cargarPreciosLista();
         cargarDatosIniciales();
         cargarClientes();
+        cargarPedidos();
         window.calcularCotizador();
         window.onVentaTipoChange();
     } else {
@@ -321,6 +329,11 @@ window.showSection = (id, el) => {
             if (typeof window.actualizarGraficasDashboard === 'function') window.actualizarGraficasDashboard();
             if (typeof window.actualizarTopProductosDashboard === 'function') window.actualizarTopProductosDashboard();
         }, 100);
+    } else if (id === 'pedidos') {
+        renderTablaPedidos();
+        actualizarKPIsPedidos();
+    } else if (id === 'ventas') {
+        actualizarBannerPedidosVentas();
     } else if (id === 'clientes') {
         renderTablaClientes();
         actualizarKPIsClientes();
@@ -1614,7 +1627,7 @@ window.generarPDFTostado = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.10", 105, 290, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.11", 105, 290, { align: "center" });
 
     doc.save(`Tueste_${t.nombre || 'Perfil'}_${t.fecha || Date.now()}.pdf`);
     alert("✅ Reporte PDF de Tostado generado con gráfica incluida.");
@@ -1905,7 +1918,7 @@ window.generarPDFMuestra = () => {
 
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.10", 105, 290, {align:"center"});
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.11", 105, 290, {align:"center"});
     
     d.save(`Muestra_${m.lote||'Lote'}_${m.fecha||Date.now()}.pdf`);
     alert("✅ PDF de Muestreo descargado con datos de zarandas incluidos.");
@@ -2372,7 +2385,7 @@ window.generarPDFCatacion = () => {
     // Pie de página
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.10", 105, 290, { align: "center" });
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.11", 105, 290, { align: "center" });
 
     d.save(`Catacion_${(c.nombre || 'Muestra').replace(/\s+/g, '_')}_${c.fecha || Date.now()}.pdf`);
     alert("✅ Ficha de catación en PDF descargada exitosamente.");
@@ -2947,6 +2960,7 @@ async function cargarDatosIniciales() {
 
         renderTablaVentas();
         await cargarClientes();
+        await cargarPedidos();
 
         const si = await getDocs(collection(db,"inventario"));
         const ti = document.querySelector('#tabla-inventario tbody'); 
@@ -3037,7 +3051,1130 @@ async function cargarDatosIniciales() {
 }
 
 // =========================================================================
-// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.10) ---
+// --- CONTROL DE PEDIDOS Y ENTREGAS PENDIENTES (v2026.09.11) ---
+// =========================================================================
+
+function generarNuevoFolioPedido() {
+    const yyyy = new Date().getFullYear();
+    const count = todosLosPedidos.length + 1;
+    const numPad = String(count).padStart(3, '0');
+    return `PED-${yyyy}-${numPad}`;
+}
+
+async function cargarPedidos() {
+    try {
+        let snap;
+        try {
+            snap = await getDocs(query(collection(db, "pedidos"), orderBy("fechaCreacion", "desc")));
+        } catch (e) {
+            snap = await getDocs(collection(db, "pedidos"));
+        }
+        todosLosPedidos = [];
+        snap.forEach(d => {
+            todosLosPedidos.push({ id: d.id, data: d.data() });
+        });
+
+        // Ordenar en memoria: pendientes de entrega primero (por fecha de entrega), luego entregados
+        todosLosPedidos.sort((a, b) => {
+            const estA = a.data.estado === 'pendiente_entrega' ? 0 : 1;
+            const estB = b.data.estado === 'pendiente_entrega' ? 0 : 1;
+            if (estA !== estB) return estA - estB;
+            const fA = a.data.fechaEntregaCompromiso || '';
+            const fB = b.data.fechaEntregaCompromiso || '';
+            if (fA && fB) return fA.localeCompare(fB);
+            return 0;
+        });
+
+        renderTablaPedidos();
+        actualizarKPIsPedidos();
+        actualizarBannerPedidosVentas();
+    } catch (e) {
+        console.error("Error al cargar pedidos:", e);
+    }
+}
+window.cargarPedidos = cargarPedidos;
+
+window.toggleFormPedido = () => {
+    const cont = document.getElementById('contenedor-form-pedido');
+    const lbl = document.getElementById('btn-toggle-pedido-lbl');
+    if (!cont) return;
+    const isHidden = cont.style.display === 'none' || !cont.style.display;
+    cont.style.display = isHidden ? 'block' : 'none';
+    if (lbl) lbl.innerText = isHidden ? 'Ocultar Formulario' : 'Crear Nuevo Pedido';
+    if (isHidden) {
+        const manana = new Date();
+        manana.setDate(manana.getDate() + 1);
+        const fInput = document.getElementById('ped-fecha-entrega');
+        if (fInput && !fInput.value) {
+            fInput.value = manana.toISOString().split('T')[0];
+        }
+        window.onPedidoProdTipoChange();
+    }
+};
+
+window.onPedidoProdTipoChange = () => {
+    const tipo = document.getElementById('ped-prod-tipo').value;
+    const isTostado = tipo === 'Tostado';
+    const presGroup = document.getElementById('ped-prod-presentacion-group');
+    if (presGroup) presGroup.style.display = isTostado ? 'flex' : 'none';
+
+    const p = preciosListaActual[tipo];
+    const lbl = document.getElementById('ped-prod-unidad-lbl');
+    if (lbl && p) lbl.innerText = p.unidad;
+    const precioInp = document.getElementById('ped-prod-precio');
+    if (precioInp && p) precioInp.value = p.precio;
+};
+
+window.onClienteSeleccionadoPedido = () => {
+    const sel = document.getElementById('ped-cliente-id');
+    const badge = document.getElementById('ped-cliente-badge-info');
+    const dirInput = document.getElementById('ped-direccion');
+    if (!sel || !badge) return;
+    const cid = sel.value;
+    if (!cid) {
+        badge.style.display = 'none';
+        badge.innerHTML = '';
+        return;
+    }
+    const c = todosLosClientes.find(item => item.id === cid);
+    if (!c) return;
+    const d = c.data;
+    if (dirInput && !dirInput.value && d.direccion) {
+        dirInput.value = d.direccion;
+    }
+    badge.style.display = 'block';
+    badge.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div>
+                <strong>👤 ${d.nombre}</strong> &bull; ${d.tipo || 'Consumidor Final'} &bull; NIT: ${d.nit || 'CF'}
+                ${d.telefono ? `<br><small>📞 Tel: ${d.telefono}</small>` : ''}
+                ${d.direccion ? `<br><small>📍 Dirección: ${d.direccion}</small>` : ''}
+            </div>
+            <button type="button" class="btn btn-xs btn-primary" onclick="window.verHistorialCliente('${cid}')" style="width:auto; min-height:26px; padding:3px 8px; font-size:0.75rem;">📜 Ficha Cliente</button>
+        </div>
+    `;
+};
+
+window.agregarItemAlCarritoPedido = () => {
+    const tipo = document.getElementById('ped-prod-tipo').value;
+    const isTostado = tipo === 'Tostado';
+    const presentacion = isTostado ? document.getElementById('ped-prod-presentacion').value : 'N/A';
+    const cantidad = parseFloat(document.getElementById('ped-prod-cantidad').value) || 0;
+    const precio = parseFloat(document.getElementById('ped-prod-precio').value) || 0;
+
+    if (cantidad <= 0) return alert("⚠️ La cantidad solicitada debe ser mayor a 0.");
+    if (precio < 0) return alert("⚠️ El precio no puede ser negativo.");
+
+    const pInfo = preciosListaActual[tipo] || { nombre: tipo, unidad: 'un.' };
+    const nombre = pInfo.nombre;
+    const unidad = pInfo.unidad;
+    const subtotal = cantidad * precio;
+
+    carritoPedido.push({
+        idTemporal: 'pit_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+        tipo,
+        nombre,
+        presentacion,
+        cantidad,
+        unidad,
+        precio,
+        subtotal
+    });
+
+    document.getElementById('ped-prod-cantidad').value = '';
+    window.renderCarritoPedido();
+};
+
+window.renderCarritoPedido = () => {
+    const tbody = document.getElementById('carrito-pedidos-body');
+    const totalDisplay = document.getElementById('ped-total-display');
+    const resumenLbl = document.getElementById('ped-items-resumen-lbl');
+    if (!tbody) return;
+
+    if (carritoPedido.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align:center; padding:1.25rem; color:#888;">
+                    🛒 No has agregado productos a este pedido. Selecciona arriba y haz clic en <strong>"➕ Agregar al Pedido"</strong>.
+                </td>
+            </tr>
+        `;
+        if (totalDisplay) totalDisplay.innerText = 'Q 0.00';
+        if (resumenLbl) resumenLbl.innerText = '0 productos en este pedido';
+        return;
+    }
+
+    let total = 0;
+    let totalCant = 0;
+    tbody.innerHTML = carritoPedido.map((item, idx) => {
+        total += item.subtotal;
+        totalCant += item.cantidad;
+        return `
+            <tr>
+                <td style="text-align:center; font-weight:bold; color:#777;">${idx + 1}</td>
+                <td><strong>${item.nombre}</strong></td>
+                <td>${item.presentacion !== 'N/A' ? `<span class="cart-badge">${item.presentacion}</span>` : '-'}</td>
+                <td style="text-align:center; font-weight:bold;">${item.cantidad} ${item.unidad}</td>
+                <td style="text-align:right;">Q ${item.precio.toFixed(2)}</td>
+                <td style="text-align:right; font-weight:bold; color:#b78103;">Q ${item.subtotal.toFixed(2)}</td>
+                <td style="text-align:center;">
+                    <button type="button" onclick="eliminarItemCarritoPedido(${idx})" class="cart-remove-btn" title="Quitar ítem">✕</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    if (totalDisplay) totalDisplay.innerText = `Q ${total.toFixed(2)}`;
+    if (resumenLbl) resumenLbl.innerText = `${carritoPedido.length} ítem(s) &bull; ${totalCant.toFixed(1)} unidades`;
+};
+
+window.eliminarItemCarritoPedido = (idx) => {
+    carritoPedido.splice(idx, 1);
+    window.renderCarritoPedido();
+};
+
+window.limpiarCarritoPedido = () => {
+    carritoPedido = [];
+    window.renderCarritoPedido();
+    document.getElementById('ped-prod-cantidad').value = '';
+    document.getElementById('ped-notas').value = '';
+    document.getElementById('ped-direccion').value = '';
+};
+
+window.guardarPedidoDirecto = async () => {
+    if (carritoPedido.length === 0) {
+        const cantInp = parseFloat(document.getElementById('ped-prod-cantidad').value) || 0;
+        if (cantInp > 0) {
+            window.agregarItemAlCarritoPedido();
+        }
+    }
+
+    if (carritoPedido.length === 0) {
+        return alert("⚠️ Debes agregar al menos un producto al pedido antes de guardarlo.");
+    }
+
+    const selCli = document.getElementById('ped-cliente-id');
+    const clienteId = selCli ? selCli.value : '';
+    let clienteNombre = '';
+    let clienteTelefono = '';
+    let clienteDireccion = '';
+    if (clienteId) {
+        const cliObj = todosLosClientes.find(c => c.id === clienteId);
+        if (cliObj) {
+            clienteNombre = cliObj.data.nombre || '';
+            clienteTelefono = cliObj.data.telefono || '';
+            clienteDireccion = cliObj.data.direccion || '';
+        }
+    }
+
+    const fechaEntrega = document.getElementById('ped-fecha-entrega').value;
+    if (!fechaEntrega) {
+        return alert("⚠️ Por favor especifica la fecha estimada / compromiso de entrega.");
+    }
+
+    const direccion = document.getElementById('ped-direccion').value.trim() || clienteDireccion;
+    const notas = document.getElementById('ped-notas').value.trim();
+
+    const btn = document.getElementById('btn-guardar-pedido-directo');
+    if (btn) { btn.disabled = true; btn.innerText = "Guardando Pedido..."; }
+
+    try {
+        const total = carritoPedido.reduce((acc, it) => acc + it.subtotal, 0);
+        const cantidadTotal = carritoPedido.reduce((acc, it) => acc + it.cantidad, 0);
+        const folio = generarNuevoFolioPedido();
+
+        const pedidoDoc = {
+            folio,
+            clienteId: clienteId || null,
+            clienteNombre: clienteNombre || 'Cliente Particular',
+            clienteTelefono,
+            clienteDireccion,
+            items: [...carritoPedido],
+            total,
+            cantidadTotal,
+            fechaEntregaCompromiso: fechaEntrega,
+            direccionEntrega: direccion,
+            notas,
+            estado: 'pendiente_entrega',
+            fechaCreacion: serverTimestamp()
+        };
+
+        await addDoc(collection(db, "pedidos"), pedidoDoc);
+
+        alert(`✅ Pedido ${folio} registrado con éxito.\n\nCliente: ${pedidoDoc.clienteNombre}\nTotal: Q ${total.toFixed(2)}\nFecha de Entrega: ${fechaEntrega}\n\nEl pedido figura ahora en la lista de 'Pendientes de Entrega'.`);
+
+        window.limpiarCarritoPedido();
+        window.toggleFormPedido();
+        await cargarPedidos();
+    } catch (e) {
+        alert("❌ Error al guardar pedido: " + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = "💾 Guardar Pedido Pendiente de Entrega"; }
+    }
+};
+
+window.abrirModalCrearPedidoDesdeCarrito = async () => {
+    if (carritoVenta.length === 0) {
+        const cantInput = parseFloat(document.getElementById('venta-cantidad').value) || 0;
+        if (cantInput > 0) {
+            await window.agregarItemAlCarrito();
+        }
+    }
+
+    if (carritoVenta.length === 0) {
+        return alert("⚠️ Debes agregar al menos un producto a la lista con '➕ Agregar a la Venta' para crear un pedido.");
+    }
+
+    const selCliente = document.getElementById('venta-cliente-id');
+    const clienteId = selCliente ? selCliente.value : '';
+    let clienteNombre = '';
+    let clienteDireccion = '';
+    if (clienteId) {
+        const cliObj = todosLosClientes.find(c => c.id === clienteId);
+        if (cliObj) {
+            clienteNombre = cliObj.data.nombre || '';
+            clienteDireccion = cliObj.data.direccion || '';
+        }
+    }
+    const notasVenta = document.getElementById('venta-notas').value.trim();
+
+    const manana = new Date();
+    manana.setDate(manana.getDate() + 1);
+    const fInp = document.getElementById('mc-pedido-fecha-entrega');
+    if (fInp) fInp.value = manana.toISOString().split('T')[0];
+
+    const dirInp = document.getElementById('mc-pedido-direccion');
+    if (dirInp) dirInp.value = clienteDireccion;
+
+    const notInp = document.getElementById('mc-pedido-notas');
+    if (notInp) notInp.value = notasVenta;
+
+    const total = carritoVenta.reduce((acc, it) => acc + it.subtotal, 0);
+    const resCont = document.getElementById('resumen-pedido-carrito-contenido');
+    if (resCont) {
+        resCont.innerHTML = `
+            <div><strong>Cliente:</strong> ${clienteNombre || (notasVenta || 'Cliente no seleccionado')}</div>
+            <div style="margin-top:4px;"><strong>Productos (${carritoVenta.length}):</strong> ${carritoVenta.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(', ')}</div>
+            <div style="margin-top:6px; font-size:1.05rem; font-weight:bold; color:var(--primary);">Total del Pedido: Q ${total.toFixed(2)}</div>
+        `;
+    }
+
+    document.getElementById('modal-crear-pedido-desde-carrito').style.display = 'flex';
+};
+
+window.confirmarPedidoDesdeCarrito = async () => {
+    const fechaEntrega = document.getElementById('mc-pedido-fecha-entrega').value;
+    if (!fechaEntrega) return alert("⚠️ Ingresa la fecha estimada de entrega.");
+
+    const selCliente = document.getElementById('venta-cliente-id');
+    const clienteId = selCliente ? selCliente.value : '';
+    let clienteNombre = '';
+    let clienteTelefono = '';
+    let clienteDireccion = '';
+    if (clienteId) {
+        const cliObj = todosLosClientes.find(c => c.id === clienteId);
+        if (cliObj) {
+            clienteNombre = cliObj.data.nombre || '';
+            clienteTelefono = cliObj.data.telefono || '';
+            clienteDireccion = cliObj.data.direccion || '';
+        }
+    }
+    const notasVenta = document.getElementById('venta-notas').value.trim();
+    const direccion = document.getElementById('mc-pedido-direccion').value.trim() || clienteDireccion;
+    const notasPedido = document.getElementById('mc-pedido-notas').value.trim();
+
+    const btn = document.getElementById('btn-confirmar-pedido-carrito');
+    if (btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
+
+    try {
+        const total = carritoVenta.reduce((acc, it) => acc + it.subtotal, 0);
+        const cantidadTotal = carritoVenta.reduce((acc, it) => acc + it.cantidad, 0);
+        const folio = generarNuevoFolioPedido();
+
+        const pedidoDoc = {
+            folio,
+            clienteId: clienteId || null,
+            clienteNombre: clienteNombre || (notasVenta ? notasVenta : 'Cliente Particular'),
+            clienteTelefono,
+            clienteDireccion,
+            items: [...carritoVenta],
+            total,
+            cantidadTotal,
+            fechaEntregaCompromiso: fechaEntrega,
+            direccionEntrega: direccion,
+            notas: notasPedido || notasVenta,
+            estado: 'pendiente_entrega',
+            fechaCreacion: serverTimestamp()
+        };
+
+        await addDoc(collection(db, "pedidos"), pedidoDoc);
+
+        alert(`✅ ¡Pedido guardado exitosamente!\n\nFolio: ${folio}\nCliente: ${pedidoDoc.clienteNombre}\nTotal: Q ${total.toFixed(2)}\nEntrega: ${fechaEntrega}\n\nPuedes consultarlo en la sección 📋 Pedidos.`);
+
+        carritoVenta = [];
+        window.renderCarritoVenta();
+        document.getElementById('venta-cantidad').value = '';
+        document.getElementById('venta-notas').value = '';
+        if (selCliente) selCliente.value = '';
+        const badgeCli = document.getElementById('venta-cliente-badge-info');
+        if (badgeCli) { badgeCli.style.display = 'none'; badgeCli.innerHTML = ''; }
+
+        window.cerrarModal('modal-crear-pedido-desde-carrito');
+        await cargarPedidos();
+    } catch (e) {
+        alert("❌ Error al guardar pedido: " + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = "💾 Confirmar y Guardar Pedido"; }
+    }
+};
+
+window.abrirModalCargarPedidoPendiente = () => {
+    const cont = document.getElementById('lista-pedidos-pendientes-cargar');
+    if (!cont) return;
+
+    const pendientes = todosLosPedidos.filter(p => p.data.estado === 'pendiente_entrega');
+    if (pendientes.length === 0) {
+        cont.innerHTML = `<div style="text-align:center; padding:2rem; color:#888;">No tienes pedidos pendientes de entrega en este momento.</div>`;
+    } else {
+        cont.innerHTML = pendientes.map(p => {
+            const d = p.data;
+            const prods = d.items ? d.items.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(', ') : 'Productos';
+            return `
+                <div style="background:#fff; border:1px solid #ddd; border-left:4px solid #b78103; border-radius:8px; padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-weight:bold; color:var(--primary); font-size:1rem;">${d.folio || 'PED'} &bull; ${d.clienteNombre || 'Cliente'}</div>
+                        <div style="font-size:0.85rem; color:#555; margin:3px 0;">📦 ${prods}</div>
+                        <div style="font-size:0.8rem; color:#777;">📅 Entrega: <strong>${d.fechaEntregaCompromiso || 'N/A'}</strong> &bull; Total: <strong style="color:var(--primary);">Q ${(d.total||0).toFixed(2)}</strong></div>
+                    </div>
+                    <button type="button" class="btn btn-small btn-primary" onclick="cargarPedidoSeleccionadoAlCarritoVenta('${p.id}')" style="min-height:36px; padding:6px 14px; font-weight:bold;">
+                        📥 Cargar este Pedido
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.getElementById('modal-cargar-pedido-a-carrito').style.display = 'flex';
+};
+
+window.cargarPedidoSeleccionadoAlCarritoVenta = (pedidoId) => {
+    const p = todosLosPedidos.find(item => item.id === pedidoId);
+    if (!p) return alert("Pedido no encontrado.");
+    const d = p.data;
+
+    carritoVenta = (d.items || []).map(it => ({ ...it }));
+    window.renderCarritoVenta();
+
+    const selCli = document.getElementById('venta-cliente-id');
+    if (selCli && d.clienteId) {
+        selCli.value = d.clienteId;
+        window.onClienteSeleccionadoVenta();
+    }
+
+    const notasInp = document.getElementById('venta-notas');
+    if (notasInp) {
+        notasInp.value = `[Pedido ${d.folio || ''}] ${d.notas || ''}`.trim();
+    }
+
+    window.cerrarModal('modal-cargar-pedido-a-carrito');
+    alert(`✅ Pedido ${d.folio || ''} cargado al carrito de venta. Puedes registrar la venta directamente o agregar más productos.`);
+    const cartEl = document.getElementById('tabla-carrito-ventas');
+    if (cartEl) cartEl.scrollIntoView({ behavior: 'smooth' });
+};
+
+window.abrirModalEntregarPedido = (pedidoId) => {
+    const p = todosLosPedidos.find(item => item.id === pedidoId);
+    if (!p) return alert("Pedido no encontrado.");
+    pedidoActualEnModal = p;
+    const d = p.data;
+
+    document.getElementById('modal-entregar-pedido-titulo').innerText = `🚚 Entregar Pedido ${d.folio || ''}`;
+
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaInp = document.getElementById('entregar-fecha-venta');
+    if (fechaInp) fechaInp.value = hoy;
+
+    const notasInp = document.getElementById('entregar-notas');
+    if (notasInp) notasInp.value = `[Entrega ${d.folio || ''}] ${d.notas || ''}`.trim();
+
+    const resEl = document.getElementById('modal-entregar-pedido-resumen');
+    if (resEl) {
+        let itemsHTML = '';
+        if (d.items && d.items.length > 0) {
+            itemsHTML = `
+                <table style="width:100%; border-collapse:collapse; margin-top:0.5rem; font-size:0.85rem;">
+                    <thead>
+                        <tr style="background:#e8f5e9; color:#1b5e20;">
+                            <th style="padding:6px;">Producto</th>
+                            <th style="padding:6px; text-align:center;">Cantidad</th>
+                            <th style="padding:6px; text-align:right;">P. Unit</th>
+                            <th style="padding:6px; text-align:right;">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${d.items.map(it => `
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:6px;"><strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `(${it.presentacion})` : ''}</td>
+                                <td style="padding:6px; text-align:center;">${it.cantidad} ${it.unidad}</td>
+                                <td style="padding:6px; text-align:right;">Q ${(it.precio||0).toFixed(2)}</td>
+                                <td style="padding:6px; text-align:right; font-weight:bold;">Q ${(it.subtotal || it.cantidad*it.precio).toFixed(2)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        resEl.innerHTML = `
+            <div style="background:#f4f6f4; border-radius:8px; padding:12px; border-left:4px solid var(--primary);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <div style="font-weight:bold; font-size:1.1rem; color:var(--primary);">👤 ${d.clienteNombre || 'Cliente Particular'}</div>
+                        <div style="font-size:0.85rem; color:#555;">📍 Entrega en: ${d.direccionEntrega || d.clienteDireccion || 'No especificada'}</div>
+                        ${d.clienteTelefono ? `<div style="font-size:0.85rem; color:#555;">📞 Teléfono: ${d.clienteTelefono}</div>` : ''}
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="font-size:0.8rem; color:#777;">TOTAL A COBRAR:</span>
+                        <div style="font-size:1.4rem; font-weight:bold; color:var(--primary);">Q ${(d.total||0).toFixed(2)}</div>
+                    </div>
+                </div>
+                ${itemsHTML}
+            </div>
+        `;
+    }
+
+    document.getElementById('entregar-metodo-pago').value = 'Efectivo';
+    document.getElementById('entregar-estado-pago').value = 'pagado';
+
+    document.getElementById('modal-entregar-pedido').style.display = 'flex';
+};
+
+window.onMetodoPagoEntregaChange = () => {
+    const metodo = document.getElementById('entregar-metodo-pago').value;
+    const estSelect = document.getElementById('entregar-estado-pago');
+    if (estSelect) {
+        estSelect.value = derivarEstadoPagoDeMetodo(metodo);
+    }
+};
+
+window.confirmarEntregaPedido = async () => {
+    if (!pedidoActualEnModal) return;
+    const p = pedidoActualEnModal;
+    const d = p.data;
+
+    const metodoPago = document.getElementById('entregar-metodo-pago').value;
+    let estadoPago = document.getElementById('entregar-estado-pago').value;
+    if (estadoPago !== 'pendiente') estadoPago = 'pagado';
+    const fechaVenta = document.getElementById('entregar-fecha-venta').value;
+    const descontarInv = document.getElementById('entregar-descontar-inventario').checked;
+    const notasEntrega = document.getElementById('entregar-notas').value.trim();
+
+    const btn = document.getElementById('btn-confirmar-entrega-final');
+    if (btn) { btn.disabled = true; btn.innerText = "Registrando Venta de Entrega..."; }
+
+    try {
+        const items = d.items || [];
+        const totalMonto = d.total !== undefined ? Number(d.total) : items.reduce((a,c) => a + (c.subtotal || c.cantidad*c.precio), 0);
+        const totalCantidad = d.cantidadTotal !== undefined ? Number(d.cantidadTotal) : items.reduce((a,c) => a + Number(c.cantidad||0), 0);
+
+        // Descontar inventario si se solicitó
+        if (descontarInv) {
+            for (const it of items) {
+                if (it.tipo === 'Tostado' && it.loteDocId) {
+                    const loteSnap = await getDoc(doc(db, "inventario", it.loteDocId));
+                    if (loteSnap.exists()) {
+                        const cantActual = loteSnap.data().cantidad || 0;
+                        await updateDoc(doc(db, "inventario", it.loteDocId), { cantidad: Math.max(0, cantActual - it.cantidad) });
+                    }
+                } else {
+                    let pend = it.cantidad;
+                    const snap = await getDocs(query(collection(db, "inventario"), where("estado", "==", it.tipo)));
+                    for (const docInv of snap.docs) {
+                        if (pend <= 0) break;
+                        const inv = docInv.data();
+                        if (inv.cantidad >= pend) {
+                            await updateDoc(doc(db, "inventario", docInv.id), { cantidad: inv.cantidad - pend });
+                            pend = 0;
+                        } else {
+                            await updateDoc(doc(db, "inventario", docInv.id), { cantidad: 0 });
+                            pend -= inv.cantidad;
+                        }
+                    }
+                }
+            }
+        }
+
+        const nombresResumen = items.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(' + ');
+        const lotesResumen = items.filter(it => it.loteDocId).map(it => it.loteInfo).join(' | ') || 'N/A';
+
+        const ventaDoc = {
+            items,
+            total: totalMonto,
+            cantidad: totalCantidad,
+            tipo: nombresResumen,
+            loteInfo: lotesResumen,
+            pago: metodoPago,
+            estadoPago: estadoPago, // 'pagado' o 'pendiente' (crédito)
+            clienteId: d.clienteId || null,
+            clienteNombre: d.clienteNombre || null,
+            notas: notasEntrega || `[Entrega ${d.folio || ''}] ${d.notas || ''}`.trim(),
+            pedidoId: p.id,
+            pedidoFolio: d.folio || null,
+            fechaVentaPersonalizada: fechaVenta || null,
+            fecha: serverTimestamp()
+        };
+
+        const ventaRef = await addDoc(collection(db, "ventas"), ventaDoc);
+
+        // Actualizar pedido a estado 'entregado'
+        await updateDoc(doc(db, "pedidos", p.id), {
+            estado: 'entregado',
+            ventaId: ventaRef.id,
+            fechaEntrega: serverTimestamp(),
+            fechaVentaRegistrada: fechaVenta,
+            metodoPagoFinal: metodoPago,
+            estadoPagoFinal: estadoPago,
+            notasEntrega: notasEntrega
+        });
+
+        alert(`✅ Pedido ${d.folio || ''} entregado exitosamente.\n\nVenta registrada por: Q ${totalMonto.toFixed(2)}\nEstado de Pago: ${estadoPago === 'pendiente' ? '🔴 CRÉDITO (PENDIENTE DE PAGO)' : '🟢 PAGADO'}\n${descontarInv ? 'Inventario descontado correctamente.' : ''}`);
+
+        window.cerrarModal('modal-entregar-pedido');
+        window.cerrarModal('modal-ver-pedido');
+        pedidoActualEnModal = null;
+
+        await cargarDatosIniciales();
+        await cargarPedidos();
+    } catch (e) {
+        alert("❌ Error al procesar entrega de pedido: " + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = "💾 Confirmar Entrega y Registrar Venta"; }
+    }
+};
+
+window.entregarPedidoDesdeModalVer = () => {
+    if (!pedidoActualEnModal) return;
+    const pid = pedidoActualEnModal.id;
+    window.cerrarModal('modal-ver-pedido');
+    window.abrirModalEntregarPedido(pid);
+};
+
+window.verPedidoDetalle = (pedidoId) => {
+    const p = todosLosPedidos.find(item => item.id === pedidoId);
+    if (!p) return alert("Pedido no encontrado.");
+    pedidoActualEnModal = p;
+    const d = p.data;
+
+    document.getElementById('modal-ver-pedido-titulo').innerText = `📋 Pedido: ${d.folio || 'N/A'}`;
+
+    const fechaCreacionTxt = d.fechaCreacion ? (d.fechaCreacion.seconds ? new Date(d.fechaCreacion.seconds * 1000).toLocaleString('es-GT') : 'N/A') : 'N/A';
+    const estadoBadge = d.estado === 'entregado' 
+        ? `<span class="pedido-badge pedido-entregado">🟢 ENTREGADO</span>`
+        : (d.estado === 'cancelado' ? `<span class="pedido-badge pedido-cancelado">⚪ CANCELADO</span>` : `<span class="pedido-badge pedido-pendiente">🟡 PENDIENTE DE ENTREGA</span>`);
+
+    const btnEntregar = document.getElementById('btn-modal-ver-entregar');
+    if (btnEntregar) {
+        btnEntregar.style.display = (d.estado === 'pendiente_entrega') ? 'inline-block' : 'none';
+    }
+
+    let itemsHTML = '';
+    if (d.items && d.items.length > 0) {
+        itemsHTML = `
+            <table style="width:100%; border-collapse:collapse; margin-top:1rem; font-size:0.9rem;">
+                <thead>
+                    <tr style="background:var(--primary); color:white;">
+                        <th style="padding:8px;">Producto</th>
+                        <th style="padding:8px;">Presentación</th>
+                        <th style="padding:8px; text-align:center;">Cantidad</th>
+                        <th style="padding:8px; text-align:right;">Precio Unit.</th>
+                        <th style="padding:8px; text-align:right;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${d.items.map(it => `
+                        <tr style="border-bottom:1px solid #eee;">
+                            <td style="padding:8px;"><strong>${it.nombre}</strong></td>
+                            <td style="padding:8px;">${it.presentacion !== 'N/A' ? `<span class="cart-badge">${it.presentacion}</span>` : '-'}</td>
+                            <td style="padding:8px; text-align:center; font-weight:bold;">${it.cantidad} ${it.unidad}</td>
+                            <td style="padding:8px; text-align:right;">Q ${(it.precio||0).toFixed(2)}</td>
+                            <td style="padding:8px; text-align:right; font-weight:bold; color:var(--primary);">Q ${(it.subtotal || it.cantidad*it.precio).toFixed(2)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    const contenido = `
+        <div class="detail-grid" style="margin-bottom:1rem;">
+            <div class="detail-item"><div class="label">Folio</div><div class="value"><strong>${d.folio || 'N/A'}</strong></div></div>
+            <div class="detail-item"><div class="label">Estado del Pedido</div><div class="value">${estadoBadge}</div></div>
+            <div class="detail-item"><div class="label">Fecha del Pedido</div><div class="value">${fechaCreacionTxt}</div></div>
+            <div class="detail-item highlight"><div class="label">Fecha Compromiso de Entrega</div><div class="value"><strong>${d.fechaEntregaCompromiso || 'No definida'}</strong></div></div>
+            <div class="detail-item"><div class="label">Cliente</div><div class="value"><strong>${d.clienteNombre || 'N/A'}</strong> ${d.clienteTelefono ? `&bull; 📞 ${d.clienteTelefono}` : ''}</div></div>
+            <div class="detail-item"><div class="label">Dirección de Entrega</div><div class="value">${d.direccionEntrega || d.clienteDireccion || 'No especificada'}</div></div>
+            ${d.notas ? `<div class="detail-item" style="grid-column:1/-1;"><div class="label">Observaciones / Notas</div><div class="value">${d.notas}</div></div>` : ''}
+            ${d.estado === 'entregado' ? `
+                <div class="detail-item" style="grid-column:1/-1; background:#e8f5e9; border:1px solid #c8e6c9;">
+                    <div class="label" style="color:#2e7d32;">Datos de Entrega Registrada</div>
+                    <div class="value" style="color:#1b5e20;">
+                        Pago: <strong>${d.metodoPagoFinal || 'N/A'}</strong> &bull; Estado: <strong>${(d.estadoPagoFinal||'pagado').toUpperCase()}</strong> 
+                        ${d.ventaId ? `&bull; <button type="button" class="btn btn-xs btn-primary" onclick="cerrarModal('modal-ver-pedido'); verVentaDetalle('${d.ventaId}')">🧾 Ver Venta #</button>` : ''}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+        <h4 style="color:var(--primary); margin:1rem 0 0.5rem;">📦 Productos del Pedido</h4>
+        ${itemsHTML}
+        <div style="display:flex; justify-content:flex-end; margin-top:1rem; padding:12px; background:#f5f5f0; border-radius:8px;">
+            <span style="font-size:1.25rem; font-weight:bold; color:var(--primary);">TOTAL: Q ${(d.total||0).toFixed(2)}</span>
+        </div>
+    `;
+
+    document.getElementById('modal-ver-pedido-contenido').innerHTML = contenido;
+    document.getElementById('modal-ver-pedido').style.display = 'flex';
+};
+
+window.cancelarPedido = async (pedidoId) => {
+    const p = todosLosPedidos.find(item => item.id === pedidoId);
+    if (!p) return;
+    if (!confirm(`⚠️ ¿Deseas cancelar el pedido ${p.data.folio || ''} de ${p.data.clienteNombre || 'Cliente'}?\n\nEl pedido se marcará como cancelado.`)) return;
+
+    try {
+        await updateDoc(doc(db, "pedidos", pedidoId), {
+            estado: 'cancelado',
+            fechaCancelacion: serverTimestamp()
+        });
+        alert("✅ Pedido cancelado.");
+        await cargarPedidos();
+    } catch (e) {
+        alert("❌ Error: " + e.message);
+    }
+};
+
+window.editarPedido = (pedidoId) => {
+    const p = todosLosPedidos.find(item => item.id === pedidoId);
+    if (!p) return alert("Pedido no encontrado.");
+    pedidoActualEditando = p;
+    const d = p.data;
+
+    document.getElementById('ep-id').value = pedidoId;
+    document.getElementById('ep-cliente-nombre').value = d.clienteNombre || 'Cliente';
+    document.getElementById('ep-fecha-entrega').value = d.fechaEntregaCompromiso || '';
+    document.getElementById('ep-direccion').value = d.direccionEntrega || d.clienteDireccion || '';
+    document.getElementById('ep-notas').value = d.notas || '';
+
+    document.getElementById('modal-editar-pedido-titulo').innerText = `✏️ Editando ${d.folio || 'Pedido'}`;
+    document.getElementById('modal-editar-pedido').style.display = 'flex';
+};
+
+window.guardarEdicionPedido = async () => {
+    if (!pedidoActualEditando) return;
+    const id = document.getElementById('ep-id').value;
+    const fecha = document.getElementById('ep-fecha-entrega').value;
+    const dir = document.getElementById('ep-direccion').value.trim();
+    const notas = document.getElementById('ep-notas').value.trim();
+
+    try {
+        await updateDoc(doc(db, "pedidos", id), {
+            fechaEntregaCompromiso: fecha,
+            direccionEntrega: dir,
+            notas: notas,
+            fechaActualizacion: serverTimestamp()
+        });
+        alert("✅ Pedido actualizado.");
+        window.cerrarModal('modal-editar-pedido');
+        pedidoActualEditando = null;
+        await cargarPedidos();
+    } catch (e) {
+        alert("❌ Error: " + e.message);
+    }
+};
+
+window.irASeccionPedidos = () => {
+    const itemMenuPedidos = document.querySelectorAll('.menu-item')[1];
+    window.showSection('pedidos', itemMenuPedidos);
+};
+
+window.filtrarPedidos = (filtro, btn) => {
+    filtroPedidosActual = filtro;
+    document.querySelectorAll('#pedidos-filters .filter-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderTablaPedidos();
+};
+
+window.filtrarListaPedidos = () => {
+    busquedaPedidoTerm = (document.getElementById('buscar-pedido-input')?.value || '').trim().toLowerCase();
+    renderTablaPedidos();
+};
+
+function actualizarKPIsPedidos() {
+    let countPend = 0;
+    let montoPend = 0;
+    let countEntregados = 0;
+    const clientesSet = new Set();
+
+    todosLosPedidos.forEach(p => {
+        const d = p.data;
+        const total = d.total !== undefined ? Number(d.total) : 0;
+        if (d.estado === 'pendiente_entrega') {
+            countPend++;
+            montoPend += total;
+            if (d.clienteId) clientesSet.add(d.clienteId);
+            else if (d.clienteNombre) clientesSet.add(d.clienteNombre.toLowerCase());
+        } else if (d.estado === 'entregado') {
+            countEntregados++;
+        }
+    });
+
+    const kpiCountEl = document.getElementById('kpi-pedidos-pendientes-count');
+    if (kpiCountEl) kpiCountEl.innerText = countPend;
+
+    const kpiMontoEl = document.getElementById('kpi-pedidos-pendientes-monto');
+    if (kpiMontoEl) kpiMontoEl.innerText = "Q " + montoPend.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const kpiEntrEl = document.getElementById('kpi-pedidos-entregados-count');
+    if (kpiEntrEl) kpiEntrEl.innerText = countEntregados;
+
+    const kpiCliEl = document.getElementById('kpi-pedidos-clientes-espera');
+    if (kpiCliEl) kpiCliEl.innerText = clientesSet.size;
+
+    // En Dashboard
+    const dashPedEl = document.getElementById('dash-pedidos-pendientes');
+    if (dashPedEl) dashPedEl.innerText = countPend;
+    const dashPedSub = document.getElementById('dash-pedidos-pendientes-sub');
+    if (dashPedSub) dashPedSub.innerText = `Q ${montoPend.toLocaleString('es-GT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por entregar`;
+}
+
+function actualizarBannerPedidosVentas() {
+    const banner = document.getElementById('banner-pedidos-pendientes-ventas');
+    if (!banner) return;
+    const pendientes = todosLosPedidos.filter(p => p.data.estado === 'pendiente_entrega');
+    if (pendientes.length === 0) {
+        banner.style.display = 'none';
+    } else {
+        const totalQ = pendientes.reduce((acc, p) => acc + (p.data.total || 0), 0);
+        banner.style.display = 'flex';
+        const tit = document.getElementById('banner-pedidos-titulo');
+        if (tit) tit.innerText = `🚚 Tienes ${pendientes.length} pedido(s) pendiente(s) de entrega por Q ${totalQ.toFixed(2)}`;
+    }
+}
+
+function renderTablaPedidos() {
+    const tbody = document.querySelector('#tabla-pedidos tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const hoyStr = new Date().toISOString().split('T')[0];
+
+    let lista = todosLosPedidos;
+    if (filtroPedidosActual === 'pendientes') {
+        lista = lista.filter(p => p.data.estado === 'pendiente_entrega');
+    } else if (filtroPedidosActual === 'entregados') {
+        lista = lista.filter(p => p.data.estado === 'entregado');
+    }
+
+    if (busquedaPedidoTerm) {
+        lista = lista.filter(p => {
+            const d = p.data;
+            const folio = (d.folio || '').toLowerCase();
+            const cliente = (d.clienteNombre || '').toLowerCase();
+            const tel = (d.clienteTelefono || '').toLowerCase();
+            const dir = (d.direccionEntrega || d.clienteDireccion || '').toLowerCase();
+            const prods = (d.items || []).map(it => it.nombre).join(' ').toLowerCase();
+            return folio.includes(busquedaPedidoTerm) || cliente.includes(busquedaPedidoTerm) || tel.includes(busquedaPedidoTerm) || dir.includes(busquedaPedidoTerm) || prods.includes(busquedaPedidoTerm);
+        });
+    }
+
+    if (lista.length === 0) {
+        const txt = filtroPedidosActual === 'pendientes' 
+            ? 'No tienes pedidos pendientes de entrega.' 
+            : (filtroPedidosActual === 'entregados' ? 'No hay pedidos entregados en este filtro.' : 'No se encontraron pedidos.');
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:#888;">${txt}</td></tr>`;
+        return;
+    }
+
+    lista.forEach(p => {
+        const d = p.data;
+        const docId = p.id;
+
+        const fPed = d.fechaCreacion ? (d.fechaCreacion.seconds ? new Date(d.fechaCreacion.seconds * 1000).toLocaleDateString('es-GT') : 'N/A') : 'N/A';
+        const fCompromiso = d.fechaEntregaCompromiso || 'N/A';
+
+        let urgenciaBadge = '';
+        if (d.estado === 'entregado') {
+            urgenciaBadge = `<span class="urgencia-badge urgencia-completada">✅ Entregado</span>`;
+        } else if (d.estado === 'cancelado') {
+            urgenciaBadge = `<span class="urgencia-badge" style="background:#eee; color:#666;">Cancelado</span>`;
+        } else if (fCompromiso !== 'N/A') {
+            if (fCompromiso < hoyStr) {
+                urgenciaBadge = `<span class="urgencia-badge urgencia-atrasada">🔴 Atrasado (${fCompromiso})</span>`;
+            } else if (fCompromiso === hoyStr) {
+                urgenciaBadge = `<span class="urgencia-badge urgencia-hoy">🟠 Entrega HOY</span>`;
+            } else {
+                urgenciaBadge = `<span class="urgencia-badge urgencia-normal">🟢 Próximo (${fCompromiso})</span>`;
+            }
+        }
+
+        let clienteHTML = `<strong>${d.clienteNombre || 'Cliente Particular'}</strong>`;
+        if (d.clienteTelefono) {
+            const cleanTel = d.clienteTelefono.replace(/\D/g, '');
+            clienteHTML += `<br><a href="https://wa.me/502${cleanTel}" target="_blank" style="color:var(--primary); font-size:0.8rem; text-decoration:underline;">📱 ${d.clienteTelefono} (WhatsApp)</a>`;
+        }
+        if (d.clienteId) {
+            clienteHTML += `<br><button type="button" class="btn btn-xs btn-primary" onclick="window.verHistorialCliente('${d.clienteId}')" style="margin-top:2px; padding:1px 6px; font-size:0.72rem; min-height:20px;">📜 Ficha</button>`;
+        }
+
+        let prodsHTML = '';
+        if (d.items && d.items.length > 0) {
+            if (d.items.length === 1) {
+                const it = d.items[0];
+                prodsHTML = `<strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `(${it.presentacion})` : ''} &bull; ${it.cantidad} ${it.unidad}`;
+            } else {
+                prodsHTML = `
+                    <div style="font-size:0.85rem;">
+                        <span class="badge-multi-items" style="background:#fff8e1; color:#b78103; border-color:#ffe082;">📦 ${d.items.length} productos</span>
+                        <div style="color:#555; margin-top:2px;">${d.items.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(', ').substring(0, 50)}...</div>
+                    </div>
+                `;
+            }
+        } else {
+            prodsHTML = '<span style="color:#999;">Sin ítems</span>';
+        }
+
+        let estadoBadge = '';
+        if (d.estado === 'pendiente_entrega') {
+            estadoBadge = `<span class="pedido-badge pedido-pendiente">🟡 PENDIENTE</span>`;
+        } else if (d.estado === 'entregado') {
+            const pagoTxt = d.metodoPagoFinal ? ` (${d.metodoPagoFinal})` : '';
+            estadoBadge = `<span class="pedido-badge pedido-entregado">🟢 ENTREGADO</span><br><small style="color:#2e7d32; font-weight:bold;">${(d.estadoPagoFinal||'pagado').toUpperCase()}${pagoTxt}</small>`;
+        } else {
+            estadoBadge = `<span class="pedido-badge pedido-cancelado">⚪ CANCELADO</span>`;
+        }
+
+        const totalQ = d.total !== undefined ? Number(d.total) : 0;
+        const dir = d.direccionEntrega || d.clienteDireccion || '<span style="color:#aaa;">No indicada</span>';
+
+        let accionesHTML = '';
+        if (d.estado === 'pendiente_entrega') {
+            accionesHTML = `
+                <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap;">
+                    <button class="btn btn-xs btn-success" title="Entregar y Registrar Venta" onclick="abrirModalEntregarPedido('${docId}')" style="font-weight:bold; padding:4px 8px; font-size:0.8rem;">
+                        🚚 Entregar
+                    </button>
+                    <button class="btn btn-xs btn-view" title="Ver Detalle" onclick="verPedidoDetalle('${docId}')">👁️</button>
+                    <button class="btn btn-xs btn-pdf" title="Descargar Hoja de Pedido PDF" onclick="generarPDFHojaPedido('${docId}')">📄</button>
+                    <button class="btn btn-xs btn-edit" title="Editar Pedido" onclick="editarPedido('${docId}')">✏️</button>
+                    <button class="btn btn-xs btn-danger" title="Cancelar Pedido" onclick="cancelarPedido('${docId}')">❌</button>
+                </div>
+            `;
+        } else {
+            accionesHTML = `
+                <div style="display:flex; gap:4px; justify-content:center; flex-wrap:wrap;">
+                    <button class="btn btn-xs btn-view" title="Ver Detalle" onclick="verPedidoDetalle('${docId}')">👁️ Ver</button>
+                    <button class="btn btn-xs btn-pdf" title="Descargar Hoja de Pedido PDF" onclick="generarPDFHojaPedido('${docId}')">📄 PDF</button>
+                </div>
+            `;
+        }
+
+        tbody.innerHTML += `
+            <tr>
+                <td style="font-weight:bold; color:var(--primary); font-family:monospace; font-size:0.9rem;">${d.folio || 'PED'}</td>
+                <td>
+                    <div style="font-size:0.85rem; color:#666;">Ped: ${fPed}</div>
+                    <div>${urgenciaBadge}</div>
+                </td>
+                <td style="max-width:200px;">${clienteHTML}</td>
+                <td style="font-size:0.85rem; color:#444; max-width:180px;">${dir}</td>
+                <td style="max-width:220px;">${prodsHTML}</td>
+                <td style="text-align:right; font-weight:bold; color:var(--primary); font-size:0.95rem;">Q ${totalQ.toFixed(2)}</td>
+                <td>${estadoBadge}</td>
+                <td style="text-align:center;">${accionesHTML}</td>
+            </tr>
+        `;
+    });
+}
+
+window.generarPDFHojaPedidoActual = () => {
+    if (!pedidoActualEnModal) return alert("No hay pedido seleccionado.");
+    window.generarPDFHojaPedido(pedidoActualEnModal.id);
+};
+
+window.generarPDFHojaPedido = (pedidoId) => {
+    const p = todosLosPedidos.find(item => item.id === pedidoId);
+    if (!p) return alert("Pedido no encontrado.");
+    const d = p.data;
+
+    const jsPDFClass = getJsPDF();
+    if (!jsPDFClass) return alert("Librería jsPDF no disponible.");
+    const doc = new jsPDFClass({ orientation: "portrait", unit: "mm", format: "letter" });
+
+    // Encabezado
+    doc.setFillColor(44, 94, 46);
+    doc.rect(0, 0, 216, 26, 'F');
+    doc.setTextColor(212, 175, 55);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("FINCA LOS ROBLES", 14, 12);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("HOJA DE PEDIDO Y COMPROBANTE DE ENTREGA", 14, 19);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`FOLIO: ${d.folio || 'PED'}`, 160, 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    const fechaCreacionTxt = d.fechaCreacion ? (d.fechaCreacion.seconds ? new Date(d.fechaCreacion.seconds * 1000).toLocaleDateString('es-GT') : 'N/A') : 'N/A';
+    doc.text(`Fecha Pedido: ${fechaCreacionTxt}`, 160, 19);
+
+    let y = 34;
+
+    // Caja de Información de Cliente y Entrega
+    doc.setFillColor(245, 245, 240);
+    doc.roundedRect(14, y, 188, 38, 3, 3, 'F');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(44, 94, 46);
+    doc.text("DATOS DEL CLIENTE Y PUNTO DE ENTREGA", 18, y + 7);
+
+    doc.setFontSize(9);
+    doc.setTextColor(40, 40, 40);
+    doc.setFont("helvetica", "bold");
+    doc.text("Cliente:", 18, y + 14);
+    doc.setFont("helvetica", "normal");
+    doc.text((d.clienteNombre || 'Cliente Particular').toUpperCase(), 40, y + 14);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Teléfono:", 18, y + 20);
+    doc.setFont("helvetica", "normal");
+    doc.text(d.clienteTelefono || 'No indicado', 40, y + 20);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Dirección:", 18, y + 26);
+    doc.setFont("helvetica", "normal");
+    doc.text(d.direccionEntrega || d.clienteDireccion || 'Entrega en Finca / Mostrador', 40, y + 26);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Compromiso de Entrega:", 120, y + 14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(183, 129, 3);
+    doc.text(d.fechaEntregaCompromiso || 'Inmediata', 165, y + 14);
+    doc.setTextColor(40, 40, 40);
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Estado:", 120, y + 20);
+    doc.setFont("helvetica", "normal");
+    doc.text(d.estado === 'entregado' ? '🟢 ENTREGADO' : '🟡 PENDIENTE DE ENTREGA', 135, y + 20);
+
+    if (d.notas) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Notas:", 18, y + 32);
+        doc.setFont("helvetica", "normal");
+        const notasSpl = doc.splitTextToSize(d.notas, 140);
+        doc.text(notasSpl, 40, y + 32);
+    }
+
+    y += 46;
+
+    // Tabla de Productos Solicitados
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(44, 94, 46);
+    doc.text("PRODUCTOS SOLICITADOS EN EL PEDIDO", 14, y);
+    y += 4;
+
+    doc.setFillColor(44, 94, 46);
+    doc.rect(14, y, 188, 7, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text("[ ✓ ]", 17, y + 5);
+    doc.text("PRODUCTO Y PRESENTACIÓN", 30, y + 5);
+    doc.text("CANTIDAD", 120, y + 5);
+    doc.text("PRECIO UNIT.", 145, y + 5);
+    doc.text("SUBTOTAL (Q)", 175, y + 5);
+
+    y += 7;
+
+    const items = d.items || [];
+    let granTotal = 0;
+
+    items.forEach((it, idx) => {
+        const sub = it.subtotal || (it.cantidad * it.precio);
+        granTotal += sub;
+
+        if (idx % 2 === 1) {
+            doc.setFillColor(248, 250, 248);
+            doc.rect(14, y, 188, 7, 'F');
+        }
+
+        doc.rect(18, y + 1.5, 4, 4);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 30, 30);
+        doc.setFontSize(8.5);
+        doc.text(it.nombre + (it.presentacion !== 'N/A' ? ` (${it.presentacion})` : ''), 30, y + 5);
+
+        doc.setFont("helvetica", "normal");
+        doc.text(`${it.cantidad} ${it.unidad}`, 120, y + 5);
+        doc.text(`Q ${(it.precio || 0).toFixed(2)}`, 145, y + 5);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Q ${sub.toFixed(2)}`, 175, y + 5);
+
+        y += 7;
+    });
+
+    // Total Bar
+    y += 2;
+    doc.setFillColor(240, 245, 240);
+    doc.rect(14, y, 188, 10, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(44, 94, 46);
+    doc.text("TOTAL DEL PEDIDO A COBRAR:", 80, y + 7);
+    doc.setFontSize(12);
+    doc.text(`Q ${granTotal.toFixed(2)}`, 165, y + 7);
+
+    y += 18;
+
+    // Sección de Liquidación y Entrega
+    doc.setFillColor(250, 250, 248);
+    doc.roundedRect(14, y, 188, 48, 2, 2, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.roundedRect(14, y, 188, 48, 2, 2, 'D');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(44, 94, 46);
+    doc.text("CONSTANCIA DE ENTREGA Y LIQUIDACIÓN", 18, y + 7);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(60, 60, 60);
+    doc.text("Fecha y Hora de Entrega Efectiva:  ____________________________________", 18, y + 14);
+    doc.text("Forma de Pago Recibida:   [  ] Efectivo     [  ] Transferencia     [  ] Tarjeta     [  ] Crédito (Pendiente)", 18, y + 21);
+
+    // Firmas
+    doc.line(25, y + 40, 95, y + 40);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.text("Entregado por (Finca Los Robles)", 35, y + 44);
+
+    doc.line(115, y + 40, 185, y + 40);
+    doc.text("Recibido Conforme (Firma y Nombre Cliente)", 120, y + 44);
+
+    // Pie de página
+    doc.setFontSize(8);
+    doc.setTextColor(110, 110, 110);
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.11", 108, 270, { align: "center" });
+
+    doc.save(`${d.folio || 'Pedido'}_${(d.clienteNombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
+    alert(`✅ Hoja de Pedido PDF (${d.folio || ''}) descargada.`);
+};
+
+// =========================================================================
+// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.11) ---
 // =========================================================================
 
 function obtenerComprasDeCliente(clienteId, clienteNombre) {
@@ -3081,9 +4218,12 @@ window.cargarClientes = async () => {
 function actualizarSelectClientesVenta(selectedId = null) {
     const selVenta = document.getElementById('venta-cliente-id');
     const selEdit = document.getElementById('ev-cliente-id');
+    const selPed = document.getElementById('ped-cliente-id');
 
-    const generarOpciones = (actualSel) => {
-        let opts = `<option value="">-- Seleccionar Cliente Registrado (Opcional) --</option>`;
+    const generarOpciones = (actualSel, esObligatorio = false) => {
+        let opts = esObligatorio 
+            ? `<option value="">-- Seleccionar Cliente Registrado --</option>` 
+            : `<option value="">-- Seleccionar Cliente Registrado (Opcional) --</option>`;
         todosLosClientes.forEach(c => {
             const nom = c.data.nombre || 'Sin Nombre';
             const tel = c.data.telefono ? ` (${c.data.telefono})` : '';
@@ -3096,7 +4236,7 @@ function actualizarSelectClientesVenta(selectedId = null) {
 
     if (selVenta) {
         const valActual = selectedId !== null ? selectedId : selVenta.value;
-        selVenta.innerHTML = generarOpciones(valActual);
+        selVenta.innerHTML = generarOpciones(valActual, false);
         if (selectedId !== null) {
             selVenta.value = selectedId;
             window.onClienteSeleccionadoVenta();
@@ -3104,7 +4244,16 @@ function actualizarSelectClientesVenta(selectedId = null) {
     }
 
     if (selEdit) {
-        selEdit.innerHTML = generarOpciones(selEdit.value);
+        selEdit.innerHTML = generarOpciones(selEdit.value, false);
+    }
+
+    if (selPed) {
+        const valActualPed = selectedId !== null ? selectedId : selPed.value;
+        selPed.innerHTML = generarOpciones(valActualPed, true);
+        if (selectedId !== null) {
+            selPed.value = selectedId;
+            if (typeof window.onClienteSeleccionadoPedido === 'function') window.onClienteSeleccionadoPedido();
+        }
     }
 }
 
@@ -3577,6 +4726,33 @@ window.verHistorialCliente = (cid) => {
             </div>
         </div>
 
+        ${(() => {
+            const pedidosCli = todosLosPedidos.filter(p => p.data.clienteId === cid || (p.data.clienteNombre && p.data.clienteNombre.trim().toLowerCase() === d.nombre.trim().toLowerCase()));
+            const pedidosPendientesCli = pedidosCli.filter(p => p.data.estado === 'pendiente_entrega');
+            if (pedidosPendientesCli.length === 0) return '';
+            return `
+                <div style="background:#fff8e1; border:1px solid #ffe082; border-left:4px solid #b78103; border-radius:8px; padding:10px 14px; margin-bottom:1.25rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                        <strong style="color:#b78103; font-size:0.95rem;">🚚 ${pedidosPendientesCli.length} Pedido(s) Pendiente(s) de Entrega para este Cliente:</strong>
+                        <button type="button" class="btn btn-xs btn-primary" onclick="cerrarModal('modal-historial-cliente'); window.irASeccionPedidos();" style="width:auto; padding:4px 10px;">
+                            Ver en Pedidos
+                        </button>
+                    </div>
+                    <div style="margin-top:6px; font-size:0.85rem; color:#444;">
+                        ${pedidosPendientesCli.map(p => `
+                            <div style="display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed #eed; flex-wrap:wrap; gap:6px;">
+                                <span><strong>${p.data.folio || 'PED'}</strong>: ${p.data.items ? p.data.items.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(', ') : 'Productos'} &bull; Entrega: <strong>${p.data.fechaEntregaCompromiso || 'N/A'}</strong></span>
+                                <span style="display:flex; gap:6px; align-items:center;">
+                                    <strong style="color:var(--primary);">Q ${(p.data.total||0).toFixed(2)}</strong>
+                                    <button type="button" class="btn btn-xs btn-success" onclick="cerrarModal('modal-historial-cliente'); abrirModalEntregarPedido('${p.id}');" style="padding:2px 8px; font-weight:bold;">🚚 Entregar</button>
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        })()}
+
         <h4 style="color:var(--secondary); margin:1rem 0 0.5rem; font-size:0.95rem;">📦 Hábitos de Consumo / Productos Adquiridos</h4>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1.25rem;">
             ${productosTopHTML}
@@ -3798,7 +4974,7 @@ window.generarPDFHistorialCliente = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.10", 108, 270, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.11", 108, 270, { align: "center" });
 
     doc.save(`Historial_${(d.nombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`);
     alert("✅ Estado de Cuenta / Historial de Cliente descargado en PDF.");
