@@ -587,10 +587,14 @@
                         </div>
                         <div class="form-group" id="ped-prod-presentacion-group">
                             <label>Presentación Café</label>
-                            <select id="ped-prod-presentacion">
+                            <select id="ped-prod-presentacion" onchange="cargarLotesDisponiblesPedido()">
                                 <option value="Entero">Grano Entero</option>
                                 <option value="Molido">Molido</option>
                             </select>
+                        </div>
+                        <div class="form-group" id="ped-prod-lote-group" style="display:flex;">
+                            <label>Lote de Tostado en Inventario *</label>
+                            <select id="ped-prod-lote"></select>
                         </div>
                         <div class="form-group">
                             <label>Cantidad Solicitada (<span id="ped-prod-unidad-lbl">libra</span>)</label>
@@ -615,6 +619,7 @@
                                     <th>#</th>
                                     <th>Producto</th>
                                     <th>Presentación</th>
+                                    <th>Lote Asignado</th>
                                     <th style="text-align:center;">Cantidad</th>
                                     <th style="text-align:right;">P. Unitario</th>
                                     <th style="text-align:right;">Subtotal</th>
@@ -623,7 +628,7 @@
                             </thead>
                             <tbody id="carrito-pedidos-body">
                                 <tr>
-                                    <td colspan="7" style="text-align:center; padding:1.25rem; color:#888;">
+                                    <td colspan="8" style="text-align:center; padding:1.25rem; color:#888;">
                                         🛒 No has agregado productos a este pedido. Selecciona arriba y haz clic en <strong>"➕ Agregar al Pedido"</strong>.
                                     </td>
                                 </tr>
@@ -1329,13 +1334,21 @@
 </div>
 
 <div class="modal-overlay" id="modal-editar-venta">
-    <div class="modal-content-large">
-        <h3>✏️ Editar Venta</h3>
+    <div class="modal-content-large" style="max-width:860px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
+            <h3 style="margin:0; color:var(--primary);" id="ev-modal-titulo">✏️ Editar Venta</h3>
+            <span id="ev-badge-tipo-venta" style="font-size:0.8rem; background:#e8f5e9; color:#2e7d32; padding:3px 10px; border-radius:12px; font-weight:bold;"></span>
+        </div>
+        <div class="info-box" style="margin-top:0; font-size:0.85rem; background:#f0f9ff; border-left-color:#0284c7; color:#0369a1;">
+            <strong>📦 Control Inteligente de Inventario y Lotes:</strong> Puedes modificar las cantidades, precios y seleccionar el <strong>Lote de Tostado</strong> exacto del cual se descontará el café en inventario. Al guardar, el sistema restaurará automáticamente el stock del lote previo y descontará del nuevo lote asignado.
+        </div>
+        
+        <!-- DATOS GENERALES -->
         <div class="form-grid">
-            <div class="form-group"><label>Producto</label><input type="text" id="ev-tipo" readonly style="background:#e9ecef;"></div>
-            <div class="form-group"><label>Lote</label><input type="text" id="ev-lote" readonly style="background:#e9ecef;"></div>
-            <div class="form-group"><label>Cantidad</label><input type="number" id="ev-cantidad" class="yellow-input" step="0.01"></div>
-            <div class="form-group"><label>Precio Unitario (Q)</label><input type="number" id="ev-precio" class="yellow-input" step="0.01"></div>
+            <div class="form-group">
+                <label>📅 Fecha de la Venta</label>
+                <input type="date" id="ev-fecha-venta" class="yellow-input">
+            </div>
             <div class="form-group">
                 <label>Método de Pago</label>
                 <select id="ev-pago" onchange="sincronizarEstadoPagoEditar()">
@@ -1352,15 +1365,35 @@
                     <option value="pendiente">🔴 Pendiente</option>
                 </select>
             </div>
-            <div class="form-group" style="grid-column: 1 / -1;">
+            <div class="form-group">
                 <label>👥 Cliente Asociado</label>
                 <select id="ev-cliente-id"></select>
             </div>
-            <div class="form-group" style="grid-column: 1 / -1;"><label>📋 Notas / Observaciones</label><input type="text" id="ev-notas" class="yellow-input"></div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>📋 Notas / Observaciones</label>
+                <input type="text" id="ev-notas" class="yellow-input" placeholder="Detalles de entrega, factura, etc.">
+            </div>
         </div>
-        <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
-            <button class="btn btn-success" style="flex:1; min-width:150px;" onclick="guardarEdicionVenta()">💾 Guardar Cambios</button>
-            <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-editar-venta')">Cancelar</button>
+
+        <!-- ITEMS Y LOTES DE TOSTADO DE LA VENTA -->
+        <div style="margin-top:1rem; background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:1rem;">
+            <h4 style="color:var(--primary); margin:0 0 0.75rem 0;">📦 Productos y Lotes Asignados a la Venta</h4>
+            <div id="ev-items-container">
+                <!-- Se inyecta dinámicamente con selector de lote y controles por producto -->
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; padding:10px 14px; background:#f5f5f0; border-radius:6px; flex-wrap:wrap; gap:8px;">
+                <span style="font-weight:bold; font-size:0.95rem; color:#555;">TOTAL DE LA VENTA ACTUALIZADO:</span>
+                <span id="ev-total-display" style="font-size:1.3rem; font-weight:bold; color:var(--primary);">Q 0.00</span>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-success" id="btn-guardar-edicion-venta" style="flex:2; min-width:200px; font-weight:bold; font-size:1.02rem;" onclick="guardarEdicionVenta()">
+                💾 Guardar Cambios y Actualizar Inventario
+            </button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-editar-venta')">
+                Cancelar
+            </button>
         </div>
     </div>
 </div>
@@ -1633,7 +1666,7 @@
 
 <!-- MODAL: EDITAR PEDIDO PENDIENTE -->
 <div class="modal-overlay" id="modal-editar-pedido">
-    <div class="modal-content-large" style="max-width:600px;">
+    <div class="modal-content-large" style="max-width:750px;">
         <h3 style="color:#b78103;" id="modal-editar-pedido-titulo">✏️ Editar Pedido Pendiente</h3>
         <input type="hidden" id="ep-id">
         <div class="form-grid">
@@ -1654,6 +1687,17 @@
                 <input type="text" id="ep-notas" class="yellow-input">
             </div>
         </div>
+
+        <!-- ITEMS Y LOTES DEL PEDIDO -->
+        <div style="margin-top:1rem; background:#ffffff; border:1px solid #e0e0e0; border-radius:8px; padding:1rem;">
+            <h4 style="color:#b78103; margin:0 0 0.75rem 0;">📦 Productos y Lotes Asignados al Pedido</h4>
+            <div id="ep-items-container"></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; padding:8px 12px; background:#fff8e1; border-radius:6px;">
+                <span style="font-weight:bold; font-size:0.9rem; color:#b78103;">Total del Pedido:</span>
+                <span id="ep-total-display" style="font-size:1.2rem; font-weight:bold; color:#b78103;">Q 0.00</span>
+            </div>
+        </div>
+
         <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
             <button class="btn btn-success" style="flex:2; min-width:180px;" onclick="guardarEdicionPedido()">💾 Guardar Cambios</button>
             <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-editar-pedido')">Cancelar</button>
@@ -1661,7 +1705,7 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.11</div>
+<div class="version-tag">v2026.09.12</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
