@@ -399,6 +399,28 @@ window.eliminarProductoLista = (key) => {
     }
 };
 
+async function obtenerLotesTostado(presentacion = null) {
+    try {
+        let q;
+        if (presentacion && presentacion !== 'N/A') {
+            q = query(collection(db, "inventario"), where("estado", "==", "Tostado"), where("presentacion", "==", presentacion));
+        } else {
+            q = query(collection(db, "inventario"), where("estado", "==", "Tostado"));
+        }
+        const snap = await getDocs(q);
+        const lotes = [];
+        snap.forEach(d => {
+            lotes.push({ id: d.id, ...d.data() });
+        });
+        lotes.sort((a, b) => (b.fechaTostado || '').localeCompare(a.fechaTostado || ''));
+        return lotes;
+    } catch (e) {
+        console.error("Error al obtener lotes de tostado:", e);
+        return [];
+    }
+}
+window.obtenerLotesTostado = obtenerLotesTostado;
+
 window.onVentaTipoChange = async () => {
     const tipo = document.getElementById('venta-tipo').value;
     const isTostado = tipo === 'Tostado';
@@ -411,27 +433,53 @@ window.onVentaTipoChange = async () => {
 window.cargarLotesDisponibles = async () => {
     const presentacion = document.getElementById('venta-presentacion').value;
     const select = document.getElementById('venta-lote');
-    select.innerHTML = '<option value="">Cargando...</option>';
+    if (!select) return;
+    select.innerHTML = '<option value="">Cargando lotes disponibles...</option>';
     try {
-        const snap = await getDocs(query(collection(db, "inventario"), where("estado", "==", "Tostado"), where("presentacion", "==", presentacion)));
+        const lotes = await obtenerLotesTostado(presentacion);
         select.innerHTML = '';
-        const lotes = [];
-        snap.forEach(d => {
-            const inv = d.data();
-            if (inv.cantidad > 0) lotes.push({ id: d.id, ...inv });
-        });
-        lotes.sort((a, b) => (a.fechaTostado || '').localeCompare(b.fechaTostado || ''));
-        if (lotes.length === 0) {
-            select.innerHTML = '<option value="">⚠️ No hay lotes disponibles</option>';
+        const lotesConStock = lotes.filter(l => (l.cantidad || 0) > 0);
+        if (lotesConStock.length === 0) {
+            select.innerHTML = '<option value="">⚠️ No hay stock disponible en esta presentación</option>';
             return;
         }
-        lotes.forEach(l => {
+        lotesConStock.forEach(l => {
             const opt = document.createElement('option');
             opt.value = l.id;
             opt.dataset.cantidad = l.cantidad;
-            opt.textContent = `📅 ${l.fechaTostado || 'S/F'} | ${l.variedad || 'N/A'} | ${l.proceso || 'N/A'} | ${l.cantidad.toFixed(1)} lb`;
+            opt.textContent = `📅 ${l.fechaTostado || 'S/F'} | ${l.variedad || 'N/A'} | ${l.proceso || 'N/A'} | ${Number(l.cantidad).toFixed(1)} lb`;
             select.appendChild(opt);
         });
+    } catch (e) {
+        select.innerHTML = '<option value="">Error cargando lotes</option>';
+    }
+};
+
+window.cargarLotesDisponiblesPedido = async () => {
+    const presEl = document.getElementById('ped-prod-presentacion');
+    const select = document.getElementById('ped-prod-lote');
+    if (!select) return;
+    const presentacion = presEl ? presEl.value : 'Entero';
+    select.innerHTML = '<option value="">Cargando lotes disponibles...</option>';
+    try {
+        const lotes = await obtenerLotesTostado(presentacion);
+        select.innerHTML = '';
+        const lotesConStock = lotes.filter(l => (l.cantidad || 0) > 0);
+        if (lotesConStock.length === 0) {
+            select.innerHTML = '<option value="">⚠️ Sin stock en inventario (Se planificará tueste para pedido)</option>';
+            return;
+        }
+        lotesConStock.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.id;
+            opt.dataset.cantidad = l.cantidad;
+            opt.textContent = `📅 ${l.fechaTostado || 'S/F'} | ${l.variedad || 'N/A'} - ${l.proceso || 'N/A'} | Disp: ${Number(l.cantidad).toFixed(1)} lb`;
+            select.appendChild(opt);
+        });
+        const optSin = document.createElement('option');
+        optSin.value = "";
+        optSin.textContent = "⏳ Sin lote asignado por ahora (asignar al entregar)";
+        select.appendChild(optSin);
     } catch (e) {
         select.innerHTML = '<option value="">Error cargando lotes</option>';
     }
@@ -831,27 +879,177 @@ window.editarVenta = async (docId) => {
         const snap = await getDoc(doc(db, "ventas", docId));
         if (!snap.exists()) return alert("Venta no encontrada.");
         const v = snap.data();
-        ventaActualEditando = { id: docId, data: v };
         
-        const nombreProd = preciosListaActual[v.tipo] ? preciosListaActual[v.tipo].nombre : v.tipo;
-        document.getElementById('ev-tipo').value = nombreProd;
-        document.getElementById('ev-lote').value = v.loteInfo || 'N/A';
-        document.getElementById('ev-cantidad').value = v.cantidad;
-        document.getElementById('ev-precio').value = v.precio;
+        let fechaStr = '';
+        if (v.fechaVentaPersonalizada) {
+            fechaStr = v.fechaVentaPersonalizada;
+        } else if (v.fecha && v.fecha.seconds) {
+            fechaStr = new Date(v.fecha.seconds * 1000).toISOString().split('T')[0];
+        } else {
+            fechaStr = new Date().toISOString().split('T')[0];
+        }
+        document.getElementById('ev-fecha-venta').value = fechaStr;
         document.getElementById('ev-pago').value = v.pago || 'Efectivo';
-        
+
         // Estado de pago solo puede ser 'pagado' o 'pendiente'
         let estadoNormalizado = v.estadoPago || derivarEstadoPagoDeMetodo(v.pago);
         if (estadoNormalizado !== 'pendiente') estadoNormalizado = 'pagado';
         document.getElementById('ev-estado-pago').value = estadoNormalizado;
-        
+
         const evCli = document.getElementById('ev-cliente-id');
         if (evCli) evCli.value = v.clienteId || '';
 
         document.getElementById('ev-notas').value = v.notas || '';
-        
+
+        const badgeTipo = document.getElementById('ev-badge-tipo-venta');
+        if (badgeTipo) {
+            badgeTipo.innerText = (v.items && v.items.length > 1) ? `Venta Multi-Producto (${v.items.length} ítems)` : 'Venta Individual';
+        }
+
+        // Normalizar los ítems de la venta a editar
+        let itemsAEditar = [];
+        if (v.items && Array.isArray(v.items) && v.items.length > 0) {
+            itemsAEditar = v.items.map((it, idx) => ({
+                idTemporal: it.idTemporal || ('it_' + idx),
+                tipo: it.tipo || 'Tostado',
+                nombre: it.nombre || (preciosListaActual[it.tipo]?.nombre || it.tipo),
+                presentacion: it.presentacion || 'N/A',
+                loteDocId: it.loteDocId || null,
+                loteInfo: it.loteInfo || '',
+                cantidad: Number(it.cantidad) || 0,
+                precio: Number(it.precio) || 0,
+                subtotal: Number(it.subtotal) || ((Number(it.cantidad)||0) * (Number(it.precio)||0)),
+                unidad: it.unidad || (preciosListaActual[it.tipo]?.unidad || 'lb')
+            }));
+        } else {
+            itemsAEditar = [{
+                idTemporal: 'it_0',
+                tipo: v.tipo || 'Tostado',
+                nombre: preciosListaActual[v.tipo]?.nombre || v.tipo || 'Café Tostado',
+                presentacion: v.presentacion || 'N/A',
+                loteDocId: v.loteDocId || null,
+                loteInfo: v.loteInfo || '',
+                cantidad: Number(v.cantidad) || 0,
+                precio: Number(v.precio) || 0,
+                subtotal: Number(v.total) || ((Number(v.cantidad)||0) * (Number(v.precio)||0)),
+                unidad: preciosListaActual[v.tipo]?.unidad || 'lb'
+            }];
+        }
+
+        // Obtener todos los lotes de café tostado disponibles en inventario
+        const lotesTostadoDisponibles = await obtenerLotesTostado(null);
+
+        // Renderizar cada ítem dentro de #ev-items-container con su selector de lote e inputs
+        const container = document.getElementById('ev-items-container');
+        if (container) {
+            container.innerHTML = itemsAEditar.map((it, idx) => {
+                const isTostado = it.tipo === 'Tostado';
+                let selectorLoteHTML = '';
+
+                if (isTostado) {
+                    let opcionesLotes = `<option value="">⚠️ Sin lote asignado</option>`;
+                    
+                    const lotesFiltrados = lotesTostadoDisponibles.filter(l => 
+                        !it.presentacion || it.presentacion === 'N/A' || l.presentacion === it.presentacion
+                    );
+                    const listaParaRender = lotesFiltrados.length > 0 ? lotesFiltrados : lotesTostadoDisponibles;
+
+                    listaParaRender.forEach(l => {
+                        const isSelected = (l.id === it.loteDocId) ? 'selected' : '';
+                        const stockActual = Number(l.cantidad || 0).toFixed(1);
+                        const esLoteActual = (l.id === it.loteDocId) ? ' ⭐ (LOTE ACTUALMENTE ASIGNADO)' : '';
+                        opcionesLotes += `<option value="${l.id}" data-cantidad="${l.cantidad}" ${isSelected}>📅 ${l.fechaTostado || 'S/F'} | ${l.presentacion || ''} | ${l.variedad || 'N/A'} - ${l.proceso || 'N/A'} | Stock: ${stockActual} lb${esLoteActual}</option>`;
+                    });
+
+                    // Si el lote actual no está en la lista de activos, mantenerlo visible
+                    if (it.loteDocId && !listaParaRender.some(l => l.id === it.loteDocId)) {
+                        opcionesLotes += `<option value="${it.loteDocId}" selected>⭐ ${it.loteInfo || 'Lote original asignado'} (0.0 lb disp.)</option>`;
+                    }
+
+                    selectorLoteHTML = `
+                        <div style="margin-top:8px;">
+                            <label style="font-size:0.8rem; font-weight:bold; color:var(--primary); display:flex; align-items:center; gap:5px;">
+                                <span>☕ Lote de Tostado en Inventario:</span>
+                                <span style="font-weight:normal; font-size:0.75rem; color:#666;">(Selecciona de dónde descontar el inventario)</span>
+                            </label>
+                            <select id="ev-item-lote-${idx}" class="yellow-input" style="font-size:0.85rem; padding:6px 8px; width:100%; border:1px solid #0284c7; background:#f0f9ff; border-radius:6px; font-weight:500;">
+                                ${opcionesLotes}
+                            </select>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="ev-item-card" data-idx="${idx}" style="background:#fafafa; border:1px solid #e0e0e0; border-radius:8px; padding:12px; margin-bottom:12px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                            <div>
+                                <span style="font-weight:bold; color:var(--primary); font-size:0.95rem;">${idx + 1}. ${it.nombre}</span>
+                                ${it.presentacion !== 'N/A' ? `<span class="cart-badge" style="margin-left:6px;">${it.presentacion}</span>` : ''}
+                            </div>
+                            <div style="font-size:0.82rem; color:#666;">
+                                Unidad: <strong>${it.unidad}</strong>
+                            </div>
+                        </div>
+
+                        ${selectorLoteHTML}
+
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:10px; align-items:center;">
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#444;">Cantidad (${it.unidad})</label>
+                                <input type="number" id="ev-item-cant-${idx}" class="yellow-input" step="0.25" min="0.01" value="${it.cantidad}" oninput="window.recalcularTotalEdicionVenta()" style="font-weight:bold;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#444;">Precio Unitario (Q)</label>
+                                <input type="number" id="ev-item-precio-${idx}" class="yellow-input" step="0.01" min="0" value="${it.precio}" oninput="window.recalcularTotalEdicionVenta()">
+                            </div>
+                            <div style="text-align:right;">
+                                <label style="font-size:0.78rem; font-weight:bold; color:#444;">Subtotal</label>
+                                <div id="ev-item-subtotal-${idx}" style="font-weight:bold; font-size:1.05rem; color:var(--primary); margin-top:6px;">
+                                    Q ${(it.subtotal || 0).toFixed(2)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        ventaActualEditando = {
+            id: docId,
+            data: v,
+            itemsOriginales: JSON.parse(JSON.stringify(itemsAEditar)),
+            itemsAEditar: itemsAEditar
+        };
+
+        window.recalcularTotalEdicionVenta();
         document.getElementById('modal-editar-venta').style.display = 'flex';
-    } catch (e) { alert("Error: " + e.message); }
+    } catch (e) {
+        alert("Error cargando venta para edición: " + e.message);
+    }
+};
+
+window.recalcularTotalEdicionVenta = () => {
+    if (!ventaActualEditando || !ventaActualEditando.itemsAEditar) return;
+    let granTotal = 0;
+    ventaActualEditando.itemsAEditar.forEach((it, idx) => {
+        const cantInp = document.getElementById(`ev-item-cant-${idx}`);
+        const precioInp = document.getElementById(`ev-item-precio-${idx}`);
+        const subtotalEl = document.getElementById(`ev-item-subtotal-${idx}`);
+
+        const cant = parseFloat(cantInp ? cantInp.value : 0) || 0;
+        const precio = parseFloat(precioInp ? precioInp.value : 0) || 0;
+        const subtotal = cant * precio;
+        granTotal += subtotal;
+
+        if (subtotalEl) {
+            subtotalEl.innerText = `Q ${subtotal.toFixed(2)}`;
+        }
+    });
+
+    const totalDisplay = document.getElementById('ev-total-display');
+    if (totalDisplay) {
+        totalDisplay.innerText = `Q ${granTotal.toFixed(2)}`;
+    }
 };
 
 window.sincronizarEstadoPagoEditar = () => {
@@ -861,77 +1059,176 @@ window.sincronizarEstadoPagoEditar = () => {
 
 window.guardarEdicionVenta = async () => {
     if (!ventaActualEditando) return;
-    const nuevaCantidad = parseFloat(document.getElementById('ev-cantidad').value) || 0;
-    const nuevoPrecio = parseFloat(document.getElementById('ev-precio').value) || 0;
-    const nuevoPago = document.getElementById('ev-pago').value;
-    let nuevoEstado = document.getElementById('ev-estado-pago').value;
-    if (nuevoEstado !== 'pendiente') nuevoEstado = 'pagado';
-    
-    const evCli = document.getElementById('ev-cliente-id');
-    const nuevoClienteId = evCli ? evCli.value : '';
-    let nuevoClienteNombre = '';
-    if (nuevoClienteId) {
-        const cliObj = todosLosClientes.find(c => c.id === nuevoClienteId);
-        if (cliObj) nuevoClienteNombre = cliObj.data.nombre || '';
-    }
+    const btn = document.getElementById('btn-guardar-edicion-venta');
+    if (btn) { btn.disabled = true; btn.innerText = "Guardando cambios y ajustando inventario..."; }
 
-    const nuevasNotas = document.getElementById('ev-notas').value;
-    
-    if (nuevaCantidad <= 0) return alert("La cantidad debe ser mayor a 0.");
-    
-    const v = ventaActualEditando.data;
-    const diffCantidad = nuevaCantidad - v.cantidad;
-    
-    if (diffCantidad !== 0 && v.tipo === 'Tostado' && v.loteDocId) {
-        try {
-            const loteSnap = await getDoc(doc(db, "inventario", v.loteDocId));
-            if (loteSnap.exists()) {
-                const loteData = loteSnap.data();
-                if (diffCantidad > 0 && loteData.cantidad < diffCantidad) {
-                    return alert(`❌ Stock insuficiente en el lote.\nDisponible: ${loteData.cantidad.toFixed(2)} lb\nNecesario: ${diffCantidad.toFixed(2)} lb`);
+    try {
+        const itemsOriginales = ventaActualEditando.itemsOriginales;
+        const itemsAEditar = ventaActualEditando.itemsAEditar;
+
+        const nuevaFecha = document.getElementById('ev-fecha-venta').value;
+        const nuevoPago = document.getElementById('ev-pago').value;
+        let nuevoEstado = document.getElementById('ev-estado-pago').value;
+        if (nuevoEstado !== 'pendiente') nuevoEstado = 'pagado';
+
+        const evCli = document.getElementById('ev-cliente-id');
+        const nuevoClienteId = evCli ? evCli.value : '';
+        let nuevoClienteNombre = '';
+        if (nuevoClienteId) {
+            const cliObj = todosLosClientes.find(c => c.id === nuevoClienteId);
+            if (cliObj) nuevoClienteNombre = cliObj.data.nombre || '';
+        }
+        const nuevasNotas = document.getElementById('ev-notas').value.trim();
+
+        // Validar e inspeccionar los nuevos valores de cada ítem
+        const itemsActualizados = [];
+        let granTotalNuevo = 0;
+        let granCantidadNueva = 0;
+
+        for (let idx = 0; idx < itemsAEditar.length; idx++) {
+            const itOrig = itemsOriginales[idx] || {};
+            const it = itemsAEditar[idx];
+
+            const cantInp = document.getElementById(`ev-item-cant-${idx}`);
+            const precioInp = document.getElementById(`ev-item-precio-${idx}`);
+            const loteSel = document.getElementById(`ev-item-lote-${idx}`);
+
+            const nuevaCant = parseFloat(cantInp ? cantInp.value : 0) || 0;
+            const nuevoPrecio = parseFloat(precioInp ? precioInp.value : 0) || 0;
+
+            if (nuevaCant <= 0) {
+                if (btn) { btn.disabled = false; btn.innerText = "💾 Guardar Cambios y Actualizar Inventario"; }
+                return alert(`⚠️ La cantidad para "${it.nombre}" debe ser mayor a 0.`);
+            }
+            if (nuevoPrecio < 0) {
+                if (btn) { btn.disabled = false; btn.innerText = "💾 Guardar Cambios y Actualizar Inventario"; }
+                return alert(`⚠️ El precio para "${it.nombre}" no puede ser negativo.`);
+            }
+
+            let nuevoLoteDocId = itOrig.loteDocId || null;
+            let nuevoLoteInfo = itOrig.loteInfo || '';
+
+            if (it.tipo === 'Tostado' && loteSel) {
+                nuevoLoteDocId = loteSel.value || null;
+                nuevoLoteInfo = loteSel.selectedIndex >= 0 ? loteSel.options[loteSel.selectedIndex].text : '';
+            }
+
+            const nuevoSubtotal = nuevaCant * nuevoPrecio;
+            granTotalNuevo += nuevoSubtotal;
+            granCantidadNueva += nuevaCant;
+
+            itemsActualizados.push({
+                ...it,
+                cantidad: nuevaCant,
+                precio: nuevoPrecio,
+                subtotal: nuevoSubtotal,
+                loteDocId: nuevoLoteDocId,
+                loteInfo: nuevoLoteInfo
+            });
+
+            // RECONCILIACIÓN EXACTA DE INVENTARIO:
+            const loteViejoDocId = itOrig.loteDocId;
+            const cantVieja = itOrig.cantidad || 0;
+
+            if (it.tipo === 'Tostado') {
+                if (nuevoLoteDocId === loteViejoDocId) {
+                    // Mismo lote, ajustar diferencia si cambió la cantidad
+                    const diff = nuevaCant - cantVieja;
+                    if (diff !== 0 && nuevoLoteDocId) {
+                        const snap = await getDoc(doc(db, "inventario", nuevoLoteDocId));
+                        if (snap.exists()) {
+                            const cantActualInv = snap.data().cantidad || 0;
+                            const cantFinal = Math.max(0, cantActualInv - diff);
+                            await updateDoc(doc(db, "inventario", nuevoLoteDocId), { cantidad: cantFinal });
+                        }
+                    }
+                } else {
+                    // ¡Cambió el lote de tostado asignado!
+                    // 1. Restaurar al lote viejo la cantidad que se le había descontado previamente
+                    if (loteViejoDocId) {
+                        const snapViejo = await getDoc(doc(db, "inventario", loteViejoDocId));
+                        if (snapViejo.exists()) {
+                            const cantActualViejo = snapViejo.data().cantidad || 0;
+                            await updateDoc(doc(db, "inventario", loteViejoDocId), { cantidad: cantActualViejo + cantVieja });
+                        }
+                    }
+                    // 2. Descontar del nuevo lote seleccionado la nueva cantidad
+                    if (nuevoLoteDocId) {
+                        const snapNuevo = await getDoc(doc(db, "inventario", nuevoLoteDocId));
+                        if (snapNuevo.exists()) {
+                            const cantActualNuevo = snapNuevo.data().cantidad || 0;
+                            await updateDoc(doc(db, "inventario", nuevoLoteDocId), { cantidad: Math.max(0, cantActualNuevo - nuevaCant) });
+                        }
+                    }
                 }
-                await updateDoc(doc(db, "inventario", v.loteDocId), { cantidad: loteData.cantidad - diffCantidad });
-            }
-        } catch (e) { return alert("Error ajustando inventario: " + e.message); }
-    } else if (diffCantidad !== 0 && v.tipo !== 'Tostado') {
-        if (diffCantidad > 0) {
-            let pend = diffCantidad;
-            const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",v.tipo)));
-            for (const d of snap.docs) {
-                if (pend <= 0) break;
-                const inv = d.data();
-                if (inv.cantidad >= pend) { await updateDoc(doc(db,"inventario",d.id), { cantidad: inv.cantidad - pend }); pend = 0; }
-                else { await updateDoc(doc(db,"inventario",d.id), { cantidad: 0 }); pend -= inv.cantidad; }
-            }
-            if (pend > 0) return alert(`⚠️ Venta actualizada, pero faltan ${pend.toFixed(2)} en inventario.`);
-        } else {
-            const devolver = Math.abs(diffCantidad);
-            const snap = await getDocs(query(collection(db,"inventario"), where("estado","==",v.tipo)));
-            let agregado = 0;
-            for (const d of snap.docs) {
-                if (agregado >= devolver) break;
-                const invData = d.data();
-                await updateDoc(doc(db, "inventario", d.id), { cantidad: (invData.cantidad || 0) + (devolver - agregado) });
-                agregado = devolver;
+            } else {
+                // Producto no café tostado (Miel, Licor, etc.)
+                const diff = nuevaCant - cantVieja;
+                if (diff !== 0) {
+                    if (diff > 0) {
+                        let pend = diff;
+                        const snap = await getDocs(query(collection(db, "inventario"), where("estado", "==", it.tipo)));
+                        for (const d of snap.docs) {
+                            if (pend <= 0) break;
+                            const inv = d.data();
+                            if (inv.cantidad >= pend) {
+                                await updateDoc(doc(db, "inventario", d.id), { cantidad: inv.cantidad - pend });
+                                pend = 0;
+                            } else {
+                                await updateDoc(doc(db, "inventario", d.id), { cantidad: 0 });
+                                pend -= inv.cantidad;
+                            }
+                        }
+                    } else {
+                        const devolver = Math.abs(diff);
+                        const snap = await getDocs(query(collection(db, "inventario"), where("estado", "==", it.tipo)));
+                        let agregado = 0;
+                        for (const d of snap.docs) {
+                            if (agregado >= devolver) break;
+                            const invData = d.data();
+                            await updateDoc(doc(db, "inventario", d.id), { cantidad: (invData.cantidad || 0) + (devolver - agregado) });
+                            agregado = devolver;
+                        }
+                    }
+                }
             }
         }
-    }
-    
-    try {
-        await updateDoc(doc(db, "ventas", ventaActualEditando.id), {
-            cantidad: nuevaCantidad,
-            precio: nuevoPrecio,
+
+        const nombresResumen = itemsActualizados.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(' + ');
+        const lotesResumen = itemsActualizados.filter(it => it.loteDocId).map(it => it.loteInfo).join(' | ') || 'N/A';
+        const primerLoteDocId = itemsActualizados.find(it => it.loteDocId)?.loteDocId || null;
+
+        const updateData = {
+            items: itemsActualizados,
+            total: granTotalNuevo,
+            cantidad: granCantidadNueva,
+            tipo: nombresResumen,
+            loteDocId: primerLoteDocId,
+            loteInfo: lotesResumen,
             pago: nuevoPago,
             estadoPago: nuevoEstado,
             clienteId: nuevoClienteId || null,
             clienteNombre: nuevoClienteNombre || null,
-            notas: nuevasNotas
-        });
-        alert("✅ Venta actualizada.");
+            notas: nuevasNotas,
+            fechaVentaPersonalizada: nuevaFecha
+        };
+
+        if (itemsActualizados.length === 1) {
+            updateData.precio = itemsActualizados[0].precio;
+            updateData.presentacion = itemsActualizados[0].presentacion;
+        }
+
+        await updateDoc(doc(db, "ventas", ventaActualEditando.id), updateData);
+
+        alert("✅ Venta e inventario actualizados con éxito.\n\nEl stock de los lotes seleccionados se ha ajustado y sincronizado correctamente.");
         window.cerrarModal('modal-editar-venta');
         ventaActualEditando = null;
-        cargarDatosIniciales();
-    } catch (e) { alert("Error: " + e.message); }
+        await cargarDatosIniciales();
+    } catch (e) {
+        alert("❌ Error al guardar edición de venta: " + e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = "💾 Guardar Cambios y Actualizar Inventario"; }
+    }
 };
 
 window.eliminarVenta = async (docId) => {
@@ -1627,7 +1924,7 @@ window.generarPDFTostado = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.11", 105, 290, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.12", 105, 290, { align: "center" });
 
     doc.save(`Tueste_${t.nombre || 'Perfil'}_${t.fecha || Date.now()}.pdf`);
     alert("✅ Reporte PDF de Tostado generado con gráfica incluida.");
@@ -1918,7 +2215,7 @@ window.generarPDFMuestra = () => {
 
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.11", 105, 290, {align:"center"});
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.12", 105, 290, {align:"center"});
     
     d.save(`Muestra_${m.lote||'Lote'}_${m.fecha||Date.now()}.pdf`);
     alert("✅ PDF de Muestreo descargado con datos de zarandas incluidos.");
@@ -2385,7 +2682,7 @@ window.generarPDFCatacion = () => {
     // Pie de página
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.11", 105, 290, { align: "center" });
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.12", 105, 290, { align: "center" });
 
     d.save(`Catacion_${(c.nombre || 'Muestra').replace(/\s+/g, '_')}_${c.fecha || Date.now()}.pdf`);
     alert("✅ Ficha de catación en PDF descargada exitosamente.");
@@ -3051,7 +3348,7 @@ async function cargarDatosIniciales() {
 }
 
 // =========================================================================
-// --- CONTROL DE PEDIDOS Y ENTREGAS PENDIENTES (v2026.09.11) ---
+// --- CONTROL DE PEDIDOS Y ENTREGAS PENDIENTES (v2026.09.12) ---
 // =========================================================================
 
 function generarNuevoFolioPedido() {
@@ -3112,17 +3409,23 @@ window.toggleFormPedido = () => {
     }
 };
 
-window.onPedidoProdTipoChange = () => {
+window.onPedidoProdTipoChange = async () => {
     const tipo = document.getElementById('ped-prod-tipo').value;
     const isTostado = tipo === 'Tostado';
     const presGroup = document.getElementById('ped-prod-presentacion-group');
     if (presGroup) presGroup.style.display = isTostado ? 'flex' : 'none';
+    const loteGroup = document.getElementById('ped-prod-lote-group');
+    if (loteGroup) loteGroup.style.display = isTostado ? 'flex' : 'none';
 
     const p = preciosListaActual[tipo];
     const lbl = document.getElementById('ped-prod-unidad-lbl');
     if (lbl && p) lbl.innerText = p.unidad;
     const precioInp = document.getElementById('ped-prod-precio');
     if (precioInp && p) precioInp.value = p.precio;
+
+    if (isTostado) {
+        await window.cargarLotesDisponiblesPedido();
+    }
 };
 
 window.onClienteSeleccionadoPedido = () => {
@@ -3165,6 +3468,20 @@ window.agregarItemAlCarritoPedido = () => {
     if (cantidad <= 0) return alert("⚠️ La cantidad solicitada debe ser mayor a 0.");
     if (precio < 0) return alert("⚠️ El precio no puede ser negativo.");
 
+    let loteDocId = null;
+    let loteInfo = 'N/A';
+
+    if (isTostado) {
+        const selLote = document.getElementById('ped-prod-lote');
+        if (selLote && selLote.value) {
+            loteDocId = selLote.value;
+            loteInfo = selLote.options[selLote.selectedIndex]?.text || '';
+        } else {
+            loteDocId = null;
+            loteInfo = 'Pendiente por asignar';
+        }
+    }
+
     const pInfo = preciosListaActual[tipo] || { nombre: tipo, unidad: 'un.' };
     const nombre = pInfo.nombre;
     const unidad = pInfo.unidad;
@@ -3175,6 +3492,8 @@ window.agregarItemAlCarritoPedido = () => {
         tipo,
         nombre,
         presentacion,
+        loteDocId,
+        loteInfo,
         cantidad,
         unidad,
         precio,
@@ -3194,7 +3513,7 @@ window.renderCarritoPedido = () => {
     if (carritoPedido.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align:center; padding:1.25rem; color:#888;">
+                <td colspan="8" style="text-align:center; padding:1.25rem; color:#888;">
                     🛒 No has agregado productos a este pedido. Selecciona arriba y haz clic en <strong>"➕ Agregar al Pedido"</strong>.
                 </td>
             </tr>
@@ -3209,11 +3528,20 @@ window.renderCarritoPedido = () => {
     tbody.innerHTML = carritoPedido.map((item, idx) => {
         total += item.subtotal;
         totalCant += item.cantidad;
+        let loteHTML = '<span style="color:#aaa;">-</span>';
+        if (item.tipo === 'Tostado') {
+            if (item.loteDocId) {
+                loteHTML = `<span class="cart-badge" style="background:#e0f2fe; color:#0369a1; font-weight:600; font-size:0.75rem;" title="${item.loteInfo}">☕ ${item.loteInfo.substring(0, 32)}...</span>`;
+            } else {
+                loteHTML = `<span class="cart-badge" style="background:#fef3c7; color:#92400e; font-size:0.75rem;">⏳ Por asignar</span>`;
+            }
+        }
         return `
             <tr>
                 <td style="text-align:center; font-weight:bold; color:#777;">${idx + 1}</td>
                 <td><strong>${item.nombre}</strong></td>
                 <td>${item.presentacion !== 'N/A' ? `<span class="cart-badge">${item.presentacion}</span>` : '-'}</td>
+                <td>${loteHTML}</td>
                 <td style="text-align:center; font-weight:bold;">${item.cantidad} ${item.unidad}</td>
                 <td style="text-align:right;">Q ${item.precio.toFixed(2)}</td>
                 <td style="text-align:right; font-weight:bold; color:#b78103;">Q ${item.subtotal.toFixed(2)}</td>
@@ -3482,7 +3810,7 @@ window.cargarPedidoSeleccionadoAlCarritoVenta = (pedidoId) => {
     if (cartEl) cartEl.scrollIntoView({ behavior: 'smooth' });
 };
 
-window.abrirModalEntregarPedido = (pedidoId) => {
+window.abrirModalEntregarPedido = async (pedidoId) => {
     const p = todosLosPedidos.find(item => item.id === pedidoId);
     if (!p) return alert("Pedido no encontrado.");
     pedidoActualEnModal = p;
@@ -3497,31 +3825,60 @@ window.abrirModalEntregarPedido = (pedidoId) => {
     const notasInp = document.getElementById('entregar-notas');
     if (notasInp) notasInp.value = `[Entrega ${d.folio || ''}] ${d.notas || ''}`.trim();
 
+    // Obtener lotes de tostado en inventario para selección/verificación
+    const lotesTostado = await obtenerLotesTostado(null);
+
     const resEl = document.getElementById('modal-entregar-pedido-resumen');
     if (resEl) {
         let itemsHTML = '';
         if (d.items && d.items.length > 0) {
             itemsHTML = `
-                <table style="width:100%; border-collapse:collapse; margin-top:0.5rem; font-size:0.85rem;">
-                    <thead>
-                        <tr style="background:#e8f5e9; color:#1b5e20;">
-                            <th style="padding:6px;">Producto</th>
-                            <th style="padding:6px; text-align:center;">Cantidad</th>
-                            <th style="padding:6px; text-align:right;">P. Unit</th>
-                            <th style="padding:6px; text-align:right;">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${d.items.map(it => `
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:6px;"><strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `(${it.presentacion})` : ''}</td>
-                                <td style="padding:6px; text-align:center;">${it.cantidad} ${it.unidad}</td>
-                                <td style="padding:6px; text-align:right;">Q ${(it.precio||0).toFixed(2)}</td>
-                                <td style="padding:6px; text-align:right; font-weight:bold;">Q ${(it.subtotal || it.cantidad*it.precio).toFixed(2)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <div style="margin-top:0.75rem;">
+                    <div style="font-weight:bold; font-size:0.9rem; color:var(--primary); margin-bottom:6px;">📦 Productos a Entregar y Verificación de Lotes:</div>
+                    ${d.items.map((it, idx) => {
+                        const isTostado = it.tipo === 'Tostado';
+                        let loteSelectHTML = '';
+                        if (isTostado) {
+                            const lotesFiltrados = lotesTostado.filter(l => !it.presentacion || it.presentacion === 'N/A' || l.presentacion === it.presentacion);
+                            const listaLotes = lotesFiltrados.length > 0 ? lotesFiltrados : lotesTostado;
+                            
+                            let opts = `<option value="">⚠️ Sin lote asignado (no descontará de lote específico)</option>`;
+                            listaLotes.forEach(l => {
+                                const sel = (l.id === it.loteDocId) ? 'selected' : '';
+                                opts += `<option value="${l.id}" ${sel}>📅 ${l.fechaTostado || 'S/F'} | ${l.presentacion || ''} | ${l.variedad || 'N/A'} - ${l.proceso || 'N/A'} | Disp: ${Number(l.cantidad||0).toFixed(1)} lb</option>`;
+                            });
+                            if (it.loteDocId && !listaLotes.some(l => l.id === it.loteDocId)) {
+                                opts += `<option value="${it.loteDocId}" selected>⭐ ${it.loteInfo || 'Lote previamente asignado'}</option>`;
+                            }
+
+                            loteSelectHTML = `
+                                <div style="margin-top:6px; background:#e8f4fd; padding:6px 10px; border-radius:6px; border:1px solid #bae6fd;">
+                                    <label style="font-size:0.76rem; font-weight:bold; color:#0369a1; display:flex; justify-content:space-between;">
+                                        <span>☕ Lote de Tostado del cual se descontará:</span>
+                                        <span>Stock disponible en lbs</span>
+                                    </label>
+                                    <select id="entrega-lote-item-${idx}" style="width:100%; margin-top:2px; font-size:0.8rem; padding:4px 6px; border-radius:4px; border:1px solid #0284c7; background:#fff;">
+                                        ${opts}
+                                    </select>
+                                </div>
+                            `;
+                        }
+
+                        return `
+                            <div style="background:#ffffff; border:1px solid #e0e0e0; border-radius:6px; padding:8px 10px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+                                    <div>
+                                        <strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `<span class="cart-badge">${it.presentacion}</span>` : ''}
+                                    </div>
+                                    <div style="font-weight:bold; color:var(--primary);">
+                                        ${it.cantidad} ${it.unidad} &bull; Q ${(it.subtotal || it.cantidad*it.precio).toFixed(2)}
+                                    </div>
+                                </div>
+                                ${loteSelectHTML}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
             `;
         }
 
@@ -3573,7 +3930,16 @@ window.confirmarEntregaPedido = async () => {
     if (btn) { btn.disabled = true; btn.innerText = "Registrando Venta de Entrega..."; }
 
     try {
-        const items = d.items || [];
+        const items = (d.items || []).map((it, idx) => {
+            const copy = { ...it };
+            const selLote = document.getElementById(`entrega-lote-item-${idx}`);
+            if (selLote && copy.tipo === 'Tostado') {
+                copy.loteDocId = selLote.value || null;
+                copy.loteInfo = selLote.selectedIndex >= 0 ? selLote.options[selLote.selectedIndex].text : '';
+            }
+            return copy;
+        });
+
         const totalMonto = d.total !== undefined ? Number(d.total) : items.reduce((a,c) => a + (c.subtotal || c.cantidad*c.precio), 0);
         const totalCantidad = d.cantidadTotal !== undefined ? Number(d.cantidadTotal) : items.reduce((a,c) => a + Number(c.cantidad||0), 0);
 
@@ -3606,12 +3972,14 @@ window.confirmarEntregaPedido = async () => {
 
         const nombresResumen = items.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(' + ');
         const lotesResumen = items.filter(it => it.loteDocId).map(it => it.loteInfo).join(' | ') || 'N/A';
+        const primerLoteDocId = items.find(it => it.loteDocId)?.loteDocId || null;
 
         const ventaDoc = {
             items,
             total: totalMonto,
             cantidad: totalCantidad,
             tipo: nombresResumen,
+            loteDocId: primerLoteDocId,
             loteInfo: lotesResumen,
             pago: metodoPago,
             estadoPago: estadoPago, // 'pagado' o 'pendiente' (crédito)
@@ -3629,6 +3997,7 @@ window.confirmarEntregaPedido = async () => {
         // Actualizar pedido a estado 'entregado'
         await updateDoc(doc(db, "pedidos", p.id), {
             estado: 'entregado',
+            items: items,
             ventaId: ventaRef.id,
             fechaEntrega: serverTimestamp(),
             fechaVentaRegistrada: fechaVenta,
@@ -3637,7 +4006,7 @@ window.confirmarEntregaPedido = async () => {
             notasEntrega: notasEntrega
         });
 
-        alert(`✅ Pedido ${d.folio || ''} entregado exitosamente.\n\nVenta registrada por: Q ${totalMonto.toFixed(2)}\nEstado de Pago: ${estadoPago === 'pendiente' ? '🔴 CRÉDITO (PENDIENTE DE PAGO)' : '🟢 PAGADO'}\n${descontarInv ? 'Inventario descontado correctamente.' : ''}`);
+        alert(`✅ Pedido ${d.folio || ''} entregado exitosamente.\n\nVenta registrada por: Q ${totalMonto.toFixed(2)}\nEstado de Pago: ${estadoPago === 'pendiente' ? '🔴 CRÉDITO (PENDIENTE DE PAGO)' : '🟢 PAGADO'}\n${descontarInv ? 'Inventario descontado correctamente del lote asignado.' : ''}`);
 
         window.cerrarModal('modal-entregar-pedido');
         window.cerrarModal('modal-ver-pedido');
@@ -3685,6 +4054,7 @@ window.verPedidoDetalle = (pedidoId) => {
                     <tr style="background:var(--primary); color:white;">
                         <th style="padding:8px;">Producto</th>
                         <th style="padding:8px;">Presentación</th>
+                        <th style="padding:8px;">Lote de Tostado</th>
                         <th style="padding:8px; text-align:center;">Cantidad</th>
                         <th style="padding:8px; text-align:right;">Precio Unit.</th>
                         <th style="padding:8px; text-align:right;">Subtotal</th>
@@ -3695,6 +4065,7 @@ window.verPedidoDetalle = (pedidoId) => {
                         <tr style="border-bottom:1px solid #eee;">
                             <td style="padding:8px;"><strong>${it.nombre}</strong></td>
                             <td style="padding:8px;">${it.presentacion !== 'N/A' ? `<span class="cart-badge">${it.presentacion}</span>` : '-'}</td>
+                            <td style="padding:8px; font-size:0.8rem;">${it.tipo === 'Tostado' ? (it.loteDocId ? `<span class="cart-badge" style="background:#e0f2fe; color:#0369a1;">☕ ${it.loteInfo || 'Lote asignado'}</span>` : `<span class="cart-badge" style="background:#fef3c7; color:#92400e;">⏳ Por asignar</span>`) : '-'}</td>
                             <td style="padding:8px; text-align:center; font-weight:bold;">${it.cantidad} ${it.unidad}</td>
                             <td style="padding:8px; text-align:right;">Q ${(it.precio||0).toFixed(2)}</td>
                             <td style="padding:8px; text-align:right; font-weight:bold; color:var(--primary);">Q ${(it.subtotal || it.cantidad*it.precio).toFixed(2)}</td>
@@ -3929,12 +4300,15 @@ function renderTablaPedidos() {
         if (d.items && d.items.length > 0) {
             if (d.items.length === 1) {
                 const it = d.items[0];
-                prodsHTML = `<strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `(${it.presentacion})` : ''} &bull; ${it.cantidad} ${it.unidad}`;
+                const loteTag = (it.tipo === 'Tostado') 
+                    ? (it.loteDocId ? `<br><small style="color:#0284c7; font-weight:600;">☕ Lote: ${it.loteInfo ? it.loteInfo.substring(0, 32) : 'Asignado'}</small>` : `<br><small style="color:#b45309;">⏳ Lote por asignar</small>`)
+                    : '';
+                prodsHTML = `<strong>${it.nombre}</strong> ${it.presentacion !== 'N/A' ? `(${it.presentacion})` : ''} &bull; ${it.cantidad} ${it.unidad}${loteTag}`;
             } else {
                 prodsHTML = `
                     <div style="font-size:0.85rem;">
                         <span class="badge-multi-items" style="background:#fff8e1; color:#b78103; border-color:#ffe082;">📦 ${d.items.length} productos</span>
-                        <div style="color:#555; margin-top:2px;">${d.items.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}`).join(', ').substring(0, 50)}...</div>
+                        <div style="color:#555; margin-top:2px;">${d.items.map(it => `${it.cantidad} ${it.unidad} ${it.nombre}${it.loteDocId ? ' (Lote)' : ''}`).join(', ').substring(0, 65)}...</div>
                     </div>
                 `;
             }
@@ -4114,7 +4488,8 @@ window.generarPDFHojaPedido = (pedidoId) => {
         doc.setFont("helvetica", "bold");
         doc.setTextColor(30, 30, 30);
         doc.setFontSize(8.5);
-        doc.text(it.nombre + (it.presentacion !== 'N/A' ? ` (${it.presentacion})` : ''), 30, y + 5);
+        const loteTxtPdf = (it.tipo === 'Tostado' && it.loteDocId) ? ` | Lote: ${it.loteInfo ? it.loteInfo.substring(0, 30) : 'Asignado'}` : '';
+        doc.text(it.nombre + (it.presentacion !== 'N/A' ? ` (${it.presentacion})` : '') + loteTxtPdf, 30, y + 5);
 
         doc.setFont("helvetica", "normal");
         doc.text(`${it.cantidad} ${it.unidad}`, 120, y + 5);
@@ -4167,14 +4542,14 @@ window.generarPDFHojaPedido = (pedidoId) => {
     // Pie de página
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.11", 108, 270, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.12", 108, 270, { align: "center" });
 
     doc.save(`${d.folio || 'Pedido'}_${(d.clienteNombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
     alert(`✅ Hoja de Pedido PDF (${d.folio || ''}) descargada.`);
 };
 
 // =========================================================================
-// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.11) ---
+// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.12) ---
 // =========================================================================
 
 function obtenerComprasDeCliente(clienteId, clienteNombre) {
@@ -4974,7 +5349,7 @@ window.generarPDFHistorialCliente = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.11", 108, 270, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.12", 108, 270, { align: "center" });
 
     doc.save(`Historial_${(d.nombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`);
     alert("✅ Estado de Cuenta / Historial de Cliente descargado en PDF.");
