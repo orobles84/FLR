@@ -518,6 +518,209 @@
             color: #451a03;
         }
 
+        /* SWITCHER DE VISTAS (TARJETAS / TABLA / CALENDARIO) */
+        .proy-view-switcher {
+            display: inline-flex;
+            background: #e2e8f0;
+            padding: 3px;
+            border-radius: 8px;
+            gap: 3px;
+        }
+        .proy-view-btn {
+            border: none;
+            background: transparent;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 34px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .proy-view-btn:hover {
+            background: rgba(255, 255, 255, 0.7);
+            color: #1e293b;
+        }
+        .proy-view-btn.active {
+            background: #ffffff;
+            color: var(--primary);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+        }
+
+        /* CALENDARIO DE PROYECTOS Y PENDIENTES */
+        .calendar-header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+        .calendar-wrapper {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .calendar-days-header {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            background: #f1f5f9;
+            border-bottom: 2px solid #e2e8f0;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            color: #334155;
+            padding: 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            grid-auto-rows: minmax(120px, auto);
+            background: #e2e8f0;
+            gap: 1px;
+        }
+        .calendar-day-cell {
+            background: white;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            position: relative;
+            transition: background 0.15s ease, outline 0.15s ease;
+            min-height: 120px;
+        }
+        .calendar-day-cell.other-month {
+            background: #f8fafc;
+            color: #94a3b8;
+        }
+        .calendar-day-cell.is-today {
+            background: #fffdf5;
+        }
+        .calendar-day-cell.is-today .cal-day-num {
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        .calendar-day-cell.dragover-active {
+            background: #eff6ff !important;
+            outline: 2px dashed #2563eb !important;
+            outline-offset: -2px;
+        }
+        .cal-day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 2px;
+        }
+        .cal-day-num {
+            display: inline-block;
+            padding: 2px;
+        }
+        .cal-btn-add-day {
+            opacity: 0;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            color: #0284c7;
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 1px 6px;
+            border-radius: 4px;
+            transition: opacity 0.15s ease, background 0.15s ease;
+        }
+        .calendar-day-cell:hover .cal-btn-add-day {
+            opacity: 1;
+        }
+        .cal-btn-add-day:hover {
+            background: #0284c7;
+            color: white;
+            border-color: #0284c7;
+        }
+        .cal-day-events {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            max-height: 120px;
+        }
+        .cal-project-chip {
+            font-size: 0.74rem;
+            padding: 4px 7px;
+            border-radius: 6px;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-left: 4px solid #64748b;
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            line-height: 1.25;
+        }
+        .cal-project-chip:active {
+            cursor: grabbing;
+        }
+        .cal-project-chip:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .cal-project-chip.dragging {
+            opacity: 0.45;
+            transform: scale(0.96);
+        }
+        .cal-chip-alta { border-left-color: #dc2626; background: #fff5f5; border-color: #fecaca; }
+        .cal-chip-media { border-left-color: #f59e0b; background: #fffbeb; border-color: #fde68a; }
+        .cal-chip-baja { border-left-color: #10b981; background: #f0fdf4; border-color: #bbf7d0; }
+        .cal-chip-completado { border-left-color: #64748b; background: #f1f5f9; text-decoration: line-through; color: #64748b; }
+        .cal-chip-vencido { border-left-color: #b91c1c; background: #fee2e2; border-color: #fca5a5; }
+
+        /* Chips sin fecha */
+        .cal-unscheduled-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-left: 4px solid #f59e0b;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.15s ease;
+        }
+        .cal-unscheduled-chip:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .cal-unscheduled-chip:active {
+            cursor: grabbing;
+        }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -1656,9 +1859,11 @@
                         <option value="prioridad">🚨 Prioridad (Alta primero)</option>
                         <option value="recientes">⏱️ Recién creados</option>
                     </select>
-                    <button class="btn btn-small" id="proy-btn-vista" onclick="toggleVistaProyectos()" style="background:#475569; color:white; min-height:38px;">
-                        📊 Vista Tabla
-                    </button>
+                    <div class="proy-view-switcher">
+                        <button type="button" id="btn-vista-cards" onclick="cambiarVistaProyectos('cards')" class="proy-view-btn active" title="Vista de Tarjetas Visuales">🗂️ Tarjetas</button>
+                        <button type="button" id="btn-vista-table" onclick="cambiarVistaProyectos('table')" class="proy-view-btn" title="Vista de Tabla Compacta">📊 Tabla</button>
+                        <button type="button" id="btn-vista-calendar" onclick="cambiarVistaProyectos('calendar')" class="proy-view-btn" title="Vista de Calendario Interactivo">📅 Calendario</button>
+                    </div>
                 </div>
             </div>
 
@@ -1683,6 +1888,61 @@
                     </thead>
                     <tbody></tbody>
                 </table>
+            </div>
+
+            <!-- VISTA CALENDARIO INTERACTIVO (CON DRAG AND DROP) -->
+            <div id="proyectos-container-calendar" style="display:none; margin-top:1rem;">
+                <!-- Barra superior del calendario -->
+                <div class="calendar-header-bar">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            <button type="button" class="btn btn-xs" onclick="navegarMesCalendario(-1)" style="background:#475569; color:white; padding:6px 12px; font-size:0.9rem;" title="Mes Anterior">◀</button>
+                            <button type="button" class="btn btn-xs" onclick="irMesActualCalendario()" style="background:#0f766e; color:white; padding:6px 12px; font-weight:bold; font-size:0.85rem;" title="Ir al mes y día actual">📅 Hoy</button>
+                            <button type="button" class="btn btn-xs" onclick="navegarMesCalendario(1)" style="background:#475569; color:white; padding:6px 12px; font-size:0.9rem;" title="Mes Siguiente">▶</button>
+                        </div>
+                        <h3 id="cal-titulo-mes" style="margin:0; font-size:1.25rem; color:var(--primary); font-weight:700;"></h3>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <span style="font-size:0.8rem; color:#64748b; background:#f1f5f9; padding:4px 10px; border-radius:20px; font-weight:600;" id="cal-conteo-eventos">0 eventos este mes</span>
+                        <div class="cal-legend" style="display:flex; gap:8px; font-size:0.75rem; align-items:center; flex-wrap:wrap;">
+                            <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#dc2626; border-radius:50%; display:inline-block;"></span> Alta</span>
+                            <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#f59e0b; border-radius:50%; display:inline-block;"></span> Media</span>
+                            <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#10b981; border-radius:50%; display:inline-block;"></span> Baja</span>
+                            <span style="display:inline-flex; align-items:center; gap:4px;"><span style="width:10px; height:10px; background:#64748b; border-radius:50%; display:inline-block;"></span> Finalizado</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guía instructiva rápida -->
+                <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px 14px; margin-bottom:12px; font-size:0.84rem; color:#1e40af; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        🖐️ <strong>Reprogramación por Arrastrar y Soltar (Drag & Drop):</strong> Arrastra cualquier proyecto o pendiente hacia otro día del calendario para reprogramar automáticamente sus fechas. Haz clic en el proyecto para ver o editar sus notas, tareas y avances.
+                    </div>
+                    <button type="button" class="btn btn-xs" onclick="abrirModalNuevoProyecto()" style="background:#2563eb; color:white; padding:4px 12px; margin:0; font-weight:600;">+ Nuevo Proyecto</button>
+                </div>
+
+                <!-- Cuadrícula del Calendario -->
+                <div class="calendar-wrapper">
+                    <div class="calendar-days-header">
+                        <div>Lun</div>
+                        <div>Mar</div>
+                        <div>Mié</div>
+                        <div>Jue</div>
+                        <div>Vie</div>
+                        <div>Sáb</div>
+                        <div>Dom</div>
+                    </div>
+                    <div id="calendar-grid" class="calendar-grid"></div>
+                </div>
+
+                <!-- Sección de Proyectos/Pendientes sin fecha para arrastrar al calendario -->
+                <div id="cal-proyectos-sin-fecha-box" style="margin-top:1.5rem; background:#f8fafc; border:1px dashed #cbd5e1; border-radius:10px; padding:12px 16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
+                        <strong style="font-size:0.88rem; color:#334155;">📌 Pendientes sin fecha asignada (Arrastra hacia cualquier día del calendario para programarlo):</strong>
+                        <span id="cal-sin-fecha-count" style="font-size:0.78rem; color:#64748b;">0 pendientes</span>
+                    </div>
+                    <div id="cal-sin-fecha-items" style="display:flex; gap:8px; flex-wrap:wrap; min-height:40px; align-items:center;"></div>
+                </div>
             </div>
         </div>
     </div>
