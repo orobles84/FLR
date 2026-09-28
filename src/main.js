@@ -64,6 +64,8 @@ let filtroCategoriaProyecto = 'todas';
 let busquedaProyectoTerm = '';
 let ordenProyectos = 'limite_asc';
 let vistaProyectosActual = 'cards';
+let mesCalendarioActual = new Date().getMonth();
+let anioCalendarioActual = new Date().getFullYear();
 let proyectoActualEditando = null;
 let proyectoActualNotaId = null;
 
@@ -356,6 +358,8 @@ window.showSection = (id, el) => {
     } else if (id === 'clientes') {
         renderTablaClientes();
         actualizarKPIsClientes();
+    } else if (id === 'proyectos') {
+        renderProyectos();
     }
 };
 
@@ -5897,6 +5901,9 @@ function renderProyectos() {
             tableBody.appendChild(tr);
         });
     }
+
+    // Renderizar también la vista de Calendario con los filtros aplicados
+    renderCalendarioProyectos(listaFiltrada);
 }
 
 window.abrirModalNuevoProyecto = () => {
@@ -6233,23 +6240,410 @@ window.filtrarProyectos = () => {
     renderProyectos();
 };
 
-window.toggleVistaProyectos = () => {
+window.cambiarVistaProyectos = (nuevaVista) => {
+    vistaProyectosActual = nuevaVista;
     const cardsEl = document.getElementById('proyectos-container-cards');
     const tableEl = document.getElementById('proyectos-container-table');
-    const btn = document.getElementById('proy-btn-vista');
-    if (!cardsEl || !tableEl) return;
+    const calEl = document.getElementById('proyectos-container-calendar');
 
-    if (vistaProyectosActual === 'cards') {
-        vistaProyectosActual = 'table';
-        cardsEl.style.display = 'none';
-        tableEl.style.display = 'block';
-        if (btn) btn.innerText = '🗂️ Vista Tarjetas';
-    } else {
-        vistaProyectosActual = 'cards';
-        cardsEl.style.display = 'grid';
-        tableEl.style.display = 'none';
-        if (btn) btn.innerText = '📊 Vista Tabla';
+    const btnCards = document.getElementById('btn-vista-cards');
+    const btnTable = document.getElementById('btn-vista-table');
+    const btnCal = document.getElementById('btn-vista-calendar');
+
+    if (btnCards) btnCards.classList.toggle('active', nuevaVista === 'cards');
+    if (btnTable) btnTable.classList.toggle('active', nuevaVista === 'table');
+    if (btnCal) btnCal.classList.toggle('active', nuevaVista === 'calendar');
+
+    if (cardsEl) cardsEl.style.display = (nuevaVista === 'cards') ? 'grid' : 'none';
+    if (tableEl) tableEl.style.display = (nuevaVista === 'table') ? 'block' : 'none';
+    if (calEl) calEl.style.display = (nuevaVista === 'calendar') ? 'block' : 'none';
+
+    renderProyectos();
+};
+
+window.toggleVistaProyectos = () => {
+    if (vistaProyectosActual === 'cards') cambiarVistaProyectos('table');
+    else if (vistaProyectosActual === 'table') cambiarVistaProyectos('calendar');
+    else cambiarVistaProyectos('cards');
+};
+
+const MESES_NOMBRES_ES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+window.navegarMesCalendario = (delta) => {
+    mesCalendarioActual += delta;
+    if (mesCalendarioActual < 0) {
+        mesCalendarioActual = 11;
+        anioCalendarioActual--;
+    } else if (mesCalendarioActual > 11) {
+        mesCalendarioActual = 0;
+        anioCalendarioActual++;
     }
+    renderProyectos();
+};
+
+window.irMesActualCalendario = () => {
+    const hoy = new Date();
+    mesCalendarioActual = hoy.getMonth();
+    anioCalendarioActual = hoy.getFullYear();
+    renderProyectos();
+};
+
+window.abrirModalNuevoProyectoConFecha = (fechaStr) => {
+    abrirModalNuevoProyecto();
+    if (fechaStr) {
+        const inpInicio = document.getElementById('modal-proy-fecha-inicio');
+        const inpLimite = document.getElementById('modal-proy-fecha-limite');
+        if (inpInicio) inpInicio.value = fechaStr;
+        if (inpLimite) inpLimite.value = fechaStr;
+    }
+};
+
+function padZeroProy(num) {
+    return num < 10 ? '0' + num : '' + num;
+}
+
+window.renderCalendarioProyectos = (proyectosFiltrados = null) => {
+    const grid = document.getElementById('calendar-grid');
+    const tituloMesEl = document.getElementById('cal-titulo-mes');
+    const conteoEl = document.getElementById('cal-conteo-eventos');
+    const sinFechaBox = document.getElementById('cal-sin-fecha-items');
+    const sinFechaCountEl = document.getElementById('cal-sin-fecha-count');
+    if (!grid || !tituloMesEl) return;
+
+    tituloMesEl.innerText = `${MESES_NOMBRES_ES[mesCalendarioActual]} ${anioCalendarioActual}`;
+
+    let lista = proyectosFiltrados;
+    if (!lista) {
+        lista = todosLosProyectos.slice();
+        if (filtroEstadoProyecto !== 'todos') {
+            const hoy = new Date();
+            hoy.setHours(0,0,0,0);
+            if (filtroEstadoProyecto === 'vencidos') {
+                lista = lista.filter(p => {
+                    const d = p.data;
+                    if (d.estado === 'completado' || !d.fechaLimite) return false;
+                    return new Date(d.fechaLimite + 'T00:00:00') < hoy;
+                });
+            } else {
+                lista = lista.filter(p => (p.data.estado || 'en_progreso') === filtroEstadoProyecto);
+            }
+        }
+        if (filtroPrioridadProyecto !== 'todas') {
+            lista = lista.filter(p => (p.data.prioridad || 'media') === filtroPrioridadProyecto);
+        }
+        if (filtroCategoriaProyecto !== 'todas') {
+            lista = lista.filter(p => (p.data.categoria || 'campo') === filtroCategoriaProyecto);
+        }
+        if (busquedaProyectoTerm) {
+            const term = busquedaProyectoTerm.toLowerCase();
+            lista = lista.filter(p => {
+                const d = p.data;
+                const tit = (d.titulo || '').toLowerCase();
+                const desc = (d.descripcion || '').toLowerCase();
+                const resp = (d.responsable || '').toLowerCase();
+                return tit.includes(term) || desc.includes(term) || resp.includes(term);
+            });
+        }
+    }
+
+    grid.innerHTML = '';
+
+    const hoy = new Date();
+    const hoyStr = `${hoy.getFullYear()}-${padZeroProy(hoy.getMonth() + 1)}-${padZeroProy(hoy.getDate())}`;
+
+    const primerDia = new Date(anioCalendarioActual, mesCalendarioActual, 1);
+    let diaSemanaInicio = (primerDia.getDay() + 6) % 7; // Lunes = 0
+
+    const diasEnMes = new Date(anioCalendarioActual, mesCalendarioActual + 1, 0).getDate();
+    const diasEnMesPrev = new Date(anioCalendarioActual, mesCalendarioActual, 0).getDate();
+
+    let totalCeldas = (diaSemanaInicio + diasEnMes <= 35) ? 35 : 42;
+    let eventosEnMesCount = 0;
+
+    for (let c = 0; c < totalCeldas; c++) {
+        let celdaDia = 0;
+        let esOtroMes = false;
+        let celdaMes = mesCalendarioActual;
+        let celdaAnio = anioCalendarioActual;
+
+        if (c < diaSemanaInicio) {
+            esOtroMes = true;
+            celdaDia = diasEnMesPrev - (diaSemanaInicio - 1 - c);
+            celdaMes = mesCalendarioActual - 1;
+            if (celdaMes < 0) { celdaMes = 11; celdaAnio--; }
+        } else if (c >= diaSemanaInicio + diasEnMes) {
+            esOtroMes = true;
+            celdaDia = c - (diaSemanaInicio + diasEnMes) + 1;
+            celdaMes = mesCalendarioActual + 1;
+            if (celdaMes > 11) { celdaMes = 0; celdaAnio++; }
+        } else {
+            celdaDia = c - diaSemanaInicio + 1;
+        }
+
+        const dateStr = `${celdaAnio}-${padZeroProy(celdaMes + 1)}-${padZeroProy(celdaDia)}`;
+        const esHoy = (dateStr === hoyStr);
+
+        const cell = document.createElement('div');
+        cell.className = `calendar-day-cell ${esOtroMes ? 'other-month' : ''} ${esHoy ? 'is-today' : ''}`;
+        cell.setAttribute('data-date', dateStr);
+
+        cell.ondragover = (e) => window.handleCalDragOver(e);
+        cell.ondragleave = (e) => window.handleCalDragLeave(e);
+        cell.ondrop = (e) => window.handleCalDrop(e, dateStr);
+
+        const cellHeader = document.createElement('div');
+        cellHeader.className = 'cal-day-header';
+        cellHeader.innerHTML = `
+            <span class="cal-day-num">${celdaDia}</span>
+            <button type="button" class="cal-btn-add-day" onclick="abrirModalNuevoProyectoConFecha('${dateStr}')" title="Crear proyecto con fecha ${dateStr}">+ Añadir</button>
+        `;
+        cell.appendChild(cellHeader);
+
+        const eventsContainer = document.createElement('div');
+        eventsContainer.className = 'cal-day-events';
+
+        // Proyectos que abarcan esta fecha
+        const proyectosDia = lista.filter(item => {
+            const d = item.data;
+            if (d.fechaInicio && d.fechaLimite) {
+                return (d.fechaInicio <= dateStr && dateStr <= d.fechaLimite);
+            } else if (d.fechaLimite) {
+                return d.fechaLimite === dateStr;
+            } else if (d.fechaInicio) {
+                return d.fechaInicio === dateStr;
+            }
+            return false;
+        });
+
+        if (!esOtroMes) {
+            eventosEnMesCount += proyectosDia.length;
+        }
+
+        proyectosDia.forEach(item => {
+            const d = item.data;
+            const pid = item.id;
+            const prio = d.prioridad || 'media';
+            const est = d.estado || 'en_progreso';
+            const catKey = d.categoria || 'campo';
+            const areaInfo = AREAS_PROYECTO[catKey] || { nombre: catKey, icon: '📌' };
+            const subtareas = Array.isArray(d.subtareas) ? d.subtareas : [];
+            const complCount = subtareas.filter(s => s.completada).length;
+            const pct = d.porcentajeAvance !== undefined ? Number(d.porcentajeAvance) : (subtareas.length > 0 ? Math.round((complCount / subtareas.length) * 100) : 0);
+
+            let chipPrioClass = 'cal-chip-' + prio;
+            if (est === 'completado') chipPrioClass = 'cal-chip-completado';
+            else if (d.fechaLimite && d.fechaLimite < hoyStr) chipPrioClass = 'cal-chip-vencido';
+
+            let prefijo = '';
+            if (d.fechaInicio === dateStr && d.fechaLimite === dateStr) {
+                prefijo = '📌';
+            } else if (d.fechaInicio === dateStr) {
+                prefijo = '🚀 Inicia:';
+            } else if (d.fechaLimite === dateStr) {
+                prefijo = '🏁 Límite:';
+            } else {
+                prefijo = '⏳';
+            }
+
+            const chip = document.createElement('div');
+            chip.className = `cal-project-chip ${chipPrioClass}`;
+            chip.setAttribute('draggable', 'true');
+            chip.setAttribute('data-id', pid);
+            chip.setAttribute('data-anchor-date', dateStr);
+            chip.title = `[${areaInfo.nombre}] ${d.titulo}\n👤 Responsable: ${d.responsable || 'Sin asignar'}\n📊 Estado: ${est} | Avance: ${pct}%\n📅 Periodo: ${d.fechaInicio || 'N/A'} ➔ ${d.fechaLimite || 'N/A'}\n\n🖐️ Arrastra a otro día para reprogramar\n👆 Haz clic para ver detalles y editar`;
+
+            chip.ondragstart = (e) => window.handleCalDragStart(e, pid, dateStr);
+            chip.ondragend = (e) => window.handleCalDragEnd(e);
+            chip.onclick = (e) => {
+                e.stopPropagation();
+                window.abrirModalEditarProyecto(pid);
+            };
+
+            chip.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:2px; font-weight:bold; overflow:hidden;">
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">
+                        ${prefijo} ${d.titulo}
+                    </span>
+                    <span style="font-size:0.68rem; opacity:0.85; margin-left:2px;">${pct}%</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; color:#64748b; margin-top:1px;">
+                    <span>${areaInfo.icon} ${d.responsable ? d.responsable.split(' ')[0] : 'Sin asignar'}</span>
+                    ${subtareas.length > 0 ? `<span>✓ ${complCount}/${subtareas.length}</span>` : ''}
+                </div>
+            `;
+
+            eventsContainer.appendChild(chip);
+        });
+
+        cell.appendChild(eventsContainer);
+        grid.appendChild(cell);
+    }
+
+    if (conteoEl) {
+        conteoEl.innerText = `${eventosEnMesCount} evento${eventosEnMesCount === 1 ? '' : 's'} este mes`;
+    }
+
+    // Proyectos sin fecha asignada
+    if (sinFechaBox && sinFechaCountEl) {
+        const sinFecha = lista.filter(item => !item.data.fechaInicio && !item.data.fechaLimite);
+        sinFechaCountEl.innerText = `${sinFecha.length} pendiente${sinFecha.length === 1 ? '' : 's'}`;
+        sinFechaBox.innerHTML = '';
+
+        if (sinFecha.length === 0) {
+            sinFechaBox.innerHTML = `<span style="font-size:0.82rem; color:#94a3b8; font-style:italic;">Todos los proyectos y pendientes tienen fecha asignada en el calendario.</span>`;
+        } else {
+            sinFecha.forEach(item => {
+                const d = item.data;
+                const pid = item.id;
+                const chip = document.createElement('div');
+                chip.className = 'cal-unscheduled-chip';
+                chip.setAttribute('draggable', 'true');
+                chip.setAttribute('data-id', pid);
+                chip.title = `"${d.titulo}" no tiene fecha.\nArrastra hacia cualquier día del calendario para programarlo.`;
+                chip.ondragstart = (e) => window.handleCalDragStart(e, pid, '');
+                chip.ondragend = (e) => window.handleCalDragEnd(e);
+                chip.onclick = () => window.abrirModalEditarProyecto(pid);
+                chip.innerHTML = `
+                    <span>📌 <strong>${d.titulo}</strong></span>
+                    <span style="font-size:0.72rem; color:#64748b;">(Sin fecha)</span>
+                `;
+                sinFechaBox.appendChild(chip);
+            });
+        }
+    }
+};
+
+// --- CONTROLADORES DE ARRASTRAR Y SOLTAR (DRAG & DROP) ---
+
+window.handleCalDragStart = (e, proyectoId, anchorDate) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', JSON.stringify({ proyectoId, anchorDate }));
+    if (e.currentTarget) e.currentTarget.classList.add('dragging');
+};
+
+window.handleCalDragEnd = (e) => {
+    if (e.currentTarget) e.currentTarget.classList.remove('dragging');
+    document.querySelectorAll('.calendar-day-cell.dragover-active').forEach(c => c.classList.remove('dragover-active'));
+};
+
+window.handleCalDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const cell = e.currentTarget;
+    if (cell && !cell.classList.contains('dragover-active')) {
+        cell.classList.add('dragover-active');
+    }
+};
+
+window.handleCalDragLeave = (e) => {
+    const cell = e.currentTarget;
+    if (cell) cell.classList.remove('dragover-active');
+};
+
+window.handleCalDrop = async (e, fechaDestino) => {
+    e.preventDefault();
+    if (e.currentTarget) e.currentTarget.classList.remove('dragover-active');
+
+    let rawData = e.dataTransfer.getData('text/plain');
+    if (!rawData) return;
+    let dataObj;
+    try {
+        dataObj = JSON.parse(rawData);
+    } catch (err) {
+        return;
+    }
+
+    const { proyectoId, anchorDate } = dataObj;
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item) return;
+
+    const d = item.data;
+    let nuevaFechaInicio = d.fechaInicio || '';
+    let nuevaFechaLimite = d.fechaLimite || '';
+
+    // Reprogramación inteligente
+    if (!d.fechaInicio && !d.fechaLimite) {
+        // Asignación de fecha a tarea que no tenía
+        nuevaFechaInicio = fechaDestino;
+        nuevaFechaLimite = fechaDestino;
+    } else if (d.fechaInicio && d.fechaLimite) {
+        const tInicio = new Date(d.fechaInicio + 'T00:00:00').getTime();
+        const tLimite = new Date(d.fechaLimite + 'T00:00:00').getTime();
+        const duracionDias = Math.max(0, Math.round((tLimite - tInicio) / (1000 * 60 * 60 * 24)));
+
+        if (anchorDate === d.fechaInicio) {
+            nuevaFechaInicio = fechaDestino;
+            const dt = new Date(fechaDestino + 'T00:00:00');
+            dt.setDate(dt.getDate() + duracionDias);
+            nuevaFechaLimite = dt.toISOString().split('T')[0];
+        } else if (anchorDate === d.fechaLimite) {
+            nuevaFechaLimite = fechaDestino;
+            const dt = new Date(fechaDestino + 'T00:00:00');
+            dt.setDate(dt.getDate() - duracionDias);
+            nuevaFechaInicio = dt.toISOString().split('T')[0];
+        } else {
+            const tAnchor = anchorDate ? new Date(anchorDate + 'T00:00:00').getTime() : tLimite;
+            const tDestino = new Date(fechaDestino + 'T00:00:00').getTime();
+            const deltaDias = Math.round((tDestino - tAnchor) / (1000 * 60 * 60 * 24));
+
+            const dtInicio = new Date(tInicio);
+            dtInicio.setDate(dtInicio.getDate() + deltaDias);
+            nuevaFechaInicio = dtInicio.toISOString().split('T')[0];
+
+            const dtLimite = new Date(tLimite);
+            dtLimite.setDate(dtLimite.getDate() + deltaDias);
+            nuevaFechaLimite = dtLimite.toISOString().split('T')[0];
+        }
+    } else if (d.fechaLimite) {
+        nuevaFechaLimite = fechaDestino;
+    } else if (d.fechaInicio) {
+        nuevaFechaInicio = fechaDestino;
+    }
+
+    // Actualización inmediata en memoria
+    d.fechaInicio = nuevaFechaInicio;
+    d.fechaLimite = nuevaFechaLimite;
+
+    mostrarToastNotificacion(`📅 "${d.titulo}" reprogramado al ${fechaDestino}`);
+
+    // Persistencia en Firestore y localStorage
+    try {
+        await updateDoc(doc(db, "proyectos_pendientes", proyectoId), {
+            fechaInicio: nuevaFechaInicio,
+            fechaLimite: nuevaFechaLimite,
+            fechaActualizacion: serverTimestamp()
+        });
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+    } catch (err) {
+        console.error("Error al actualizar fechas en Firestore:", err);
+    }
+
+    renderProyectos();
+};
+
+function mostrarToastNotificacion(mensaje, tipo = 'success') {
+    let container = document.getElementById('flr-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'flr-toast-container';
+        container.style.cssText = 'position:fixed; bottom:24px; right:24px; z-index:999999; display:flex; flex-direction:column; gap:8px; pointer-events:none;';
+        document.body.appendChild(container);
+    }
+    const toast = document.createElement('div');
+    toast.style.cssText = 'background:#1e293b; color:white; padding:10px 16px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.25); font-size:0.86rem; display:flex; align-items:center; gap:8px; pointer-events:auto; border-left:4px solid #10b981; max-width:380px;';
+    if (tipo === 'warning') toast.style.borderLeftColor = '#f59e0b';
+    if (tipo === 'error') toast.style.borderLeftColor = '#ef4444';
+    toast.innerHTML = `<span>${mensaje}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        setTimeout(() => toast.remove(), 400);
+    }, 3200);
 };
 
 window.generarPDFProyectos = () => {
