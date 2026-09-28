@@ -50,6 +50,23 @@ let pedidoActualEnModal = null;
 let pedidoActualEditando = null;
 let carritoPedido = [];
 
+// --- VARIABLES DE INVENTARIO Y ALERTAS VISUALES ---
+let umbralStockAlerta = parseFloat(localStorage.getItem('flr_inventario_umbral_alerta')) || 10;
+let filtroStockBajo = false;
+let busquedaInventarioTerm = '';
+let todosLosItemsInventario = [];
+
+// --- VARIABLES DEL MÓDULO DE PROYECTOS Y PENDIENTES ---
+let todosLosProyectos = [];
+let filtroEstadoProyecto = 'todos';
+let filtroPrioridadProyecto = 'todas';
+let filtroCategoriaProyecto = 'todas';
+let busquedaProyectoTerm = '';
+let ordenProyectos = 'limite_asc';
+let vistaProyectosActual = 'cards';
+let proyectoActualEditando = null;
+let proyectoActualNotaId = null;
+
 const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
 const PRECIOS_DEFAULT = {
@@ -194,6 +211,7 @@ function construirMenu() {
             { id:'ventas', icon:'💰', label:'Ventas' },
             { id:'clientes', icon:'👥', label:'Clientes' },
             { id:'inventario', icon:'📦', label:'Inventario' },
+            { id:'proyectos', icon:'🗂️', label:'Proyectos y Pendientes' },
             { id:'precios', icon:'🏷️', label:'Lista de Precios' },
             { id:'costos', icon:'🧮', label:'Costos Tostado' },
             { id:'cotizador', icon:'💵', label:'Cotizador Verde' },
@@ -224,6 +242,7 @@ function entrarAlSistema() {
         cargarDatosIniciales();
         cargarClientes();
         cargarPedidos();
+        cargarProyectos();
         window.calcularCotizador();
         window.onVentaTipoChange();
     } else {
@@ -1924,7 +1943,7 @@ window.generarPDFTostado = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.12", 105, 290, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.28", 105, 290, { align: "center" });
 
     doc.save(`Tueste_${t.nombre || 'Perfil'}_${t.fecha || Date.now()}.pdf`);
     alert("✅ Reporte PDF de Tostado generado con gráfica incluida.");
@@ -2215,7 +2234,7 @@ window.generarPDFMuestra = () => {
 
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.12", 105, 290, {align:"center"});
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.28", 105, 290, {align:"center"});
     
     d.save(`Muestra_${m.lote||'Lote'}_${m.fecha||Date.now()}.pdf`);
     alert("✅ PDF de Muestreo descargado con datos de zarandas incluidos.");
@@ -2682,7 +2701,7 @@ window.generarPDFCatacion = () => {
     // Pie de página
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.12", 105, 290, { align: "center" });
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.28", 105, 290, { align: "center" });
 
     d.save(`Catacion_${(c.nombre || 'Muestra').replace(/\s+/g, '_')}_${c.fecha || Date.now()}.pdf`);
     alert("✅ Ficha de catación en PDF descargada exitosamente.");
@@ -3260,8 +3279,7 @@ async function cargarDatosIniciales() {
         await cargarPedidos();
 
         const si = await getDocs(collection(db,"inventario"));
-        const ti = document.querySelector('#tabla-inventario tbody'); 
-        if (ti) ti.innerHTML = '';
+        todosLosItemsInventario = [];
         const grupos = {
             'Tostado-Entero': 0, 'Tostado-Molido': 0,
             'Oro': 0, 'Pergamino': 0,
@@ -3269,34 +3287,13 @@ async function cargarDatosIniciales() {
             'Licor-Botella': 0, 'Licor-Litro': 0, 'Licor-Galon': 0
         };
         si.forEach(d => {
-            const v=d.data();
+            const v = d.data();
+            todosLosItemsInventario.push({ id: d.id, data: v });
             const key = v.estado === 'Tostado' ? `Tostado-${v.presentacion||'Entero'}` : v.estado;
-            if (grupos[key] !== undefined) grupos[key] += v.cantidad;
-            
-            const f=v.fecha?new Date(v.fecha.seconds*1000).toLocaleDateString():'N/A';
-            const nombreProd = preciosListaActual[v.estado] ? preciosListaActual[v.estado].nombre : v.estado;
-            const presentacion = v.estado === 'Tostado' ? (v.presentacion || 'N/A') : '-';
-            const variedad = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.variedad || 'N/A') : '-';
-            const proceso = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.proceso || 'N/A') : '-';
-            const fechaTostado = v.estado === 'Tostado' ? (v.fechaTostado || 'N/A') : '-';
-            const unidad = preciosListaActual[v.estado] ? preciosListaActual[v.estado].unidad : '';
-            
-            if (ti) {
-                ti.innerHTML += `<tr>
-                    <td>${f}</td>
-                    <td>${nombreProd}</td>
-                    <td>${presentacion}</td>
-                    <td>${variedad}</td>
-                    <td>${proceso}</td>
-                    <td>${fechaTostado}</td>
-                    <td><strong>${v.cantidad.toFixed(1)}</strong> ${unidad}</td>
-                    <td class="actions-cell">
-                        <button class="btn btn-xs btn-edit" onclick="editarInventario('${d.id}')">✏️</button>
-                        <button class="btn btn-xs btn-danger" onclick="eliminarInventario('${d.id}')">🗑️</button>
-                    </td>
-                </tr>`;
-            }
+            if (grupos[key] !== undefined) grupos[key] += (Number(v.cantidad) || 0);
         });
+        
+        renderTablaInventario();
         
         const cafeGrid = document.getElementById('dash-cafe-grid');
         if (cafeGrid) {
@@ -3347,8 +3344,172 @@ async function cargarDatosIniciales() {
     } catch(e) { console.error("Error cargando datos:", e); }
 }
 
+// --- RENDERIZADO DE INVENTARIO CON ALERTAS VISUALES DE STOCK BAJO (v2026.09.28) ---
+
+function renderTablaInventario() {
+    const ti = document.querySelector('#tabla-inventario tbody'); 
+    if (!ti) return;
+    ti.innerHTML = '';
+
+    const inputUmbralEl = document.getElementById('inv-umbral-alerta');
+    if (inputUmbralEl && document.activeElement !== inputUmbralEl) {
+        inputUmbralEl.value = umbralStockAlerta;
+    }
+
+    let countBajos = 0;
+    todosLosItemsInventario.forEach(item => {
+        const v = item.data;
+        const cant = Number(v.cantidad) || 0;
+        if (cant <= umbralStockAlerta) {
+            countBajos++;
+        }
+    });
+
+    // Actualizar contadores en la barra
+    const countTotalEl = document.getElementById('inv-count-total');
+    if (countTotalEl) countTotalEl.innerText = todosLosItemsInventario.length;
+    const countAlertaEl = document.getElementById('inv-count-alerta');
+    if (countAlertaEl) countAlertaEl.innerText = countBajos;
+
+    // Actualizar banner de alerta
+    const banner = document.getElementById('inv-alerta-banner');
+    const bannerIcon = document.getElementById('inv-alerta-icon');
+    const bannerTitulo = document.getElementById('inv-alerta-titulo');
+    const bannerDesc = document.getElementById('inv-alerta-desc');
+    const btnFiltrarAlertas = document.getElementById('inv-btn-filtrar-alertas');
+
+    if (banner) {
+        if (countBajos > 0) {
+            banner.style.display = 'flex';
+            banner.className = 'stock-alerta-box';
+            if (bannerIcon) bannerIcon.innerText = '⚠️';
+            if (bannerTitulo) {
+                bannerTitulo.style.color = '#b91c1c';
+                bannerTitulo.innerText = `¡Alerta de Inventario! ${countBajos} producto(s) en o por debajo del umbral mínimo`;
+            }
+            if (bannerDesc) {
+                bannerDesc.style.color = '#7f1d1d';
+                bannerDesc.innerText = `Hay productos con existencia disponible ≤ ${umbralStockAlerta} (libras/unidades). Las filas afectadas están resaltadas en rojo para facilitar su reposición y tostado.`;
+            }
+            if (btnFiltrarAlertas) {
+                btnFiltrarAlertas.style.display = 'inline-block';
+                btnFiltrarAlertas.innerText = filtroStockBajo ? '👁️ Ver Todo el Inventario' : `⚠️ Ver Solo los ${countBajos} con Stock Bajo`;
+                btnFiltrarAlertas.onclick = () => window.filtrarStockInventario(!filtroStockBajo);
+            }
+        } else {
+            banner.style.display = 'flex';
+            banner.className = 'stock-alerta-box stock-ok-banner';
+            if (bannerIcon) bannerIcon.innerText = '✅';
+            if (bannerTitulo) {
+                bannerTitulo.style.color = '#15803d';
+                bannerTitulo.innerText = `Inventario en Niveles Óptimos`;
+            }
+            if (bannerDesc) {
+                bannerDesc.style.color = '#166534';
+                bannerDesc.innerText = `Todos los productos en bodega superan el umbral mínimo configurado (${umbralStockAlerta} lb/u.).`;
+            }
+            if (btnFiltrarAlertas) btnFiltrarAlertas.style.display = 'none';
+        }
+    }
+
+    let itemsFiltrados = todosLosItemsInventario.slice();
+
+    // Filtro por stock bajo
+    if (filtroStockBajo) {
+        itemsFiltrados = itemsFiltrados.filter(item => (Number(item.data.cantidad) || 0) <= umbralStockAlerta);
+    }
+
+    // Filtro por búsqueda
+    if (busquedaInventarioTerm) {
+        const t = busquedaInventarioTerm.toLowerCase();
+        itemsFiltrados = itemsFiltrados.filter(item => {
+            const v = item.data;
+            const nom = (preciosListaActual[v.estado]?.nombre || v.estado || '').toLowerCase();
+            const pres = (v.presentacion || '').toLowerCase();
+            const var_ = (v.variedad || '').toLowerCase();
+            const proc = (v.proceso || '').toLowerCase();
+            const ft = (v.fechaTostado || '').toLowerCase();
+            return nom.includes(t) || pres.includes(t) || var_.includes(t) || proc.includes(t) || ft.includes(t);
+        });
+    }
+
+    if (itemsFiltrados.length === 0) {
+        ti.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:#888;">
+            ${filtroStockBajo ? '🎉 ¡Excelente! No hay productos por debajo del umbral mínimo en esta búsqueda.' : 'No se encontraron productos en el inventario.'}
+        </td></tr>`;
+        return;
+    }
+
+    itemsFiltrados.forEach(item => {
+        const v = item.data;
+        const cant = Number(v.cantidad) || 0;
+        const esBajo = cant <= umbralStockAlerta;
+        const f = v.fecha ? new Date(v.fecha.seconds * 1000).toLocaleDateString('es-GT') : 'N/A';
+        const nombreProd = preciosListaActual[v.estado] ? preciosListaActual[v.estado].nombre : v.estado;
+        const presentacion = v.estado === 'Tostado' ? (v.presentacion || 'N/A') : '-';
+        const variedad = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.variedad || 'N/A') : '-';
+        const proceso = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.proceso || 'N/A') : '-';
+        const fechaTostado = v.estado === 'Tostado' ? (v.fechaTostado || 'N/A') : '-';
+        const unidad = preciosListaActual[v.estado] ? preciosListaActual[v.estado].unidad : '';
+
+        const badgeStock = esBajo
+            ? `<span class="badge-stock-alerta" title="Stock actual (${cant.toFixed(1)}) por debajo o igual al umbral mínimo (${umbralStockAlerta})">⚠️ ${cant.toFixed(1)} ${unidad} <span style="font-size:0.68rem; background:#7f1d1d; color:#fff; padding:1px 4px; border-radius:3px; margin-left:3px;">¡BAJO!</span></span>`
+            : `<span class="badge-stock-normal">✅ ${cant.toFixed(1)} ${unidad}</span>`;
+
+        const trClass = esBajo ? 'class="tr-stock-bajo"' : '';
+
+        ti.innerHTML += `<tr ${trClass}>
+            <td>${f}</td>
+            <td><strong>${nombreProd}</strong></td>
+            <td>${presentacion}</td>
+            <td>${variedad}</td>
+            <td>${proceso}</td>
+            <td>${fechaTostado}</td>
+            <td>${badgeStock}</td>
+            <td class="actions-cell">
+                <button class="btn btn-xs btn-edit" onclick="editarInventario('${item.id}')" title="Editar inventario">✏️</button>
+                <button class="btn btn-xs btn-danger" onclick="eliminarInventario('${item.id}')" title="Eliminar del inventario">🗑️</button>
+            </td>
+        </tr>`;
+    });
+}
+
+window.cambiarUmbralAlerta = (val) => {
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0) {
+        umbralStockAlerta = num;
+        localStorage.setItem('flr_inventario_umbral_alerta', String(num));
+        renderTablaInventario();
+    }
+};
+
+window.filtrarStockInventario = (soloBajos) => {
+    filtroStockBajo = soloBajos;
+    const btnTodos = document.getElementById('btn-inv-filtro-todos');
+    const btnBajos = document.getElementById('btn-inv-filtro-bajos');
+    if (btnTodos && btnBajos) {
+        if (soloBajos) {
+            btnBajos.style.background = '#dc2626';
+            btnBajos.style.color = 'white';
+            btnTodos.style.background = 'transparent';
+            btnTodos.style.color = '#64748b';
+        } else {
+            btnTodos.style.background = 'var(--primary)';
+            btnTodos.style.color = 'white';
+            btnBajos.style.background = 'transparent';
+            btnBajos.style.color = '#64748b';
+        }
+    }
+    renderTablaInventario();
+};
+
+window.buscarInventario = (term) => {
+    busquedaInventarioTerm = (term || '').trim();
+    renderTablaInventario();
+};
+
 // =========================================================================
-// --- CONTROL DE PEDIDOS Y ENTREGAS PENDIENTES (v2026.09.12) ---
+// --- CONTROL DE PEDIDOS Y ENTREGAS PENDIENTES (v2026.09.28) ---
 // =========================================================================
 
 function generarNuevoFolioPedido() {
@@ -4542,14 +4703,14 @@ window.generarPDFHojaPedido = (pedidoId) => {
     // Pie de página
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.12", 108, 270, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.28", 108, 270, { align: "center" });
 
     doc.save(`${d.folio || 'Pedido'}_${(d.clienteNombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
     alert(`✅ Hoja de Pedido PDF (${d.folio || ''}) descargada.`);
 };
 
 // =========================================================================
-// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.12) ---
+// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.28) ---
 // =========================================================================
 
 function obtenerComprasDeCliente(clienteId, clienteNombre) {
@@ -5349,10 +5510,878 @@ window.generarPDFHistorialCliente = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.12", 108, 270, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.28", 108, 270, { align: "center" });
 
     doc.save(`Historial_${(d.nombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`);
     alert("✅ Estado de Cuenta / Historial de Cliente descargado en PDF.");
+};
+
+// =========================================================================
+// --- MÓDULO: GESTIÓN DE PROYECTOS Y PENDIENTES (v2026.09.28) ---
+// =========================================================================
+
+const AREAS_PROYECTO = {
+    'campo': { nombre: 'Campo y Finca', icon: '🌱' },
+    'beneficio': { nombre: 'Cosecha y Beneficio', icon: '☕' },
+    'tostado': { nombre: 'Tostaduría y Empaque', icon: '🔥' },
+    'ventas': { nombre: 'Ventas y Comercial', icon: '💰' },
+    'mantenimiento': { nombre: 'Mantenimiento / Maquinaria', icon: '🔧' },
+    'calidad': { nombre: 'Calidad y Lab', icon: '🔬' },
+    'administrativo': { nombre: 'Administrativo y Finanzas', icon: '📂' },
+    'otro': { nombre: 'General / Otro', icon: '📌' }
+};
+
+async function cargarProyectos() {
+    try {
+        let snap;
+        try {
+            snap = await getDocs(query(collection(db, "proyectos_pendientes"), orderBy("fechaCreacion", "desc")));
+        } catch (e) {
+            snap = await getDocs(collection(db, "proyectos_pendientes"));
+        }
+        todosLosProyectos = [];
+        snap.forEach(d => {
+            todosLosProyectos.push({ id: d.id, data: d.data() });
+        });
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+        renderProyectos();
+    } catch (err) {
+        console.warn("Aviso al cargar proyectos desde Firestore, utilizando respaldo local:", err);
+        const cached = localStorage.getItem('flr_proyectos_cache');
+        if (cached) {
+            try {
+                todosLosProyectos = JSON.parse(cached);
+            } catch (e) { todosLosProyectos = []; }
+        }
+        renderProyectos();
+    }
+}
+
+function renderProyectos() {
+    const cardsContainer = document.getElementById('proyectos-container-cards');
+    const tableBody = document.querySelector('#tabla-proyectos tbody');
+    if (!cardsContainer || !tableBody) return;
+
+    // Métricas y KPIs
+    let total = todosLosProyectos.length;
+    let progreso = 0;
+    let plan = 0;
+    let completados = 0;
+    let vencidos = 0;
+    let sumaAvance = 0;
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    todosLosProyectos.forEach(p => {
+        const d = p.data;
+        const est = d.estado || 'en_progreso';
+        const avance = Number(d.porcentajeAvance) || 0;
+        sumaAvance += avance;
+
+        if (est === 'en_progreso') progreso++;
+        else if (est === 'planificacion' || est === 'pausado') plan++;
+        else if (est === 'completado') completados++;
+
+        // Chequeo de vencimiento
+        if (est !== 'completado' && d.fechaLimite) {
+            const fl = new Date(d.fechaLimite + 'T00:00:00');
+            if (fl < hoy) {
+                vencidos++;
+            }
+        }
+    });
+
+    const kpiTotalEl = document.getElementById('proy-kpi-total');
+    if (kpiTotalEl) kpiTotalEl.innerText = total;
+    const kpiProgresoEl = document.getElementById('proy-kpi-progreso');
+    if (kpiProgresoEl) kpiProgresoEl.innerText = progreso;
+    const kpiPlanEl = document.getElementById('proy-kpi-plan');
+    if (kpiPlanEl) kpiPlanEl.innerText = plan;
+    const kpiCompEl = document.getElementById('proy-kpi-completado');
+    if (kpiCompEl) kpiCompEl.innerText = completados;
+    const kpiVencEl = document.getElementById('proy-kpi-vencidos');
+    if (kpiVencEl) kpiVencEl.innerText = vencidos;
+    const kpiAvanceEl = document.getElementById('proy-kpi-avance');
+    if (kpiAvanceEl) kpiAvanceEl.innerText = total > 0 ? `${Math.round(sumaAvance / total)}%` : '0%';
+
+    // Filtrado
+    let listaFiltrada = todosLosProyectos.slice();
+
+    if (filtroEstadoProyecto !== 'todos') {
+        if (filtroEstadoProyecto === 'vencidos') {
+            listaFiltrada = listaFiltrada.filter(p => {
+                const d = p.data;
+                if (d.estado === 'completado' || !d.fechaLimite) return false;
+                const fl = new Date(d.fechaLimite + 'T00:00:00');
+                return fl < hoy;
+            });
+        } else {
+            listaFiltrada = listaFiltrada.filter(p => (p.data.estado || 'en_progreso') === filtroEstadoProyecto);
+        }
+    }
+
+    if (filtroPrioridadProyecto !== 'todas') {
+        listaFiltrada = listaFiltrada.filter(p => (p.data.prioridad || 'media') === filtroPrioridadProyecto);
+    }
+
+    if (filtroCategoriaProyecto !== 'todas') {
+        listaFiltrada = listaFiltrada.filter(p => (p.data.categoria || 'campo') === filtroCategoriaProyecto);
+    }
+
+    if (busquedaProyectoTerm) {
+        const term = busquedaProyectoTerm.toLowerCase();
+        listaFiltrada = listaFiltrada.filter(p => {
+            const d = p.data;
+            const tit = (d.titulo || '').toLowerCase();
+            const desc = (d.descripcion || '').toLowerCase();
+            const resp = (d.responsable || '').toLowerCase();
+            const subtareasText = Array.isArray(d.subtareas) ? d.subtareas.map(s => s.texto || '').join(' ').toLowerCase() : '';
+            const notasText = Array.isArray(d.notas) ? d.notas.map(n => n.texto || '').join(' ').toLowerCase() : '';
+            return tit.includes(term) || desc.includes(term) || resp.includes(term) || subtareasText.includes(term) || notasText.includes(term);
+        });
+    }
+
+    // Ordenamiento
+    listaFiltrada.sort((a, b) => {
+        const da = a.data;
+        const db = b.data;
+        if (ordenProyectos === 'limite_asc') {
+            if (!da.fechaLimite) return 1;
+            if (!db.fechaLimite) return -1;
+            return da.fechaLimite.localeCompare(db.fechaLimite);
+        } else if (ordenProyectos === 'avance_asc') {
+            return (da.porcentajeAvance || 0) - (db.porcentajeAvance || 0);
+        } else if (ordenProyectos === 'avance_desc') {
+            return (db.porcentajeAvance || 0) - (da.porcentajeAvance || 0);
+        } else if (ordenProyectos === 'prioridad') {
+            const peso = { 'alta': 3, 'media': 2, 'baja': 1 };
+            return (peso[db.prioridad || 'media'] || 0) - (peso[da.prioridad || 'media'] || 0);
+        } else if (ordenProyectos === 'recientes') {
+            const ta = da.fechaCreacion?.seconds || 0;
+            const tb = db.fechaCreacion?.seconds || 0;
+            return tb - ta;
+        }
+        return 0;
+    });
+
+    // Renderizar Vista de Tarjetas (Cards)
+    cardsContainer.innerHTML = '';
+    if (listaFiltrada.length === 0) {
+        cardsContainer.innerHTML = `
+            <div style="grid-column: 1 / -1; text-align:center; padding:3rem 1.5rem; background:white; border-radius:12px; border:2px dashed #cbd5e1;">
+                <div style="font-size:3rem; margin-bottom:0.5rem;">🗂️</div>
+                <h3 style="color:var(--primary); margin:0 0 0.5rem 0;">No hay proyectos o pendientes encontrados</h3>
+                <p style="color:#64748b; font-size:0.9rem; max-width:480px; margin:0 auto 1.25rem;">
+                    ${busquedaProyectoTerm || filtroEstadoProyecto !== 'todos' ? 'No se encontraron resultados con los filtros actuales. Prueba a limpiar los filtros.' : 'Comienza a organizar las actividades de la finca, mantenimiento, cataciones, tueste o cosechas creando tu primer proyecto con subtareas y metas de fecha.'}
+                </p>
+                <button class="btn btn-small" onclick="abrirModalNuevoProyecto()" style="background:var(--primary); color:white; font-weight:bold;">
+                    ➕ Crear Primer Proyecto / Pendiente
+                </button>
+            </div>
+        `;
+    } else {
+        listaFiltrada.forEach(item => {
+            const d = item.data;
+            const pid = item.id;
+            const est = d.estado || 'en_progreso';
+            const prio = d.prioridad || 'media';
+            const catKey = d.categoria || 'campo';
+            const areaInfo = AREAS_PROYECTO[catKey] || { nombre: catKey, icon: '📌' };
+            const subtareas = Array.isArray(d.subtareas) ? d.subtareas : [];
+            const notas = Array.isArray(d.notas) ? d.notas : [];
+
+            // Calcular porcentaje y estado
+            const complCount = subtareas.filter(s => s.completada).length;
+            const pct = d.porcentajeAvance !== undefined ? Number(d.porcentajeAvance) : (subtareas.length > 0 ? Math.round((complCount / subtareas.length) * 100) : 0);
+
+            // Clase de tarjeta según estado
+            let cardClass = 'p-progreso';
+            if (est === 'completado') cardClass = 'p-completado';
+            else if (est === 'planificacion') cardClass = 'p-plan';
+            else if (est === 'pausado') cardClass = 'p-pausa';
+
+            // Alerta de fecha límite
+            let fechaLimiteBadge = '';
+            let isOverdue = false;
+            if (d.fechaLimite) {
+                const fl = new Date(d.fechaLimite + 'T00:00:00');
+                const diffDias = Math.round((fl - hoy) / (1000 * 60 * 60 * 24));
+                if (est === 'completado') {
+                    fechaLimiteBadge = `<span class="urgencia-badge urgencia-completada">✅ Terminado a tiempo</span>`;
+                } else if (diffDias < 0) {
+                    isOverdue = true;
+                    cardClass = 'p-vencido';
+                    fechaLimiteBadge = `<span class="urgencia-badge urgencia-atrasada">⚠️ Vencido (${Math.abs(diffDias)}d atrás)</span>`;
+                } else if (diffDias === 0) {
+                    fechaLimiteBadge = `<span class="urgencia-badge urgencia-hoy">⏰ Vence hoy</span>`;
+                } else if (diffDias <= 3) {
+                    fechaLimiteBadge = `<span class="urgencia-badge urgencia-hoy">⏳ Vence en ${diffDias} día(s)</span>`;
+                } else {
+                    fechaLimiteBadge = `<span class="urgencia-badge urgencia-normal">📅 Quedan ${diffDias} días</span>`;
+                }
+            }
+
+            // Barra de progreso color
+            let barColor = '#2563eb';
+            if (pct === 100) barColor = '#10b981';
+            else if (pct <= 25) barColor = '#ef4444';
+            else if (pct <= 65) barColor = '#f59e0b';
+
+            // Subtareas HTML
+            let subtareasHTML = '';
+            if (subtareas.length > 0) {
+                subtareasHTML = subtareas.map((st, sidx) => {
+                    const checked = st.completada ? 'checked' : '';
+                    const doneClass = st.completada ? 'done' : '';
+                    const stFecha = st.fechaLimite ? `<span style="font-size:0.72rem; color:#64748b; margin-left:auto;">(${st.fechaLimite})</span>` : '';
+                    return `
+                        <div class="subtarea-item ${doneClass}">
+                            <input type="checkbox" ${checked} onchange="toggleSubtarea('${pid}', ${sidx})" title="Marcar subtarea">
+                            <span style="flex:1;">${st.texto}</span>
+                            ${stFecha}
+                            <button type="button" onclick="eliminarSubtarea('${pid}', ${sidx})" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:0.75rem; padding:1px 4px;" title="Eliminar subtarea">✕</button>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                subtareasHTML = `<div style="font-size:0.78rem; color:#94a3b8; font-style:italic; padding:4px 0;">No hay subtareas registradas. Puedes agregar una a continuación.</div>`;
+            }
+
+            // Notas HTML (últimas 2)
+            let notasHTML = '';
+            if (notas.length > 0) {
+                const ultimasNotas = notas.slice(-2).reverse();
+                notasHTML = `
+                    <div style="margin-top:0.75rem;">
+                        <span style="font-size:0.75rem; font-weight:bold; color:var(--secondary); text-transform:uppercase;">📝 Bitácora de Avances (${notas.length}):</span>
+                        <div style="margin-top:4px;">
+                            ${ultimasNotas.map(n => `
+                                <div class="nota-bitacora">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#78350f; margin-bottom:2px;">
+                                        <strong>${n.autor || 'Equipo'}</strong>
+                                        <span>${n.fechaLegible || (n.fecha ? new Date(n.fecha).toLocaleDateString('es-GT') : '')}</span>
+                                    </div>
+                                    <div>${n.texto}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            const card = document.createElement('div');
+            card.className = `proyecto-card ${cardClass}`;
+            card.innerHTML = `
+                <div>
+                    <!-- CABECERA -->
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:0.5rem; flex-wrap:wrap;">
+                        <span class="badge-area-proy">${areaInfo.icon} ${areaInfo.nombre}</span>
+                        <div style="display:flex; gap:4px; align-items:center;">
+                            <span class="badge-prioridad prioridad-${prio}">
+                                ${prio === 'alta' ? '🔴 Alta' : prio === 'media' ? '🟡 Media' : '🟢 Baja'}
+                            </span>
+                            <span class="badge-estado-proy estado-proy-${est}">
+                                ${est === 'en_progreso' ? '⚡ Progreso' : est === 'planificacion' ? '📋 Plan' : est === 'pausado' ? '⏸️ Pausa' : '✅ Listo'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- TÍTULO Y RESPONSABLE -->
+                    <h3 style="margin:0 0 0.25rem 0; color:var(--primary); font-size:1.1rem; line-height:1.3;">${d.titulo}</h3>
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.8rem; color:#64748b; margin-bottom:0.5rem; flex-wrap:wrap; gap:4px;">
+                        <span>👤 ${d.responsable || 'Sin asignar'}</span>
+                        ${fechaLimiteBadge}
+                    </div>
+
+                    <!-- DESCRIPCIÓN -->
+                    ${d.descripcion ? `<p style="font-size:0.84rem; color:#475569; margin:0 0 0.75rem 0; line-height:1.4;">${d.descripcion}</p>` : ''}
+
+                    <!-- FECHAS -->
+                    <div style="display:flex; gap:12px; font-size:0.75rem; color:#64748b; background:#f8fafc; padding:4px 8px; border-radius:6px; margin-bottom:0.75rem;">
+                        <span><strong>Inicio:</strong> ${d.fechaInicio || 'N/A'}</span>
+                        <span><strong>Límite:</strong> ${d.fechaLimite || 'Sin fecha'}</span>
+                    </div>
+
+                    <!-- BARRA DE AVANCE -->
+                    <div style="margin-bottom:0.75rem;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-weight:bold; color:var(--primary);">
+                            <span>Avance: ${pct}%</span>
+                            <span style="font-size:0.75rem; color:#64748b;">${complCount}/${subtareas.length} subtareas</span>
+                        </div>
+                        <div class="progreso-bar-bg">
+                            <div class="progreso-bar-fill" style="width:${pct}%; background:${barColor};"></div>
+                        </div>
+                    </div>
+
+                    <!-- SUBTAREAS -->
+                    <div style="margin-bottom:0.5rem;">
+                        <div style="font-size:0.78rem; font-weight:bold; color:var(--primary); margin-bottom:4px; display:flex; justify-content:space-between;">
+                            <span>📋 Checklist de Tareas</span>
+                        </div>
+                        <div style="max-height:160px; overflow-y:auto;">
+                            ${subtareasHTML}
+                        </div>
+                        <!-- INPUT RÁPIDO DE SUBTAREA -->
+                        <div style="display:flex; gap:4px; margin-top:6px;">
+                            <input type="text" id="quick-sub-${pid}" placeholder="+ Subtarea rápida..." class="yellow-input" style="flex:1; padding:4px 8px; font-size:0.8rem; min-height:30px;" onkeydown="if(event.key==='Enter') agregarSubtareaRapida('${pid}')">
+                            <button type="button" class="btn btn-xs" onclick="agregarSubtareaRapida('${pid}')" style="background:#2563eb; color:white; width:auto; padding:2px 8px; margin:0;" title="Agregar">➕</button>
+                        </div>
+                    </div>
+
+                    <!-- NOTAS DE AVANCE -->
+                    ${notasHTML}
+                </div>
+
+                <!-- ACCIONES INFERIORES -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; margin-top:1rem; padding-top:0.75rem; border-top:1px solid #f1f5f9; flex-wrap:wrap;">
+                    <div style="display:flex; gap:4px;">
+                        <button class="btn btn-xs" onclick="abrirModalNotaProyecto('${pid}')" style="background:#f59e0b; color:white; width:auto; padding:4px 8px; margin:0;" title="Registrar Nota o Avance">
+                            📝 + Nota
+                        </button>
+                        ${est !== 'completado' ? `
+                            <button class="btn btn-xs" onclick="marcarProyectoCompletado('${pid}')" style="background:#10b981; color:white; width:auto; padding:4px 8px; margin:0;" title="Completar todo al 100%">
+                                ✔️ Finalizar
+                            </button>
+                        ` : ''}
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                        <button class="btn btn-xs btn-edit" onclick="abrirModalEditarProyecto('${pid}')" style="margin:0; padding:4px 8px;" title="Editar">✏️</button>
+                        <button class="btn btn-xs btn-danger" onclick="eliminarProyecto('${pid}')" style="margin:0; padding:4px 8px;" title="Eliminar">🗑️</button>
+                    </div>
+                </div>
+            `;
+            cardsContainer.appendChild(card);
+        });
+    }
+
+    // Renderizar Vista de Tabla Compacta
+    tableBody.innerHTML = '';
+    if (listaFiltrada.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:1.5rem; color:#888;">No hay proyectos disponibles con el filtro actual.</td></tr>`;
+    } else {
+        listaFiltrada.forEach(item => {
+            const d = item.data;
+            const pid = item.id;
+            const est = d.estado || 'en_progreso';
+            const prio = d.prioridad || 'media';
+            const catKey = d.categoria || 'campo';
+            const areaInfo = AREAS_PROYECTO[catKey] || { nombre: catKey, icon: '📌' };
+            const subtareas = Array.isArray(d.subtareas) ? d.subtareas : [];
+            const complCount = subtareas.filter(s => s.completada).length;
+            const pct = d.porcentajeAvance !== undefined ? Number(d.porcentajeAvance) : (subtareas.length > 0 ? Math.round((complCount / subtareas.length) * 100) : 0);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${d.titulo}</strong></td>
+                <td><span class="badge-area-proy">${areaInfo.icon} ${areaInfo.nombre}</span></td>
+                <td><span class="badge-prioridad prioridad-${prio}">${prio === 'alta' ? '🔴 Alta' : prio === 'media' ? '🟡 Media' : '🟢 Baja'}</span></td>
+                <td><span class="badge-estado-proy estado-proy-${est}">${est === 'en_progreso' ? '⚡ Progreso' : est === 'planificacion' ? '📋 Plan' : est === 'pausado' ? '⏸️ Pausa' : '✅ Listo'}</span></td>
+                <td><span style="font-size:0.75rem;">${d.fechaInicio || 'N/A'} ➔ ${d.fechaLimite || 'Sin límite'}</span></td>
+                <td>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-weight:bold; font-size:0.85rem;">${pct}%</span>
+                        <div style="width:50px; height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
+                            <div style="width:${pct}%; height:100%; background:${pct===100?'#10b981':pct<=25?'#ef4444':'#2563eb'};"></div>
+                        </div>
+                    </div>
+                </td>
+                <td><span style="font-size:0.8rem;">${complCount}/${subtareas.length}</span></td>
+                <td><span style="font-size:0.8rem;">${d.responsable || 'Sin asignar'}</span></td>
+                <td class="actions-cell" style="white-space:nowrap;">
+                    <button class="btn btn-xs" onclick="abrirModalNotaProyecto('${pid}')" style="background:#f59e0b; color:white;" title="Agregar Nota">📝</button>
+                    <button class="btn btn-xs btn-edit" onclick="abrirModalEditarProyecto('${pid}')" title="Editar">✏️</button>
+                    <button class="btn btn-xs btn-danger" onclick="eliminarProyecto('${pid}')" title="Eliminar">🗑️</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+}
+
+window.abrirModalNuevoProyecto = () => {
+    proyectoActualEditando = null;
+    document.getElementById('modal-proyecto-titulo').innerText = "➕ Nuevo Proyecto / Pendiente";
+    document.getElementById('proy-id').value = "";
+    document.getElementById('modal-proy-titulo').value = "";
+    document.getElementById('modal-proy-categoria').value = "campo";
+    document.getElementById('modal-proy-prioridad').value = "media";
+    document.getElementById('modal-proy-estado').value = "en_progreso";
+    document.getElementById('modal-proy-responsable').value = "";
+    document.getElementById('modal-proy-fecha-inicio').value = new Date().toISOString().split('T')[0];
+    document.getElementById('modal-proy-fecha-limite').value = "";
+    document.getElementById('modal-proy-descripcion').value = "";
+
+    const list = document.getElementById('modal-proy-subtareas-list');
+    list.innerHTML = "";
+    agregarFilaSubtareaModal("", "", false);
+
+    document.getElementById('modal-proyecto').style.display = "flex";
+};
+
+window.abrirModalEditarProyecto = (id) => {
+    const item = todosLosProyectos.find(p => p.id === id);
+    if (!item) return alert("Proyecto no encontrado.");
+    const d = item.data;
+
+    proyectoActualEditando = id;
+    document.getElementById('modal-proyecto-titulo').innerText = "✏️ Editar Proyecto / Pendiente";
+    document.getElementById('proy-id').value = id;
+    document.getElementById('modal-proy-titulo').value = d.titulo || "";
+    document.getElementById('modal-proy-categoria').value = d.categoria || "campo";
+    document.getElementById('modal-proy-prioridad').value = d.prioridad || "media";
+    document.getElementById('modal-proy-estado').value = d.estado || "en_progreso";
+    document.getElementById('modal-proy-responsable').value = d.responsable || "";
+    document.getElementById('modal-proy-fecha-inicio').value = d.fechaInicio || "";
+    document.getElementById('modal-proy-fecha-limite').value = d.fechaLimite || "";
+    document.getElementById('modal-proy-descripcion').value = d.descripcion || "";
+
+    const list = document.getElementById('modal-proy-subtareas-list');
+    list.innerHTML = "";
+    const subtareas = Array.isArray(d.subtareas) ? d.subtareas : [];
+    if (subtareas.length > 0) {
+        subtareas.forEach(st => {
+            agregarFilaSubtareaModal(st.texto, st.fechaLimite, st.completada);
+        });
+    } else {
+        agregarFilaSubtareaModal("", "", false);
+    }
+
+    document.getElementById('modal-proyecto').style.display = "flex";
+};
+
+window.agregarFilaSubtareaModal = (texto = "", fecha = "", completada = false) => {
+    const list = document.getElementById('modal-proy-subtareas-list');
+    if (!list) return;
+
+    const row = document.createElement('div');
+    row.className = 'modal-subtarea-row';
+    row.style.cssText = 'display:flex; gap:8px; align-items:center; background:white; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1;';
+    row.innerHTML = `
+        <input type="checkbox" class="sub-check" ${completada ? 'checked' : ''} style="width:18px; height:18px; cursor:pointer;" title="Marcar si ya está lista">
+        <input type="text" class="yellow-input sub-texto" value="${(texto || '').replace(/"/g, '&quot;')}" placeholder="Descripción de la subtarea o hito..." style="flex:2; padding:6px 8px; font-size:0.85rem; min-height:34px;">
+        <input type="date" class="yellow-input sub-fecha" value="${fecha || ''}" style="flex:1; max-width:140px; padding:6px 8px; font-size:0.85rem; min-height:34px;" title="Fecha límite opcional">
+        <button type="button" class="btn btn-xs btn-danger" onclick="this.closest('.modal-subtarea-row').remove()" style="margin:0; padding:4px 8px;" title="Eliminar subtarea">✕</button>
+    `;
+    list.appendChild(row);
+};
+
+window.guardarProyecto = async () => {
+    const titulo = document.getElementById('modal-proy-titulo').value.trim();
+    if (!titulo) return alert("⚠️ Por favor ingresa el título del proyecto o pendiente.");
+
+    const categoria = document.getElementById('modal-proy-categoria').value;
+    const prioridad = document.getElementById('modal-proy-prioridad').value;
+    let estado = document.getElementById('modal-proy-estado').value;
+    const responsable = document.getElementById('modal-proy-responsable').value.trim();
+    const fechaInicio = document.getElementById('modal-proy-fecha-inicio').value;
+    const fechaLimite = document.getElementById('modal-proy-fecha-limite').value;
+    const descripcion = document.getElementById('modal-proy-descripcion').value.trim();
+
+    // Recoger subtareas
+    const subtareas = [];
+    document.querySelectorAll('#modal-proy-subtareas-list .modal-subtarea-row').forEach(row => {
+        const texto = row.querySelector('.sub-texto')?.value.trim();
+        const completada = row.querySelector('.sub-check')?.checked || false;
+        const subFecha = row.querySelector('.sub-fecha')?.value || '';
+        if (texto) {
+            subtareas.push({
+                id: 'sub_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                texto,
+                completada,
+                fechaLimite: subFecha
+            });
+        }
+    });
+
+    // Calcular porcentaje de avance
+    let porcentajeAvance = 0;
+    if (subtareas.length > 0) {
+        const complCount = subtareas.filter(s => s.completada).length;
+        porcentajeAvance = Math.round((complCount / subtareas.length) * 100);
+        if (porcentajeAvance === 100) estado = 'completado';
+        else if (estado === 'completado' && porcentajeAvance < 100) estado = 'en_progreso';
+    } else {
+        porcentajeAvance = (estado === 'completado') ? 100 : 0;
+    }
+
+    const docData = {
+        titulo,
+        categoria,
+        prioridad,
+        estado,
+        responsable,
+        fechaInicio,
+        fechaLimite,
+        descripcion,
+        subtareas,
+        porcentajeAvance,
+        fechaActualizacion: serverTimestamp()
+    };
+
+    try {
+        if (proyectoActualEditando) {
+            await updateDoc(doc(db, "proyectos_pendientes", proyectoActualEditando), docData);
+            alert("✅ Proyecto actualizado correctamente.");
+        } else {
+            docData.notas = [];
+            docData.fechaCreacion = serverTimestamp();
+            await addDoc(collection(db, "proyectos_pendientes"), docData);
+            alert("✅ Nuevo proyecto / pendiente registrado con éxito.");
+        }
+        window.cerrarModal('modal-proyecto');
+        proyectoActualEditando = null;
+        await cargarProyectos();
+    } catch (e) {
+        alert("Error guardando proyecto: " + e.message);
+    }
+};
+
+window.toggleSubtarea = async (proyectoId, subIdx) => {
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item || !Array.isArray(item.data.subtareas) || !item.data.subtareas[subIdx]) return;
+
+    const subtareas = item.data.subtareas;
+    subtareas[subIdx].completada = !subtareas[subIdx].completada;
+
+    const complCount = subtareas.filter(s => s.completada).length;
+    const porcentajeAvance = Math.round((complCount / subtareas.length) * 100);
+    let nuevoEstado = item.data.estado || 'en_progreso';
+
+    if (porcentajeAvance === 100) {
+        nuevoEstado = 'completado';
+    } else if (nuevoEstado === 'completado' && porcentajeAvance < 100) {
+        nuevoEstado = 'en_progreso';
+    }
+
+    item.data.subtareas = subtareas;
+    item.data.porcentajeAvance = porcentajeAvance;
+    item.data.estado = nuevoEstado;
+    renderProyectos();
+
+    try {
+        await updateDoc(doc(db, "proyectos_pendientes", proyectoId), {
+            subtareas,
+            porcentajeAvance,
+            estado: nuevoEstado,
+            fechaActualizacion: serverTimestamp()
+        });
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+    } catch (e) {
+        console.error("Error sincronizando subtarea en Firestore:", e);
+    }
+};
+
+window.eliminarSubtarea = async (proyectoId, subIdx) => {
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item || !Array.isArray(item.data.subtareas)) return;
+
+    item.data.subtareas.splice(subIdx, 1);
+    const subtareas = item.data.subtareas;
+    const complCount = subtareas.filter(s => s.completada).length;
+    const porcentajeAvance = subtareas.length > 0 ? Math.round((complCount / subtareas.length) * 100) : (item.data.estado === 'completado' ? 100 : 0);
+
+    item.data.porcentajeAvance = porcentajeAvance;
+    renderProyectos();
+
+    try {
+        await updateDoc(doc(db, "proyectos_pendientes", proyectoId), {
+            subtareas,
+            porcentajeAvance,
+            fechaActualizacion: serverTimestamp()
+        });
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+    } catch (e) {
+        console.error("Error eliminando subtarea:", e);
+    }
+};
+
+window.agregarSubtareaRapida = async (proyectoId) => {
+    const input = document.getElementById(`quick-sub-${proyectoId}`);
+    if (!input) return;
+    const texto = input.value.trim();
+    if (!texto) return;
+
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item) return;
+
+    if (!Array.isArray(item.data.subtareas)) item.data.subtareas = [];
+    item.data.subtareas.push({
+        id: 'sub_' + Date.now(),
+        texto,
+        completada: false,
+        fechaLimite: ''
+    });
+
+    const subtareas = item.data.subtareas;
+    const complCount = subtareas.filter(s => s.completada).length;
+    const porcentajeAvance = Math.round((complCount / subtareas.length) * 100);
+    let nuevoEstado = item.data.estado || 'en_progreso';
+    if (nuevoEstado === 'completado' && porcentajeAvance < 100) nuevoEstado = 'en_progreso';
+
+    item.data.porcentajeAvance = porcentajeAvance;
+    item.data.estado = nuevoEstado;
+
+    input.value = '';
+    renderProyectos();
+
+    try {
+        await updateDoc(doc(db, "proyectos_pendientes", proyectoId), {
+            subtareas,
+            porcentajeAvance,
+            estado: nuevoEstado,
+            fechaActualizacion: serverTimestamp()
+        });
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+    } catch (e) {
+        console.error("Error agregando subtarea rápida:", e);
+    }
+};
+
+window.abrirModalNotaProyecto = (proyectoId) => {
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item) return;
+
+    proyectoActualNotaId = proyectoId;
+    document.getElementById('modal-nota-proy-id').value = proyectoId;
+    document.getElementById('modal-nota-subtitulo').innerText = `Proyecto: "${item.data.titulo}"`;
+    document.getElementById('modal-nota-texto').value = "";
+    document.getElementById('modal-nota-proyecto').style.display = "flex";
+};
+
+window.guardarNotaProyecto = async () => {
+    const proyectoId = proyectoActualNotaId || document.getElementById('modal-nota-proy-id').value;
+    const texto = document.getElementById('modal-nota-texto').value.trim();
+    if (!texto) return alert("⚠️ Ingresa el texto de la nota o avance.");
+
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item) return;
+
+    if (!Array.isArray(item.data.notas)) item.data.notas = [];
+    const nuevaNota = {
+        id: 'n_' + Date.now(),
+        fecha: new Date().toISOString(),
+        fechaLegible: new Date().toLocaleString('es-GT'),
+        texto,
+        autor: currentAuthEmail ? currentAuthEmail.split('@')[0] : 'Usuario'
+    };
+
+    item.data.notas.push(nuevaNota);
+    window.cerrarModal('modal-nota-proyecto');
+    renderProyectos();
+
+    try {
+        await updateDoc(doc(db, "proyectos_pendientes", proyectoId), {
+            notas: item.data.notas,
+            fechaActualizacion: serverTimestamp()
+        });
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+        alert("✅ Nota registrada en la bitácora.");
+    } catch (e) {
+        alert("Error guardando nota: " + e.message);
+    }
+};
+
+window.marcarProyectoCompletado = async (proyectoId) => {
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item) return;
+    if (!confirm(`¿Marcar el proyecto "${item.data.titulo}" como COMPLETADO al 100%?`)) return;
+
+    if (Array.isArray(item.data.subtareas)) {
+        item.data.subtareas.forEach(s => s.completada = true);
+    }
+    item.data.estado = 'completado';
+    item.data.porcentajeAvance = 100;
+    renderProyectos();
+
+    try {
+        await updateDoc(doc(db, "proyectos_pendientes", proyectoId), {
+            subtareas: item.data.subtareas || [],
+            estado: 'completado',
+            porcentajeAvance: 100,
+            fechaActualizacion: serverTimestamp()
+        });
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+        alert("🎉 ¡Proyecto finalizado con éxito!");
+    } catch (e) {
+        alert("Error actualizando: " + e.message);
+    }
+};
+
+window.eliminarProyecto = async (proyectoId) => {
+    const item = todosLosProyectos.find(p => p.id === proyectoId);
+    if (!item) return;
+    if (!confirm(`⚠️ ¿Estás seguro de eliminar el proyecto "${item.data.titulo}"?\nEsta acción no se puede deshacer.`)) return;
+
+    try {
+        await deleteDoc(doc(db, "proyectos_pendientes", proyectoId));
+        todosLosProyectos = todosLosProyectos.filter(p => p.id !== proyectoId);
+        localStorage.setItem('flr_proyectos_cache', JSON.stringify(todosLosProyectos));
+        renderProyectos();
+        alert("✅ Proyecto eliminado.");
+    } catch (e) {
+        alert("Error al eliminar: " + e.message);
+    }
+};
+
+window.filtrarProyectos = () => {
+    busquedaProyectoTerm = (document.getElementById('proy-buscar')?.value || '').trim();
+    filtroEstadoProyecto = document.getElementById('proy-filtro-estado')?.value || 'todos';
+    filtroPrioridadProyecto = document.getElementById('proy-filtro-prioridad')?.value || 'todas';
+    filtroCategoriaProyecto = document.getElementById('proy-filtro-categoria')?.value || 'todas';
+    ordenProyectos = document.getElementById('proy-orden')?.value || 'limite_asc';
+    renderProyectos();
+};
+
+window.toggleVistaProyectos = () => {
+    const cardsEl = document.getElementById('proyectos-container-cards');
+    const tableEl = document.getElementById('proyectos-container-table');
+    const btn = document.getElementById('proy-btn-vista');
+    if (!cardsEl || !tableEl) return;
+
+    if (vistaProyectosActual === 'cards') {
+        vistaProyectosActual = 'table';
+        cardsEl.style.display = 'none';
+        tableEl.style.display = 'block';
+        if (btn) btn.innerText = '🗂️ Vista Tarjetas';
+    } else {
+        vistaProyectosActual = 'cards';
+        cardsEl.style.display = 'grid';
+        tableEl.style.display = 'none';
+        if (btn) btn.innerText = '📊 Vista Tabla';
+    }
+};
+
+window.generarPDFProyectos = () => {
+    const jsPDF = getJsPDF();
+    if (!jsPDF) return alert("Error al cargar la librería de PDF.");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+    // Cabecera Finca Los Robles
+    doc.setFillColor(44, 94, 46);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setFillColor(212, 175, 55);
+    doc.rect(0, 28, 210, 2, 'F');
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("FINCA LOS ROBLES", 105, 12, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("RÉCORD EJECUTIVO DE PROYECTOS Y PENDIENTES", 105, 18, { align: "center" });
+    doc.setFontSize(8);
+    doc.text("Fecha de emisión: " + new Date().toLocaleString('es-GT'), 105, 24, { align: "center" });
+
+    let y = 38;
+
+    // Resumen Ejecutivo
+    let complCount = todosLosProyectos.filter(p => p.data.estado === 'completado').length;
+    let progCount = todosLosProyectos.filter(p => p.data.estado === 'en_progreso').length;
+    let planCount = todosLosProyectos.filter(p => p.data.estado === 'planificacion' || p.data.estado === 'pausado').length;
+    let totalAvance = todosLosProyectos.length > 0 ? Math.round(todosLosProyectos.reduce((acc, p) => acc + (Number(p.data.porcentajeAvance) || 0), 0) / todosLosProyectos.length) : 0;
+
+    doc.setFillColor(245, 247, 245);
+    doc.roundedRect(14, y, 182, 16, 2, 2, 'F');
+    doc.setDrawColor(212, 175, 55);
+    doc.roundedRect(14, y, 182, 16, 2, 2, 'D');
+
+    doc.setTextColor(44, 94, 46);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total Iniciativas: ${todosLosProyectos.length}`, 20, y + 6);
+    doc.text(`En Progreso: ${progCount}`, 65, y + 6);
+    doc.text(`Plan / Pausa: ${planCount}`, 110, y + 6);
+    doc.text(`Completados: ${complCount}`, 155, y + 6);
+
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Avance Global Promedio: ${totalAvance}% acumulado de metas y subtareas`, 20, y + 12);
+
+    y += 24;
+
+    // Listado de Proyectos
+    todosLosProyectos.forEach((item, idx) => {
+        if (y > 250) {
+            doc.addPage();
+            doc.setFontSize(8);
+            doc.setTextColor(110, 110, 110);
+            doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Proyectos y Pendientes  |  v2026.09.28", 105, 285, { align: "center" });
+            y = 20;
+        }
+
+        const d = item.data;
+        const catKey = d.categoria || 'campo';
+        const areaInfo = AREAS_PROYECTO[catKey] || { nombre: catKey, icon: '📌' };
+        const subtareas = Array.isArray(d.subtareas) ? d.subtareas : [];
+        const pct = d.porcentajeAvance !== undefined ? Number(d.porcentajeAvance) : 0;
+
+        // Tarjeta de proyecto en PDF
+        doc.setFillColor(252, 252, 252);
+        doc.setDrawColor(220, 220, 220);
+        doc.roundedRect(14, y, 182, 28 + (subtareas.length > 0 ? Math.min(subtareas.length, 4) * 5 : 0), 2, 2, 'FD');
+
+        // Borde izquierdo de prioridad
+        if (d.prioridad === 'alta') doc.setFillColor(220, 38, 38);
+        else if (d.prioridad === 'media') doc.setFillColor(245, 158, 11);
+        else doc.setFillColor(16, 185, 129);
+        doc.rect(14, y, 3, 28 + (subtareas.length > 0 ? Math.min(subtareas.length, 4) * 5 : 0), 'F');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(44, 94, 46);
+        doc.text(`${idx + 1}. ${d.titulo}`, 20, y + 6);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Área: ${areaInfo.nombre}  |  Prioridad: ${(d.prioridad || 'media').toUpperCase()}  |  Estado: ${(d.estado || 'en_progreso').toUpperCase()}`, 20, y + 11);
+        doc.text(`Responsable: ${d.responsable || 'Sin asignar'}  |  Inicio: ${d.fechaInicio || 'N/A'}  |  Límite: ${d.fechaLimite || 'Sin fecha'}`, 20, y + 16);
+
+        // Barra de avance en PDF
+        doc.setFillColor(230, 230, 230);
+        doc.roundedRect(20, y + 19, 100, 4, 1, 1, 'F');
+        doc.setFillColor(pct === 100 ? 16 : 37, pct === 100 ? 185 : 99, pct === 100 ? 129 : 235);
+        if (pct > 0) doc.roundedRect(20, y + 19, Math.max(2, pct), 4, 1, 1, 'F');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.setTextColor(44, 94, 46);
+        doc.text(`${pct}% Completado (${subtareas.filter(s=>s.completada).length}/${subtareas.length} subtareas)`, 124, y + 22);
+
+        let subY = y + 27;
+        if (subtareas.length > 0) {
+            subtareas.slice(0, 4).forEach(st => {
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(7.5);
+                if (st.completada) {
+                    doc.setTextColor(34, 139, 34);
+                    doc.text(`[X] ${st.texto} ${st.fechaLimite ? `(${st.fechaLimite})` : ''}`, 22, subY);
+                } else {
+                    doc.setTextColor(80, 80, 80);
+                    doc.text(`[  ] ${st.texto} ${st.fechaLimite ? `(${st.fechaLimite})` : ''}`, 22, subY);
+                }
+                subY += 5;
+            });
+            if (subtareas.length > 4) {
+                doc.setFont("helvetica", "italic");
+                doc.setFontSize(7);
+                doc.setTextColor(120, 120, 120);
+                doc.text(`... y ${subtareas.length - 4} subtarea(s) adicionales`, 22, subY);
+                subY += 4;
+            }
+        }
+
+        y = subY + 5;
+    });
+
+    // Pie de página final
+    doc.setFontSize(8);
+    doc.setTextColor(110, 110, 110);
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Proyectos y Pendientes  |  v2026.09.28", 105, 285, { align: "center" });
+
+    doc.save(`Proyectos_Pendientes_FLR_${Date.now()}.pdf`);
+    alert("✅ Reporte de Proyectos y Pendientes descargado en PDF.");
 };
 
 // Inicialización de componentes al cargar el script
