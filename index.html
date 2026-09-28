@@ -307,6 +307,217 @@
         .urgencia-normal { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
         .urgencia-completada { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
 
+        /* ALERTAS VISUALES DE INVENTARIO */
+        .stock-alerta-box {
+            background: #fff5f5;
+            border: 1px solid #fecaca;
+            border-left: 5px solid #dc2626;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .stock-alerta-box.stock-ok-banner {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+            border-left-color: #16a34a;
+        }
+        .stock-config-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            background: #f8fafc;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .tr-stock-bajo {
+            background-color: #fee2e2 !important;
+            border-left: 5px solid #dc2626 !important;
+        }
+        .tr-stock-bajo:hover {
+            background-color: #fecaca !important;
+        }
+        .badge-stock-alerta {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #dc2626;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            box-shadow: 0 1px 3px rgba(220,38,38,0.3);
+        }
+        .badge-stock-normal {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #dcfce7;
+            color: #166534;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: bold;
+            border: 1px solid #bbf7d0;
+        }
+
+        /* PROYECTOS Y PENDIENTES */
+        .proyecto-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1.25rem;
+        }
+        .proyecto-kpi-card {
+            background: white;
+            padding: 1rem;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            border-left: 4px solid #cbd5e1;
+        }
+        .proyecto-kpi-card.kpi-total { border-left-color: var(--primary); }
+        .proyecto-kpi-card.kpi-progreso { border-left-color: #2563eb; }
+        .proyecto-kpi-card.kpi-plan { border-left-color: #d97706; }
+        .proyecto-kpi-card.kpi-completado { border-left-color: #10b981; }
+        .proyecto-kpi-card.kpi-vencido { border-left-color: #ef4444; }
+        .proyecto-filters-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 1rem;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .proyectos-cards-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            margin-top: 1rem;
+        }
+        @media (min-width: 768px) {
+            .proyectos-cards-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 1200px) {
+            .proyectos-cards-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        .proyecto-card {
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.2s ease;
+            position: relative;
+            border-top: 5px solid #94a3b8;
+        }
+        .proyecto-card:hover {
+            box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+        }
+        .proyecto-card.p-progreso { border-top-color: #2563eb; }
+        .proyecto-card.p-plan { border-top-color: #d97706; }
+        .proyecto-card.p-pausa { border-top-color: #64748b; }
+        .proyecto-card.p-completado { border-top-color: #10b981; background: #fcfdfc; }
+        .proyecto-card.p-vencido { border-top-color: #ef4444; }
+        .badge-prioridad {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: bold;
+        }
+        .prioridad-alta { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .prioridad-media { background: #fef3c7; color: #b45309; border: 1px solid #fcd34d; }
+        .prioridad-baja { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+        .badge-estado-proy {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .estado-proy-progreso { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .estado-proy-plan { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+        .estado-proy-pausa { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .estado-proy-completado { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; }
+        .estado-proy-vencido { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+        .badge-area-proy {
+            background: #f1f5f9;
+            color: #334155;
+            padding: 2px 7px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .progreso-bar-bg {
+            width: 100%;
+            height: 9px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 6px 0;
+        }
+        .progreso-bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.4s ease;
+        }
+        .subtarea-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 6px 8px;
+            background: #f8fafc;
+            border-radius: 6px;
+            margin-bottom: 5px;
+            font-size: 0.84rem;
+            border: 1px solid #f1f5f9;
+            transition: background 0.2s;
+        }
+        .subtarea-item:hover {
+            background: #f1f5f9;
+        }
+        .subtarea-item.done {
+            text-decoration: line-through;
+            color: #94a3b8;
+            background: #f8fafc;
+        }
+        .subtarea-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            margin-top: 1px;
+            accent-color: var(--primary);
+        }
+        .nota-bitacora {
+            background: #fffbeb;
+            border-left: 3px solid #f59e0b;
+            padding: 7px 10px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            color: #451a03;
+        }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -1049,9 +1260,50 @@
             </div>
             <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
             
-            <h3>Inventario Detallado</h3>
+            <h3 style="margin-top:2rem;">Inventario Detallado y Alertas de Existencias</h3>
+            
+            <!-- BANNER DE ALERTA DINÁMICO -->
+            <div id="inv-alerta-banner" class="stock-alerta-box" style="display:none;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.8rem;" id="inv-alerta-icon">⚠️</span>
+                    <div>
+                        <strong id="inv-alerta-titulo" style="font-size:0.95rem; color:#b91c1c;">Alerta de Existencias Bajas</strong>
+                        <div id="inv-alerta-desc" style="font-size:0.85rem; color:#7f1d1d; margin-top:2px;"></div>
+                    </div>
+                </div>
+                <button class="btn btn-xs" id="inv-btn-filtrar-alertas" onclick="filtrarStockInventario(true)" style="background:#dc2626; color:white; width:auto; padding:6px 12px; font-weight:bold;">
+                    ⚠️ Ver Productos Afectados
+                </button>
+            </div>
+
+            <!-- BARRA DE CONFIGURACIÓN DE UMBRAL Y FILTROS -->
+            <div class="stock-config-bar">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <label style="font-size:0.85rem; font-weight:bold; color:var(--primary); display:flex; align-items:center; gap:5px;">
+                        ⚙️ Umbral Mínimo de Alerta:
+                    </label>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <input type="number" id="inv-umbral-alerta" min="0" step="0.5" value="10" class="yellow-input" style="width:85px; padding:6px 8px; font-weight:bold; font-size:0.95rem; text-align:center; min-height:36px;" oninput="cambiarUmbralAlerta(this.value)">
+                        <span style="font-size:0.8rem; color:#666; font-weight:bold;">lb / u.</span>
+                    </div>
+                    <span style="font-size:0.75rem; color:#888;">(Los productos con existencias ≤ a este valor se marcarán en <strong>rojo</strong>)</span>
+                </div>
+
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <div style="display:flex; background:#e2e8f0; border-radius:6px; padding:2px;">
+                        <button id="btn-inv-filtro-todos" class="btn btn-xs active" onclick="filtrarStockInventario(false)" style="background:var(--primary); color:white; margin:0; border-radius:4px; padding:6px 12px;">
+                            Todos (<span id="inv-count-total">0</span>)
+                        </button>
+                        <button id="btn-inv-filtro-bajos" class="btn btn-xs" onclick="filtrarStockInventario(true)" style="background:transparent; color:#64748b; margin:0; border-radius:4px; padding:6px 12px;">
+                            ⚠️ Solo Bajos (<span id="inv-count-alerta">0</span>)
+                        </button>
+                    </div>
+                    <input type="text" id="inv-buscar" placeholder="🔍 Buscar en inventario..." oninput="buscarInventario(this.value)" class="yellow-input" style="width:180px; padding:6px 10px; font-size:0.85rem; min-height:36px;">
+                </div>
+            </div>
+
             <div class="table-wrapper">
-                <table id="tabla-inventario"><thead><tr><th>Fecha Ing.</th><th>Producto</th><th>Presentación</th><th>Variedad</th><th>Proceso</th><th>F. Tostado</th><th>Cantidad</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-inventario"><thead><tr><th>Fecha Ing.</th><th>Producto</th><th>Presentación</th><th>Variedad</th><th>Proceso</th><th>F. Tostado</th><th>Cantidad / Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
@@ -1316,6 +1568,121 @@
             <h3>Historial de Análisis</h3>
             <div class="table-wrapper">
                 <table id="tabla-muestreos"><thead><tr><th>Fecha</th><th>Nombre</th><th>Lote</th><th>Rend.</th><th>Humedad</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+
+        <!-- MÓDULO: PROYECTOS Y PENDIENTES (v2026.09.28) -->
+        <div id="proyectos" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
+                <div>
+                    <h2 style="margin:0; border:none; padding:0; color:var(--primary);">🗂️ Récord de Proyectos y Pendientes</h2>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#666;">Seguimiento integral de iniciativas, subtareas, fechas de avance y notas de campo</p>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-small" style="background:var(--primary); color:white; font-weight:bold;" onclick="abrirModalNuevoProyecto()">➕ Nuevo Proyecto / Pendiente</button>
+                    <button class="btn btn-small btn-pdf" onclick="generarPDFProyectos()">📄 Reporte PDF</button>
+                </div>
+            </div>
+
+            <!-- TARJETAS KPI / MÉTRICAS -->
+            <div class="proyecto-kpi-grid">
+                <div class="proyecto-kpi-card kpi-total">
+                    <div style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Total Iniciativas</div>
+                    <div style="font-size:1.7rem; font-weight:bold; color:var(--primary);" id="proy-kpi-total">0</div>
+                    <div style="font-size:0.75rem; color:#888;">Proyectos y pendientes</div>
+                </div>
+                <div class="proyecto-kpi-card kpi-progreso">
+                    <div style="font-size:0.75rem; color:#2563eb; font-weight:bold; text-transform:uppercase;">En Progreso</div>
+                    <div style="font-size:1.7rem; font-weight:bold; color:#2563eb;" id="proy-kpi-progreso">0</div>
+                    <div style="font-size:0.75rem; color:#888;">En ejecución activa</div>
+                </div>
+                <div class="proyecto-kpi-card kpi-plan">
+                    <div style="font-size:0.75rem; color:#d97706; font-weight:bold; text-transform:uppercase;">Planificación / Pausa</div>
+                    <div style="font-size:1.7rem; font-weight:bold; color:#d97706;" id="proy-kpi-plan">0</div>
+                    <div style="font-size:0.75rem; color:#888;">Por iniciar o pausados</div>
+                </div>
+                <div class="proyecto-kpi-card kpi-completado">
+                    <div style="font-size:0.75rem; color:#10b981; font-weight:bold; text-transform:uppercase;">Completados</div>
+                    <div style="font-size:1.7rem; font-weight:bold; color:#10b981;" id="proy-kpi-completado">0</div>
+                    <div style="font-size:0.75rem; color:#888;">100% finalizados</div>
+                </div>
+                <div class="proyecto-kpi-card kpi-vencido">
+                    <div style="font-size:0.75rem; color:#dc2626; font-weight:bold; text-transform:uppercase;">⚠️ Vencidos</div>
+                    <div style="font-size:1.7rem; font-weight:bold; color:#dc2626;" id="proy-kpi-vencidos">0</div>
+                    <div style="font-size:0.75rem; color:#888;">Fuera de fecha límite</div>
+                </div>
+                <div class="proyecto-kpi-card" style="border-left-color:var(--accent);">
+                    <div style="font-size:0.75rem; color:var(--secondary); font-weight:bold; text-transform:uppercase;">% Avance Promedio</div>
+                    <div style="font-size:1.7rem; font-weight:bold; color:var(--secondary);" id="proy-kpi-avance">0%</div>
+                    <div style="font-size:0.75rem; color:#888;">Progreso global acumulado</div>
+                </div>
+            </div>
+
+            <!-- BARRA DE FILTROS, BÚSQUEDA Y VISTAS -->
+            <div class="proyecto-filters-bar">
+                <div style="flex:1; min-width:220px;">
+                    <input type="text" id="proy-buscar" placeholder="🔍 Buscar proyecto, subtarea, responsable..." oninput="filtrarProyectos()" class="yellow-input" style="padding:8px 12px; font-size:0.88rem; min-height:38px;">
+                </div>
+                <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+                    <select id="proy-filtro-estado" onchange="filtrarProyectos()" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; min-height:38px;">
+                        <option value="todos">Todos los Estados</option>
+                        <option value="en_progreso">⚡ En Progreso</option>
+                        <option value="planificacion">📋 Planificación</option>
+                        <option value="pausado">⏸️ En Pausa</option>
+                        <option value="completado">✅ Completados</option>
+                        <option value="vencidos">⚠️ Vencidos</option>
+                    </select>
+                    <select id="proy-filtro-prioridad" onchange="filtrarProyectos()" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; min-height:38px;">
+                        <option value="todas">Todas las Prioridades</option>
+                        <option value="alta">🔴 Alta</option>
+                        <option value="media">🟡 Media</option>
+                        <option value="baja">🟢 Baja</option>
+                    </select>
+                    <select id="proy-filtro-categoria" onchange="filtrarProyectos()" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; min-height:38px;">
+                        <option value="todas">Todas las Áreas</option>
+                        <option value="campo">🌱 Campo y Finca</option>
+                        <option value="beneficio">☕ Cosecha y Beneficio</option>
+                        <option value="tostado">🔥 Tostaduría y Empaque</option>
+                        <option value="ventas">💰 Ventas y Comercial</option>
+                        <option value="mantenimiento">🔧 Mantenimiento / Maquinaria</option>
+                        <option value="calidad">🔬 Calidad y Laboratorio</option>
+                        <option value="administrativo">📂 Administrativo</option>
+                        <option value="otro">📌 Otro</option>
+                    </select>
+                    <select id="proy-orden" onchange="filtrarProyectos()" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; min-height:38px;">
+                        <option value="limite_asc">📅 Fecha límite (Próximos)</option>
+                        <option value="avance_asc">📉 Menor avance %</option>
+                        <option value="avance_desc">📈 Mayor avance %</option>
+                        <option value="prioridad">🚨 Prioridad (Alta primero)</option>
+                        <option value="recientes">⏱️ Recién creados</option>
+                    </select>
+                    <button class="btn btn-small" id="proy-btn-vista" onclick="toggleVistaProyectos()" style="background:#475569; color:white; min-height:38px;">
+                        📊 Vista Tabla
+                    </button>
+                </div>
+            </div>
+
+            <!-- VISTA TARJETAS (CARDS) -->
+            <div id="proyectos-container-cards" class="proyectos-cards-grid"></div>
+
+            <!-- VISTA TABLA (COMPACTA) -->
+            <div id="proyectos-container-table" class="table-wrapper" style="display:none; margin-top:1rem;">
+                <table id="tabla-proyectos">
+                    <thead>
+                        <tr>
+                            <th>Proyecto</th>
+                            <th>Área</th>
+                            <th>Prioridad</th>
+                            <th>Estado</th>
+                            <th>Fechas (Inicio - Límite)</th>
+                            <th>Avance %</th>
+                            <th>Subtareas</th>
+                            <th>Responsable</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -1705,7 +2072,104 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.12</div>
+<!-- MODAL: CREAR / EDITAR PROYECTO O PENDIENTE -->
+<div class="modal-overlay" id="modal-proyecto">
+    <div class="modal-content-large" style="max-width:850px;">
+        <h3 style="color:var(--primary);" id="modal-proyecto-titulo">➕ Nuevo Proyecto / Pendiente</h3>
+        <input type="hidden" id="proy-id">
+        
+        <div class="form-grid">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>📌 Título del Proyecto / Pendiente *</label>
+                <input type="text" id="modal-proy-titulo" class="yellow-input" placeholder="Ej: Mantenimiento anual tostadora San Franciscan, Poda lote Catimor..." required>
+            </div>
+            <div class="form-group">
+                <label>Área / Categoría</label>
+                <select id="modal-proy-categoria">
+                    <option value="campo">🌱 Campo y Finca</option>
+                    <option value="beneficio">☕ Cosecha y Beneficio</option>
+                    <option value="tostado">🔥 Tostaduría y Empaque</option>
+                    <option value="ventas">💰 Ventas y Comercial</option>
+                    <option value="mantenimiento">🔧 Mantenimiento / Maquinaria</option>
+                    <option value="calidad">🔬 Calidad y Laboratorio</option>
+                    <option value="administrativo">📂 Administrativo y Finanzas</option>
+                    <option value="otro">📌 Otro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Prioridad</label>
+                <select id="modal-proy-prioridad">
+                    <option value="alta">🔴 Alta (Urgente / Crítica)</option>
+                    <option value="media" selected>🟡 Media (Estándar)</option>
+                    <option value="baja">🟢 Baja (Flexible)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Estado</label>
+                <select id="modal-proy-estado">
+                    <option value="planificacion">📋 Planificación / Por Iniciar</option>
+                    <option value="en_progreso" selected>⚡ En Progreso</option>
+                    <option value="pausado">⏸️ En Pausa</option>
+                    <option value="completado">✅ Completado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>👤 Responsable / Asignado</label>
+                <input type="text" id="modal-proy-responsable" class="yellow-input" placeholder="Ej: Don Carlos, Equipo Tostaduría, Oficina...">
+            </div>
+            <div class="form-group">
+                <label>📅 Fecha de Inicio</label>
+                <input type="date" id="modal-proy-fecha-inicio" class="yellow-input">
+            </div>
+            <div class="form-group">
+                <label>🎯 Fecha Límite / Entrega</label>
+                <input type="date" id="modal-proy-fecha-limite" class="yellow-input">
+            </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>📝 Descripción Detallada y Objetivos</label>
+                <textarea id="modal-proy-descripcion" class="yellow-input" rows="3" placeholder="Describe el alcance, requerimientos, materiales o metas específicas de este proyecto..."></textarea>
+            </div>
+        </div>
+
+        <!-- CONSTRUCTOR DINÁMICO DE SUBTAREAS -->
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1.25rem; margin:1rem 0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
+                <div>
+                    <h4 style="margin:0; color:var(--primary); font-size:1rem;">📋 Subtareas y Checklist de Control</h4>
+                    <span style="font-size:0.8rem; color:#64748b;">El porcentaje de avance se calculará automáticamente al completar cada subtarea.</span>
+                </div>
+                <button type="button" class="btn btn-small" onclick="agregarFilaSubtareaModal()" style="background:#2563eb; color:white; font-size:0.8rem;">
+                    ➕ Agregar Subtarea
+                </button>
+            </div>
+            <div id="modal-proy-subtareas-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-success" style="flex:2; min-width:180px;" onclick="guardarProyecto()">💾 Guardar Proyecto / Pendiente</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-proyecto')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: AGREGAR NOTA O BITÁCORA DE AVANCE -->
+<div class="modal-overlay" id="modal-nota-proyecto">
+    <div class="modal-content-large" style="max-width:550px;">
+        <h3 style="color:var(--primary);">📝 Registrar Nota o Avance</h3>
+        <p style="font-size:0.85rem; color:#666; margin-top:2px;" id="modal-nota-subtitulo">Agrega un apunte o actualización sobre este proyecto.</p>
+        <input type="hidden" id="modal-nota-proy-id">
+        <div class="form-group" style="margin-top:1rem;">
+            <label>Detalle de la Nota / Avance:</label>
+            <textarea id="modal-nota-texto" class="yellow-input" rows="4" placeholder="Ej: Se completó la aplicación de foliares en el lote norte; pendiente comprar 2 sacos de fertilizante..."></textarea>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
+            <button class="btn btn-success" style="flex:2;" onclick="guardarNotaProyecto()">💾 Guardar Nota</button>
+            <button class="btn btn-secondary" style="flex:1;" onclick="cerrarModal('modal-nota-proyecto')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<div class="version-tag">v2026.09.28</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
