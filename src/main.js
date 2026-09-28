@@ -1947,7 +1947,7 @@ window.generarPDFTostado = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.28", 105, 290, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.02", 105, 290, { align: "center" });
 
     doc.save(`Tueste_${t.nombre || 'Perfil'}_${t.fecha || Date.now()}.pdf`);
     alert("✅ Reporte PDF de Tostado generado con gráfica incluida.");
@@ -2238,7 +2238,7 @@ window.generarPDFMuestra = () => {
 
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.28", 105, 290, {align:"center"});
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.02", 105, 290, {align:"center"});
     
     d.save(`Muestra_${m.lote||'Lote'}_${m.fecha||Date.now()}.pdf`);
     alert("✅ PDF de Muestreo descargado con datos de zarandas incluidos.");
@@ -2705,7 +2705,7 @@ window.generarPDFCatacion = () => {
     // Pie de página
     d.setFontSize(8);
     d.setTextColor(110, 110, 110);
-    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.28", 105, 290, { align: "center" });
+    d.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Laboratorio de Control de Calidad  |  v2026.09.02", 105, 290, { align: "center" });
 
     d.save(`Catacion_${(c.nombre || 'Muestra').replace(/\s+/g, '_')}_${c.fecha || Date.now()}.pdf`);
     alert("✅ Ficha de catación en PDF descargada exitosamente.");
@@ -3348,7 +3348,7 @@ async function cargarDatosIniciales() {
     } catch(e) { console.error("Error cargando datos:", e); }
 }
 
-// --- RENDERIZADO DE INVENTARIO CON ALERTAS VISUALES DE STOCK BAJO (v2026.09.28) ---
+// --- RENDERIZADO DE INVENTARIO CON ALERTAS VISUALES DE STOCK BAJO (v2026.09.02) ---
 
 function renderTablaInventario() {
     const ti = document.querySelector('#tabla-inventario tbody'); 
@@ -3513,7 +3513,7 @@ window.buscarInventario = (term) => {
 };
 
 // =========================================================================
-// --- CONTROL DE PEDIDOS Y ENTREGAS PENDIENTES (v2026.09.28) ---
+// --- CONTROL DE PEDIDOS Y ENTREGAS PENDIENTES (v2026.09.02) ---
 // =========================================================================
 
 function generarNuevoFolioPedido() {
@@ -4707,14 +4707,14 @@ window.generarPDFHojaPedido = (pedidoId) => {
     // Pie de página
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.28", 108, 270, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.02", 108, 270, { align: "center" });
 
     doc.save(`${d.folio || 'Pedido'}_${(d.clienteNombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
     alert(`✅ Hoja de Pedido PDF (${d.folio || ''}) descargada.`);
 };
 
 // =========================================================================
-// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.28) ---
+// --- GESTIÓN DE CLIENTES Y BASE DE DATOS DE COMPRADORES (v2026.09.02) ---
 // =========================================================================
 
 function obtenerComprasDeCliente(clienteId, clienteNombre) {
@@ -5514,14 +5514,14 @@ window.generarPDFHistorialCliente = () => {
 
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.28", 108, 270, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Gestión de Clientes  |  v2026.09.02", 108, 270, { align: "center" });
 
     doc.save(`Historial_${(d.nombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.pdf`);
     alert("✅ Estado de Cuenta / Historial de Cliente descargado en PDF.");
 };
 
 // =========================================================================
-// --- MÓDULO: GESTIÓN DE PROYECTOS Y PENDIENTES (v2026.09.28) ---
+// --- MÓDULO: GESTIÓN DE PROYECTOS Y PENDIENTES (v2026.09.02) ---
 // =========================================================================
 
 const AREAS_PROYECTO = {
@@ -5561,7 +5561,74 @@ async function cargarProyectos() {
     }
 }
 
+function actualizarVisibilidadVistasProyectos() {
+    const cardsEl = document.getElementById('proyectos-container-cards');
+    const tableEl = document.getElementById('proyectos-container-table');
+    const calEl = document.getElementById('proyectos-container-calendar');
+
+    const btnCards = document.getElementById('btn-vista-cards');
+    const btnTable = document.getElementById('btn-vista-table');
+    const btnCal = document.getElementById('btn-vista-calendar');
+
+    if (btnCards) btnCards.classList.toggle('active', vistaProyectosActual === 'cards');
+    if (btnTable) btnTable.classList.toggle('active', vistaProyectosActual === 'table');
+    if (btnCal) btnCal.classList.toggle('active', vistaProyectosActual === 'calendar');
+
+    if (cardsEl) {
+        cardsEl.style.display = (vistaProyectosActual === 'cards') ? 'grid' : 'none';
+    }
+    if (tableEl) {
+        tableEl.style.display = (vistaProyectosActual === 'table') ? 'block' : 'none';
+    }
+    if (calEl) {
+        calEl.style.display = (vistaProyectosActual === 'calendar') ? 'block' : 'none';
+    }
+}
+window.actualizarVisibilidadVistasProyectos = actualizarVisibilidadVistasProyectos;
+
+function cambiarVistaProyectos(nuevaVista) {
+    vistaProyectosActual = nuevaVista;
+    actualizarVisibilidadVistasProyectos();
+    renderProyectos();
+}
+window.cambiarVistaProyectos = cambiarVistaProyectos;
+
+function toggleVistaProyectos() {
+    if (vistaProyectosActual === 'cards') cambiarVistaProyectos('table');
+    else if (vistaProyectosActual === 'table') cambiarVistaProyectos('calendar');
+    else cambiarVistaProyectos('cards');
+}
+window.toggleVistaProyectos = toggleVistaProyectos;
+
+function inicializarBotonesVistaProyectos() {
+    const btnCards = document.getElementById('btn-vista-cards');
+    const btnTable = document.getElementById('btn-vista-table');
+    const btnCal = document.getElementById('btn-vista-calendar');
+
+    if (btnCards) {
+        btnCards.onclick = (e) => {
+            if (e) e.preventDefault();
+            cambiarVistaProyectos('cards');
+        };
+    }
+    if (btnTable) {
+        btnTable.onclick = (e) => {
+            if (e) e.preventDefault();
+            cambiarVistaProyectos('table');
+        };
+    }
+    if (btnCal) {
+        btnCal.onclick = (e) => {
+            if (e) e.preventDefault();
+            cambiarVistaProyectos('calendar');
+        };
+    }
+}
+window.inicializarBotonesVistaProyectos = inicializarBotonesVistaProyectos;
+
 function renderProyectos() {
+    actualizarVisibilidadVistasProyectos();
+    inicializarBotonesVistaProyectos();
     const cardsContainer = document.getElementById('proyectos-container-cards');
     const tableBody = document.querySelector('#tabla-proyectos tbody');
     if (!cardsContainer || !tableBody) return;
@@ -6240,33 +6307,6 @@ window.filtrarProyectos = () => {
     renderProyectos();
 };
 
-window.cambiarVistaProyectos = (nuevaVista) => {
-    vistaProyectosActual = nuevaVista;
-    const cardsEl = document.getElementById('proyectos-container-cards');
-    const tableEl = document.getElementById('proyectos-container-table');
-    const calEl = document.getElementById('proyectos-container-calendar');
-
-    const btnCards = document.getElementById('btn-vista-cards');
-    const btnTable = document.getElementById('btn-vista-table');
-    const btnCal = document.getElementById('btn-vista-calendar');
-
-    if (btnCards) btnCards.classList.toggle('active', nuevaVista === 'cards');
-    if (btnTable) btnTable.classList.toggle('active', nuevaVista === 'table');
-    if (btnCal) btnCal.classList.toggle('active', nuevaVista === 'calendar');
-
-    if (cardsEl) cardsEl.style.display = (nuevaVista === 'cards') ? 'grid' : 'none';
-    if (tableEl) tableEl.style.display = (nuevaVista === 'table') ? 'block' : 'none';
-    if (calEl) calEl.style.display = (nuevaVista === 'calendar') ? 'block' : 'none';
-
-    renderProyectos();
-};
-
-window.toggleVistaProyectos = () => {
-    if (vistaProyectosActual === 'cards') cambiarVistaProyectos('table');
-    else if (vistaProyectosActual === 'table') cambiarVistaProyectos('calendar');
-    else cambiarVistaProyectos('cards');
-};
-
 const MESES_NOMBRES_ES = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
@@ -6305,7 +6345,7 @@ function padZeroProy(num) {
     return num < 10 ? '0' + num : '' + num;
 }
 
-window.renderCalendarioProyectos = (proyectosFiltrados = null) => {
+function renderCalendarioProyectos(proyectosFiltrados = null) {
     const grid = document.getElementById('calendar-grid');
     const tituloMesEl = document.getElementById('cal-titulo-mes');
     const conteoEl = document.getElementById('cal-conteo-eventos');
@@ -6514,7 +6554,8 @@ window.renderCalendarioProyectos = (proyectosFiltrados = null) => {
             });
         }
     }
-};
+}
+window.renderCalendarioProyectos = renderCalendarioProyectos;
 
 // --- CONTROLADORES DE ARRASTRAR Y SOLTAR (DRAG & DROP) ---
 
@@ -6700,7 +6741,7 @@ window.generarPDFProyectos = () => {
             doc.addPage();
             doc.setFontSize(8);
             doc.setTextColor(110, 110, 110);
-            doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Proyectos y Pendientes  |  v2026.09.28", 105, 285, { align: "center" });
+            doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Proyectos y Pendientes  |  v2026.09.02", 105, 285, { align: "center" });
             y = 20;
         }
 
@@ -6772,7 +6813,7 @@ window.generarPDFProyectos = () => {
     // Pie de página final
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Proyectos y Pendientes  |  v2026.09.28", 105, 285, { align: "center" });
+    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Proyectos y Pendientes  |  v2026.09.02", 105, 285, { align: "center" });
 
     doc.save(`Proyectos_Pendientes_FLR_${Date.now()}.pdf`);
     alert("✅ Reporte de Proyectos y Pendientes descargado en PDF.");
@@ -6782,3 +6823,7 @@ window.generarPDFProyectos = () => {
 construirCategoriasSCA();
 window.calcularCatacion();
 generarTablaTostado();
+inicializarBotonesVistaProyectos();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarBotonesVistaProyectos);
+}
