@@ -214,6 +214,7 @@ function construirMenu() {
             { id:'clientes', icon:'👥', label:'Clientes' },
             { id:'inventario', icon:'📦', label:'Inventario' },
             { id:'proyectos', icon:'🗂️', label:'Proyectos y Pendientes' },
+            { id:'trafico', icon:'🌐', label:'Tráfico Web' },
             { id:'precios', icon:'🏷️', label:'Lista de Precios' },
             { id:'costos', icon:'🧮', label:'Costos Tostado' },
             { id:'cotizador', icon:'💵', label:'Cotizador Verde' },
@@ -245,6 +246,7 @@ function entrarAlSistema() {
         cargarClientes();
         cargarPedidos();
         cargarProyectos();
+        cargarTraficoWeb();
         window.calcularCotizador();
         window.onVentaTipoChange();
     } else {
@@ -360,6 +362,8 @@ window.showSection = (id, el) => {
         actualizarKPIsClientes();
     } else if (id === 'proyectos') {
         renderProyectos();
+    } else if (id === 'trafico') {
+        cargarTraficoWeb();
     }
 };
 
@@ -6827,3 +6831,556 @@ inicializarBotonesVistaProyectos();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', inicializarBotonesVistaProyectos);
 }
+
+// =========================================================================
+// --- MÓDULO: ANALÍTICA Y TRÁFICO WEB (https://orobles84.github.io/FincaLosRobles/) ---
+// =========================================================================
+
+let todasLasVisitasWeb = [];
+let chartTraficoDiasInstance = null;
+let chartTraficoDispositivosInstance = null;
+let chartTraficoFuentesInstance = null;
+
+function obtenerBanderaPais(code) {
+    if (!code || typeof code !== 'string' || code.length !== 2) return '🌐';
+    try {
+        const upper = code.toUpperCase();
+        const codePoints = [...upper].map(c => 127397 + c.charCodeAt(0));
+        return String.fromCodePoint(...codePoints);
+    } catch (e) {
+        return '🌐';
+    }
+}
+window.obtenerBanderaPais = obtenerBanderaPais;
+
+async function cargarTraficoWeb() {
+    try {
+        const sincroEl = document.getElementById('trafico-ultima-sincro');
+        if (sincroEl) sincroEl.innerText = 'Sincronizando con Firestore...';
+
+        let snap;
+        try {
+            snap = await getDocs(query(collection(db, "visitas_web"), orderBy("timestamp", "desc")));
+        } catch (e) {
+            snap = await getDocs(collection(db, "visitas_web"));
+        }
+
+        todasLasVisitasWeb = [];
+        snap.forEach(d => {
+            todasLasVisitasWeb.push({ id: d.id, ...d.data() });
+        });
+
+        // Ordenar por fecha descendente
+        todasLasVisitasWeb.sort((a, b) => {
+            const ta = a.timestamp?.seconds || (a.fecha ? new Date(a.fecha).getTime() / 1000 : 0);
+            const tb = b.timestamp?.seconds || (b.fecha ? new Date(b.fecha).getTime() / 1000 : 0);
+            return tb - ta;
+        });
+
+        if (sincroEl) sincroEl.innerText = `Última sincronización: ${new Date().toLocaleTimeString('es-GT')}`;
+
+        actualizarFiltroPaisesTrafico();
+        renderizarTraficoWeb();
+    } catch (err) {
+        console.warn("Aviso al cargar tráfico web:", err);
+        const sincroEl = document.getElementById('trafico-ultima-sincro');
+        if (sincroEl) sincroEl.innerText = 'Sin conexión o sin datos aún';
+        renderizarTraficoWeb();
+    }
+}
+window.cargarTraficoWeb = cargarTraficoWeb;
+
+function actualizarFiltroPaisesTrafico() {
+    const select = document.getElementById('trafico-filtro-pais');
+    if (!select) return;
+    const paisActual = select.value;
+
+    const paisesSet = new Set();
+    todasLasVisitasWeb.forEach(v => {
+        if (v.pais) paisesSet.add(v.pais);
+    });
+
+    const paisesArr = Array.from(paisesSet).sort();
+    select.innerHTML = '<option value="todos">Todos los Países</option>';
+    paisesArr.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.innerText = p;
+        select.appendChild(opt);
+    });
+
+    if (paisesSet.has(paisActual)) select.value = paisActual;
+}
+
+function renderizarTraficoWeb() {
+    const periodo = document.getElementById('trafico-filtro-periodo')?.value || 'todos';
+    const paisFiltro = document.getElementById('trafico-filtro-pais')?.value || 'todos';
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    let visitas = todasLasVisitasWeb.slice();
+
+    // Filtrar por periodo
+    if (periodo === 'hoy') {
+        visitas = visitas.filter(v => {
+            if (!v.fecha) return false;
+            return new Date(v.fecha) >= hoy;
+        });
+    } else if (periodo === '7dias') {
+        const hace7 = new Date();
+        hace7.setDate(hace7.getDate() - 7);
+        hace7.setHours(0,0,0,0);
+        visitas = visitas.filter(v => {
+            if (!v.fecha) return false;
+            return new Date(v.fecha) >= hace7;
+        });
+    } else if (periodo === '30dias') {
+        const hace30 = new Date();
+        hace30.setDate(hace30.getDate() - 30);
+        hace30.setHours(0,0,0,0);
+        visitas = visitas.filter(v => {
+            if (!v.fecha) return false;
+            return new Date(v.fecha) >= hace30;
+        });
+    }
+
+    // Filtrar por país
+    if (paisFiltro !== 'todos') {
+        visitas = visitas.filter(v => (v.pais || '') === paisFiltro);
+    }
+
+    // Calcular KPIs
+    const total = visitas.length;
+    let visitasHoy = 0;
+    const paisesUnicos = new Set();
+    let movilCount = 0;
+
+    visitas.forEach(v => {
+        if (v.pais) paisesUnicos.add(v.pais);
+        if (v.fecha && new Date(v.fecha) >= hoy) visitasHoy++;
+        if (v.dispositivo === 'Móvil' || v.dispositivo === 'Tablet') movilCount++;
+    });
+
+    const pctMovil = total > 0 ? Math.round((movilCount / total) * 100) : 0;
+
+    const kpiTotalEl = document.getElementById('trafico-kpi-total');
+    if (kpiTotalEl) kpiTotalEl.innerText = total;
+    const kpiHoyEl = document.getElementById('trafico-kpi-hoy');
+    if (kpiHoyEl) kpiHoyEl.innerText = visitasHoy;
+    const kpiPaisesEl = document.getElementById('trafico-kpi-paises');
+    if (kpiPaisesEl) kpiPaisesEl.innerText = paisesUnicos.size;
+    const kpiMovilEl = document.getElementById('trafico-kpi-movil');
+    if (kpiMovilEl) kpiMovilEl.innerText = `${pctMovil}%`;
+
+    const badgeTotal = document.getElementById('trafico-total-registros-badge');
+    if (badgeTotal) badgeTotal.innerText = `${total} registro${total === 1 ? '' : 's'}`;
+
+    renderizarGraficaTraficoDias(visitas);
+    renderizarGraficasDoughnutTrafico(visitas);
+    renderizarListaPaisesTrafico(visitas);
+    renderizarListaCiudadesTrafico(visitas);
+    renderizarTablaVisitasTrafico(visitas);
+}
+window.renderizarTraficoWeb = renderizarTraficoWeb;
+
+function renderizarGraficaTraficoDias(visitas) {
+    const canvas = document.getElementById('chart-trafico-dias');
+    const Chart = getChart();
+    if (!canvas || !Chart) return;
+
+    const conteoPorDia = {};
+    const hoy = new Date();
+
+    for (let i = 13; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(hoy.getDate() - i);
+        const k = d.toISOString().split('T')[0];
+        conteoPorDia[k] = 0;
+    }
+
+    visitas.forEach(v => {
+        if (!v.fecha) return;
+        const k = v.fecha.split('T')[0];
+        if (conteoPorDia[k] !== undefined) {
+            conteoPorDia[k]++;
+        } else {
+            conteoPorDia[k] = (conteoPorDia[k] || 0) + 1;
+        }
+    });
+
+    const labels = Object.keys(conteoPorDia).sort();
+    const data = labels.map(k => conteoPorDia[k]);
+    const labelsLegibles = labels.map(k => {
+        const parts = k.split('-');
+        return `${parts[2]}/${parts[1]}`;
+    });
+
+    if (chartTraficoDiasInstance) {
+        chartTraficoDiasInstance.destroy();
+    }
+
+    chartTraficoDiasInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: labelsLegibles,
+            datasets: [{
+                label: 'Visitas Diarias',
+                data: data,
+                borderColor: '#0284c7',
+                backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                fill: true,
+                tension: 0.35,
+                borderWidth: 2,
+                pointBackgroundColor: '#0284c7',
+                pointRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { precision: 0 }
+                }
+            }
+        }
+    });
+}
+
+function renderizarGraficasDoughnutTrafico(visitas) {
+    const Chart = getChart();
+    if (!Chart) return;
+
+    const canvasDisp = document.getElementById('chart-trafico-dispositivos');
+    if (canvasDisp) {
+        const dispCounts = { 'Móvil': 0, 'Computadora': 0, 'Tablet': 0 };
+        visitas.forEach(v => {
+            const d = v.dispositivo || 'Computadora';
+            dispCounts[d] = (dispCounts[d] || 0) + 1;
+        });
+
+        if (chartTraficoDispositivosInstance) chartTraficoDispositivosInstance.destroy();
+
+        chartTraficoDispositivosInstance = new Chart(canvasDisp, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(dispCounts),
+                datasets: [{
+                    data: Object.values(dispCounts),
+                    backgroundColor: ['#f59e0b', '#0284c7', '#8b5cf6'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
+                }
+            }
+        });
+    }
+
+    const canvasFuentes = document.getElementById('chart-trafico-fuentes');
+    if (canvasFuentes) {
+        const fuentesCounts = {};
+        visitas.forEach(v => {
+            const f = v.fuente || 'Directo';
+            fuentesCounts[f] = (fuentesCounts[f] || 0) + 1;
+        });
+
+        const labels = Object.keys(fuentesCounts).slice(0, 5);
+        const data = labels.map(l => fuentesCounts[l]);
+
+        if (chartTraficoFuentesInstance) chartTraficoFuentesInstance.destroy();
+
+        chartTraficoFuentesInstance = new Chart(canvasFuentes, {
+            type: 'doughnut',
+            data: {
+                labels: labels.length > 0 ? labels : ['Directo'],
+                datasets: [{
+                    data: data.length > 0 ? data : [1],
+                    backgroundColor: ['#10b981', '#2563eb', '#ec4899', '#6366f1', '#64748b'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
+                }
+            }
+        });
+    }
+}
+
+function renderizarListaPaisesTrafico(visitas) {
+    const container = document.getElementById('trafico-lista-paises');
+    if (!container) return;
+
+    const paisesCount = {};
+    const paisesCodigo = {};
+    visitas.forEach(v => {
+        const p = v.pais || 'Desconocido';
+        paisesCount[p] = (paisesCount[p] || 0) + 1;
+        if (v.paisCodigo) paisesCodigo[p] = v.paisCodigo;
+    });
+
+    const sorted = Object.entries(paisesCount).sort((a, b) => b[1] - a[1]);
+    const maxVal = sorted.length > 0 ? sorted[0][1] : 1;
+
+    if (sorted.length === 0) {
+        container.innerHTML = `<div style="color:#94a3b8; font-size:0.85rem; font-style:italic; padding:1rem 0;">Aún no hay visitas registradas. Presiona "🧪 Visita de Prueba" para verificar.</div>`;
+        return;
+    }
+
+    container.innerHTML = sorted.map(([pais, count]) => {
+        const bandera = obtenerBanderaPais(paisesCodigo[pais]);
+        const pct = Math.round((count / maxVal) * 100);
+        const pctTotal = Math.round((count / visitas.length) * 100);
+        return `
+            <div class="geo-country-item">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:600; display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:1.15rem;">${bandera}</span> ${pais}
+                    </span>
+                    <span style="font-weight:bold; color:var(--primary); font-size:0.82rem;">
+                        ${count} <span style="font-weight:normal; color:#64748b; font-size:0.75rem;">(${pctTotal}%)</span>
+                    </span>
+                </div>
+                <div style="width:100%; height:5px; background:#e2e8f0; border-radius:3px; overflow:hidden;">
+                    <div class="geo-bar-fill" style="width:${pct}%;"></div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderizarListaCiudadesTrafico(visitas) {
+    const container = document.getElementById('trafico-lista-ciudades');
+    if (!container) return;
+
+    const ciudadesCount = {};
+    visitas.forEach(v => {
+        const ciudad = v.ciudad && v.ciudad !== 'Desconocida' ? v.ciudad : '';
+        const region = v.region && v.region !== 'Desconocida' ? v.region : '';
+        let ubicacion = 'Desconocida';
+        if (ciudad && region) ubicacion = `${ciudad}, ${region}`;
+        else if (ciudad) ubicacion = ciudad;
+        else if (region) ubicacion = region;
+        else if (v.pais) ubicacion = v.pais;
+
+        ciudadesCount[ubicacion] = (ciudadesCount[ubicacion] || 0) + 1;
+    });
+
+    const sorted = Object.entries(ciudadesCount).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+    if (sorted.length === 0) {
+        container.innerHTML = `<div style="color:#94a3b8; font-size:0.85rem; font-style:italic; padding:1rem 0;">Sin ciudades identificadas aún.</div>`;
+        return;
+    }
+
+    container.innerHTML = sorted.map(([loc, count]) => {
+        return `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:7px 10px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0; margin-bottom:6px; font-size:0.82rem;">
+                <span style="display:flex; align-items:center; gap:6px; color:#334155;">
+                    <span>📍</span> <strong>${loc}</strong>
+                </span>
+                <span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-weight:bold; font-size:0.75rem;">
+                    ${count} ingreso${count === 1 ? '' : 's'}
+                </span>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderizarTablaVisitasTrafico(visitas) {
+    const tbody = document.querySelector('#tabla-trafico-visitas tbody');
+    if (!tbody) return;
+
+    if (visitas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:#888;">No se encontraron registros de visitas con los filtros seleccionados.</td></tr>`;
+        return;
+    }
+
+    const ultimas = visitas.slice(0, 50);
+    tbody.innerHTML = ultimas.map(v => {
+        const bandera = obtenerBanderaPais(v.paisCodigo);
+        const fStr = v.fecha ? new Date(v.fecha).toLocaleString('es-GT', { dateStyle: 'short', timeStyle: 'short' }) : 'Reciente';
+        const dispIcon = v.dispositivo === 'Móvil' ? '📱' : v.dispositivo === 'Tablet' ? '📟' : '💻';
+        return `
+            <tr>
+                <td style="white-space:nowrap; font-size:0.8rem; font-weight:600;">${fStr}</td>
+                <td>
+                    <span style="display:inline-flex; align-items:center; gap:5px; font-weight:600;">
+                        <span>${bandera}</span> ${v.pais || 'N/A'}
+                    </span>
+                </td>
+                <td style="font-size:0.82rem;">${v.ciudad || v.region || 'Desconocida'}</td>
+                <td><span style="font-size:0.82rem;">${dispIcon} ${v.dispositivo || 'Computadora'}</span></td>
+                <td><span style="font-size:0.8rem; color:#475569;">${v.navegador || 'N/A'}</span></td>
+                <td><span style="font-size:0.8rem; color:#0369a1; font-weight:600;">${v.fuente || 'Directo'}</span></td>
+                <td><span style="font-size:0.75rem; color:#64748b;">${v.idioma || 'es'}</span></td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.simularVisitaPrueba = async () => {
+    try {
+        let geo = { pais: 'Guatemala', codigo: 'GT', region: 'Alta Verapaz', ciudad: 'San Cristóbal Verapaz' };
+        try {
+            const res = await fetch('https://ipwho.is/?fields=country,country_code,region,city,success');
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.success !== false) {
+                    geo.pais = data.country || geo.pais;
+                    geo.codigo = data.country_code || geo.codigo;
+                    geo.region = data.region || geo.region;
+                    geo.ciudad = data.city || geo.ciudad;
+                }
+            }
+        } catch(e){}
+
+        const ua = navigator.userAgent || '';
+        let disp = 'Computadora';
+        if (/mobile|iphone|android/i.test(ua)) disp = 'Móvil';
+
+        const nuevaVisita = {
+            fecha: new Date().toISOString(),
+            timestamp: serverTimestamp(),
+            pais: geo.pais,
+            paisCodigo: geo.codigo,
+            region: geo.region,
+            ciudad: geo.ciudad,
+            dispositivo: disp,
+            navegador: 'Chrome',
+            fuente: 'Prueba desde Panel',
+            idioma: navigator.language || 'es-GT',
+            url: 'https://orobles84.github.io/FincaLosRobles/'
+        };
+
+        await addDoc(collection(db, "visitas_web"), nuevaVisita);
+        alert(`✅ Visita de prueba registrada con éxito:\n📍 ${geo.pais} (${geo.ciudad || geo.region}) | ${disp}`);
+        await cargarTraficoWeb();
+    } catch (err) {
+        alert("Error al registrar visita de prueba: " + err.message);
+    }
+};
+
+const CODIGO_SNIPPET_GITHUB = `<!-- ========================================================= -->
+<!-- RASTREADOR DE TRÁFICO - FINCA LOS ROBLES (ANALÍTICA PRIVADA) -->
+<!-- Pegar antes de </body> en index.html de GitHub Pages      -->
+<!-- ========================================================= -->
+<script type="module">
+  (async function() {
+    try {
+      const sessionKey = 'flr_v_' + new Date().toISOString().slice(0, 10);
+      if (sessionStorage.getItem(sessionKey)) return;
+
+      const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
+      const { getFirestore, collection, addDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+
+      const app = initializeApp({
+        apiKey: "AIzaSyCm6676ihFlDMoKsBxzZtk9oHOC8yBsI88",
+        authDomain: "flr-db.firebaseapp.com",
+        projectId: "flr-db",
+        storageBucket: "flr-db.firebasestorage.app",
+        messagingSenderId: "778387910304",
+        appId: "1:778387910304:web:cff24e43422477f9bee3c5"
+      });
+      const db = getFirestore(app);
+
+      const ua = navigator.userAgent || '';
+      let dispositivo = 'Computadora';
+      if (/tablet|ipad/i.test(ua)) dispositivo = 'Tablet';
+      else if (/mobile|iphone|android/i.test(ua)) dispositivo = 'Móvil';
+
+      let navegador = 'Otro';
+      if (/chrome|crios/i.test(ua) && !/edge|opr\\//i.test(ua)) navegador = 'Chrome';
+      else if (/safari/i.test(ua) && !/chrome/i.test(ua)) navegador = 'Safari';
+      else if (/firefox/i.test(ua)) navegador = 'Firefox';
+      else if (/edg/i.test(ua)) navegador = 'Edge';
+
+      let fuente = 'Directo';
+      if (document.referrer) {
+        if (document.referrer.includes('whatsapp')) fuente = 'WhatsApp';
+        else if (document.referrer.includes('instagram')) fuente = 'Instagram';
+        else if (document.referrer.includes('facebook')) fuente = 'Facebook';
+        else if (document.referrer.includes('google')) fuente = 'Google';
+        else {
+          try { fuente = new URL(document.referrer).hostname; } catch(e){}
+        }
+      }
+
+      let geo = { pais: 'Guatemala', codigo: 'GT', region: 'Desconocida', ciudad: 'Desconocida' };
+      try {
+        const res = await fetch('https://ipwho.is/?fields=country,country_code,region,city,success');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success !== false) {
+            geo.pais = data.country || geo.pais;
+            geo.codigo = data.country_code || geo.codigo;
+            geo.region = data.region || geo.region;
+            geo.ciudad = data.city || geo.ciudad;
+          }
+        }
+      } catch (e) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        if (tz.includes('Guatemala')) { geo.pais = 'Guatemala'; geo.codigo = 'GT'; }
+      }
+
+      await addDoc(collection(db, "visitas_web"), {
+        fecha: new Date().toISOString(),
+        timestamp: serverTimestamp(),
+        pais: geo.pais,
+        paisCodigo: geo.codigo,
+        region: geo.region,
+        ciudad: geo.ciudad,
+        dispositivo: dispositivo,
+        navegador: navegador,
+        fuente: fuente,
+        idioma: navigator.language || 'es',
+        url: window.location.href
+      });
+
+      sessionStorage.setItem(sessionKey, '1');
+    } catch (err) {
+      console.debug('Analytics:', err);
+    }
+  })();
+<\\/script>`;
+
+window.abrirModalSnippetWeb = () => {
+    const pre = document.getElementById('codigo-snippet-pre');
+    if (pre) {
+        pre.innerText = CODIGO_SNIPPET_GITHUB.replace('<\\/script>', '</script>');
+    }
+    const modal = document.getElementById('modal-snippet-web');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.copiarSnippetAlPortapapeles = async () => {
+    const code = CODIGO_SNIPPET_GITHUB.replace('<\\/script>', '</script>');
+    try {
+        await navigator.clipboard.writeText(code);
+        const btn = document.getElementById('btn-copiar-snippet');
+        if (btn) {
+            const original = btn.innerText;
+            btn.innerText = '✅ ¡Copiado!';
+            btn.style.background = '#10b981';
+            setTimeout(() => {
+                btn.innerText = original;
+                btn.style.background = '#2563eb';
+            }, 2500);
+        }
+    } catch(err) {
+        alert("Selecciona y copia el texto del recuadro manualmente.");
+    }
+};
