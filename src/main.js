@@ -7906,15 +7906,31 @@ window.mostrarSubtabMadera = (subtab) => {
     }
 };
 
-// Cálculo estándar en pie tablar: (Largo en pies × D1 en pulg × D2 en pulg) ÷ 12
+// Regla técnica de redondeo para cubicación forestal en Finca Los Robles:
+// Los decimales no son necesarios.
+// Si el decimal es mayor a 0.75 aproxima al siguiente entero; si está debajo (<= 0.75) trunca el decimal.
+// Ejemplos: 180.83 -> 181, 175.65 -> 175, 100.75 -> 100, 100.76 -> 101.
+window.redondearCubicacionRegla = (valor) => {
+    const num = parseFloat(valor) || 0;
+    if (num <= 0) return 0;
+    const entero = Math.floor(num);
+    const dec = Math.round((num - entero) * 10000) / 10000;
+    if (dec > 0.75) {
+        return entero + 1;
+    } else {
+        return entero;
+    }
+};
+
+// Cálculo estándar en pie tablar: (Largo en pies × D1 en pulg × D2 en pulg) ÷ 12 con regla de redondeo
 window.calcularPiesTablaresTroza = (largoPies, d1Pulg, d2Pulg, divisor = 12) => {
     const l = parseFloat(largoPies) || 0;
     const d1 = parseFloat(d1Pulg) || 0;
     const d2 = parseFloat(d2Pulg) || d1;
     if (l <= 0 || d1 <= 0) return 0;
     const div = parseFloat(divisor) || 12;
-    const pt = (l * d1 * d2) / div;
-    return Math.round(pt * 100) / 100;
+    const ptCrudo = (l * d1 * d2) / div;
+    return window.redondearCubicacionRegla(ptCrudo);
 };
 
 window.actualizarCalculoTrozaEnVivo = () => {
@@ -7933,7 +7949,7 @@ window.actualizarCalculoTrozaEnVivo = () => {
     const pt = window.calcularPiesTablaresTroza(largo, d1, d2, 12);
     const previewEl = document.getElementById('madera-in-preview-pt');
     if (previewEl) {
-        previewEl.innerText = `${pt.toFixed(2)} pt`;
+        previewEl.innerText = `${pt} pt`;
     }
 };
 
@@ -8113,7 +8129,7 @@ window.renderTablaTrozasCamionada = () => {
             <td style="text-align:center;">${t.d1}"</td>
             <td style="text-align:center;">${t.d2}"</td>
             <td style="text-align:center; color:#64748b;">${diamProm}"</td>
-            <td style="font-weight:bold; color:var(--primary); text-align:right;">${t.pt.toFixed(2)} pt</td>
+            <td style="font-weight:bold; color:var(--primary); text-align:right;">${Math.round(t.pt)} pt</td>
             <td style="color:#15803d; text-align:right;">Q ${ventaEst.toFixed(2)}</td>
             <td style="color:#dc2626; text-align:right;">Q ${fleteEst.toFixed(2)}</td>
             <td style="text-align:center; white-space:nowrap;">
@@ -8163,9 +8179,9 @@ window.recalcularTotalesCamionada = () => {
     if (kpiTroncosDesglose) kpiTroncosDesglose.innerText = `${cantTrozas} trozas | ${cantTrocillos} trocillos`;
 
     const kpiPt = document.getElementById('madera-kpi-pt-total');
-    if (kpiPt) kpiPt.innerText = `${totalPt.toFixed(2)} pt`;
+    if (kpiPt) kpiPt.innerText = `${Math.round(totalPt)} pt`;
     const kpiPtDesglose = document.getElementById('madera-kpi-pt-desglose');
-    if (kpiPtDesglose) kpiPtDesglose.innerText = `${ptTrozas.toFixed(1)} pt troza | ${ptTrocillos.toFixed(1)} pt trocillo`;
+    if (kpiPtDesglose) kpiPtDesglose.innerText = `${Math.round(ptTrozas)} pt troza | ${Math.round(ptTrocillos)} pt trocillo`;
 
     const kpiIngreso = document.getElementById('madera-kpi-ingreso-bruto');
     if (kpiIngreso) kpiIngreso.innerText = `Q ${ingresoBruto.toFixed(2)}`;
@@ -8242,7 +8258,7 @@ window.calcularComparativaAserradero = () => {
     const diffPtEl = document.getElementById('madera-diff-pt');
     if (diffPtEl) {
         const signo = diffPt > 0 ? '+' : '';
-        diffPtEl.innerText = `${signo}${diffPt.toFixed(2)} pt`;
+        diffPtEl.innerText = `${signo}${Math.round(diffPt)} pt`;
         diffPtEl.style.color = diffPt >= 0 ? '#16a34a' : '#dc2626';
     }
 
@@ -8475,15 +8491,15 @@ window.renderTablaHistorialMadera = () => {
             ? '<span class="user-tag-badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;">🚚 En Camino</span>'
             : '<span class="user-tag-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">🪵 En Carga</span>';
 
-        const ptFinca = (res.totalPtFinca || 0).toFixed(1);
-        const ptAserr = (aserr.recibida && aserr.pt > 0) ? `${aserr.pt.toFixed(1)} pt` : '<span style="color:#94a3b8;">Pendiente</span>';
+        const ptFinca = Math.round(res.totalPtFinca || 0);
+        const ptAserr = (aserr.recibida && aserr.pt > 0) ? `${Math.round(aserr.pt)} pt` : '<span style="color:#94a3b8;">Pendiente</span>';
         
         let diffBadge = '-';
         if (aserr.recibida && aserr.pt > 0) {
-            const diff = aserr.pt - res.totalPtFinca;
+            const diff = aserr.pt - (res.totalPtFinca || 0);
             const signo = diff > 0 ? '+' : '';
             const color = diff >= 0 ? '#16a34a' : '#dc2626';
-            diffBadge = `<strong style="color:${color};">${signo}${diff.toFixed(1)} pt</strong>`;
+            diffBadge = `<strong style="color:${color};">${signo}${Math.round(diff)} pt</strong>`;
         }
 
         const neto = (aserr.recibida && aserr.montoCobrado > 0)
@@ -8528,7 +8544,12 @@ window.cargarCamionadaEnEditor = (id) => {
         precios: d.precios || {
             ventaTroza: 5.0, ventaTrocillo: 3.5, fleteTroza: 1.25, fleteTrocillo: 1.0, motosierraModo: 'pt', motosierraValor: 0.5
         },
-        trozas: Array.isArray(d.trozas) ? JSON.parse(JSON.stringify(d.trozas)) : [],
+        trozas: (Array.isArray(d.trozas) ? JSON.parse(JSON.stringify(d.trozas)) : []).map(t => {
+            const ptCalculado = (t.largo && t.d1)
+                ? window.calcularPiesTablaresTroza(t.largo, t.d1, t.d2 || t.d1, 12)
+                : window.redondearCubicacionRegla(t.pt);
+            return { ...t, pt: ptCalculado };
+        }),
         aserraderoMedicion: d.aserraderoMedicion || { recibida: false, pt: 0, montoCobrado: 0, boleta: '' }
     };
 
@@ -8644,20 +8665,25 @@ window.abrirDetalleCamionada = (id) => {
     const precios = d.precios || {};
 
     let filasTrozas = '';
+    let totalPtCalculado = 0;
     (d.trozas || []).forEach(t => {
-        const diamProm = ((t.d1 + t.d2) / 2).toFixed(1);
+        const diamProm = ((parseFloat(t.d1) + parseFloat(t.d2 || t.d1)) / 2).toFixed(1);
+        const ptCalculado = (t.largo && t.d1)
+            ? window.calcularPiesTablaresTroza(t.largo, t.d1, t.d2 || t.d1, 12)
+            : window.redondearCubicacionRegla(t.pt);
+        totalPtCalculado += ptCalculado;
         filasTrozas += `
             <tr>
                 <td style="text-align:center; font-weight:bold;">#${t.correlativo}</td>
                 <td><span class="${t.tipo==='troza'?'madera-badge-troza':'madera-badge-trocillo'}">${t.tipo==='troza'?'Troza':'Trocillo'}</span></td>
                 <td style="text-align:center;">${t.largo} ft</td>
                 <td style="text-align:center;">${t.d1}" × ${t.d2}" (${diamProm}")</td>
-                <td style="text-align:right; font-weight:bold; color:var(--primary);">${t.pt.toFixed(2)} pt</td>
+                <td style="text-align:right; font-weight:bold; color:var(--primary);">${ptCalculado} pt</td>
             </tr>
         `;
     });
 
-    const totalPtFinca = res.totalPtFinca || 0;
+    const totalPtFinca = totalPtCalculado || Math.round(res.totalPtFinca || 0);
     const ingresoFinca = res.ingresoFinca || 0;
     const fleteCamion = res.fleteCamion || 0;
     const pagoMotosierra = res.pagoMotosierra || 0;
@@ -8665,7 +8691,8 @@ window.abrirDetalleCamionada = (id) => {
 
     let panelAserraderoHTML = '';
     if (aserr.recibida && aserr.pt > 0) {
-        const diffPt = aserr.pt - totalPtFinca;
+        const aserrPt = Math.round(aserr.pt);
+        const diffPt = aserrPt - totalPtFinca;
         const pctDiff = totalPtFinca > 0 ? ((diffPt / totalPtFinca) * 100) : 0;
         const montoCobrado = aserr.montoCobrado || ingresoFinca;
         const gananciaReal = montoCobrado - fleteCamion - pagoMotosierra;
@@ -8674,8 +8701,8 @@ window.abrirDetalleCamionada = (id) => {
             <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:1rem; margin-top:1rem;">
                 <h4 style="margin:0 0 0.5rem; color:#166534;">⚖️ Medición y Liquidación del Aserradero</h4>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px;">
-                    <div><span style="font-size:0.75rem; color:#64748b;">pt Aserradero:</span><div style="font-size:1.1rem; font-weight:bold; color:#1e40af;">${aserr.pt.toFixed(2)} pt</div></div>
-                    <div><span style="font-size:0.75rem; color:#64748b;">Diferencia con Finca:</span><div style="font-size:1.1rem; font-weight:bold; color:${diffPt>=0?'#16a34a':'#dc2626'};">${diffPt>0?'+':''}${diffPt.toFixed(2)} pt (${pctDiff.toFixed(1)}%)</div></div>
+                    <div><span style="font-size:0.75rem; color:#64748b;">pt Aserradero:</span><div style="font-size:1.1rem; font-weight:bold; color:#1e40af;">${aserrPt} pt</div></div>
+                    <div><span style="font-size:0.75rem; color:#64748b;">Diferencia con Finca:</span><div style="font-size:1.1rem; font-weight:bold; color:${diffPt>=0?'#16a34a':'#dc2626'};">${diffPt>0?'+':''}${diffPt} pt (${pctDiff.toFixed(1)}%)</div></div>
                     <div><span style="font-size:0.75rem; color:#64748b;">Monto Cobrado Aserradero:</span><div style="font-size:1.1rem; font-weight:bold; color:#15803d;">Q ${montoCobrado.toFixed(2)}</div></div>
                     <div><span style="font-size:0.75rem; color:#64748b;">GANANCIA REAL FINAL:</span><div style="font-size:1.3rem; font-weight:bold; color:#14532d;">Q ${gananciaReal.toFixed(2)}</div></div>
                 </div>
@@ -8695,7 +8722,7 @@ window.abrirDetalleCamionada = (id) => {
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-bottom:1rem;">
                 <div style="background:#e0f2fe; padding:8px; border-radius:6px; text-align:center;">
                     <span style="font-size:0.72rem; color:#0369a1; font-weight:bold;">TOTAL PT FINCA</span>
-                    <div style="font-size:1.25rem; font-weight:bold; color:#0c4a6e;">${totalPtFinca.toFixed(2)} pt</div>
+                    <div style="font-size:1.25rem; font-weight:bold; color:#0c4a6e;">${totalPtFinca} pt</div>
                 </div>
                 <div style="background:#f0fdf4; padding:8px; border-radius:6px; text-align:center;">
                     <span style="font-size:0.72rem; color:#15803d; font-weight:bold;">INGRESO ESTIMADO</span>
@@ -8760,6 +8787,7 @@ window.descargarPDFCamionadaActual = () => {
         chofer: document.getElementById('madera-chofer')?.value || '',
         motosierrista: document.getElementById('madera-motosierrista')?.value || '',
         aserradero: document.getElementById('madera-aserradero')?.value || '',
+        estado: document.getElementById('madera-estado')?.value || 'cargando',
         precios: {
             ventaTroza: parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 5.0,
             ventaTrocillo: parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 3.5,
@@ -8768,105 +8796,316 @@ window.descargarPDFCamionadaActual = () => {
             motosierraModo: document.getElementById('madera-motosierra-modo')?.value || 'pt',
             motosierraValor: parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0.5
         },
-        trozas: camionadaActual.trozas
+        trozas: camionadaActual.trozas,
+        aserraderoMedicion: {
+            recibida: document.getElementById('madera-check-aserradero')?.checked || false,
+            pt: parseFloat(document.getElementById('madera-aserradero-pt')?.value) || 0,
+            boleta: document.getElementById('madera-aserradero-boleta')?.value || ''
+        }
     };
     descargarPDFCamionada(dataCamionada);
 };
 
+// Generación oficial de PDF de cubicación: desglose individual y totales SIN PRECIOS (apto para compartir con cliente / aserradero)
 window.descargarPDFCamionada = (c) => {
     const jsPDF = getJsPDF();
     if (!jsPDF) return alert("Librería PDF no disponible.");
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
 
+    // Encabezado Finca Los Robles
     doc.setFillColor(44, 94, 46);
-    doc.rect(0, 0, 210, 28, 'F');
+    doc.rect(0, 0, 216, 26, 'F');
+
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setFontSize(15);
     doc.setFont("helvetica", "bold");
-    doc.text("FINCA LOS ROBLES - CUBICACIÓN DE MADERA", 105, 12, { align: "center" });
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text("Boleta de Control y Liquidación de Camionada", 105, 20, { align: "center" });
+    doc.text("FINCA LOS ROBLES", 108, 10, { align: "center" });
 
-    doc.setTextColor(30, 30, 30);
-    doc.setFontSize(10);
-    let y = 38;
-
-    doc.setFont("helvetica", "bold");
-    doc.text(`N° Camionada: ${c.numero || 'S/N'}`, 14, y);
-    doc.text(`Fecha: ${c.fecha || 'N/A'}`, 130, y);
-    y += 6;
-    doc.setFont("helvetica", "normal");
-    doc.text(`Transportista / Chofer: ${c.chofer || 'N/A'}`, 14, y);
-    doc.text(`Aserradero: ${c.aserradero || 'N/A'}`, 130, y);
-    y += 6;
-    doc.text(`Motosierrista: ${c.motosierrista || 'N/A'}`, 14, y);
-    y += 10;
-
-    // Tabla de Trozas
-    doc.setFillColor(240, 244, 240);
-    doc.rect(14, y, 182, 7, 'F');
-    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("INFORME OFICIAL DE CUBICACIÓN DE MADERA", 108, 17, { align: "center" });
     doc.setFontSize(8);
-    doc.text("#", 16, y + 5);
-    doc.text("TIPO", 28, y + 5);
-    doc.text("LARGO (ft)", 55, y + 5);
-    doc.text("D1 (in)", 85, y + 5);
-    doc.text("D2 (in)", 110, y + 5);
-    doc.text("PROM (in)", 135, y + 5);
-    doc.text("PIES TABLARES", 170, y + 5);
-    y += 8;
-
     doc.setFont("helvetica", "normal");
-    let totalPt = 0, cantTrozas = 0, cantTrocillos = 0, ptTrozas = 0, ptTrocillos = 0;
+    doc.text("Boleta Técnica de Desglose, Totales y Control Forestal", 108, 22, { align: "center" });
 
-    (c.trozas || []).forEach(t => {
-        if (y > 270) {
-            doc.addPage();
-            y = 20;
-        }
-        totalPt += t.pt;
-        if (t.tipo === 'troza') { cantTrozas++; ptTrozas += t.pt; }
-        else { cantTrocillos++; ptTrocillos += t.pt; }
+    // Ficha de Información de la Camionada
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(14, 30, 188, 23, 'FD');
 
-        const prom = ((t.d1 + t.d2) / 2).toFixed(1);
-        doc.text(String(t.correlativo), 16, y);
-        doc.text(t.tipo === 'troza' ? 'Troza' : 'Trocillo', 28, y);
-        doc.text(`${t.largo} ft`, 55, y);
-        doc.text(`${t.d1}"`, 85, y);
-        doc.text(`${t.d2}"`, 110, y);
-        doc.text(`${prom}"`, 135, y);
-        doc.text(`${t.pt.toFixed(2)} pt`, 175, y);
-        y += 5;
-    });
-
-    y += 6;
-    if (y > 240) { doc.addPage(); y = 20; }
-
-    // Resumen financiero
-    const precios = c.precios || { ventaTroza: 5.0, ventaTrocillo: 3.5, fleteTroza: 1.25, fleteTrocillo: 1.0, motosierraModo: 'pt', motosierraValor: 0.5 };
-    const ingresoBruto = (ptTrozas * precios.ventaTroza) + (ptTrocillos * precios.ventaTrocillo);
-    const fleteCamion = (ptTrozas * precios.fleteTroza) + (ptTrocillos * precios.fleteTrocillo);
-    const pagoMotosierra = precios.motosierraModo === 'fijo' ? precios.motosierraValor : (totalPt * precios.motosierraValor);
-    const neto = ingresoBruto - fleteCamion - pagoMotosierra;
-
-    doc.setFillColor(245, 247, 245);
-    doc.rect(14, y, 182, 35, 'F');
-    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
     doc.setFontSize(9);
-    doc.setTextColor(44, 94, 46);
-    doc.text("RESUMEN DE LIQUIDACIÓN Y CUBICACIÓN", 18, y + 6);
-    doc.setTextColor(40, 40, 40);
+    doc.setFont("helvetica", "bold");
+    doc.text("DATOS DEL DESPACHO / CAMIONADA", 18, 35);
+
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Troncos: ${(c.trozas||[]).length} (${cantTrozas} trozas, ${cantTrocillos} trocillos)`, 18, y + 13);
-    doc.text(`Total Pies Tablares (Finca): ${totalPt.toFixed(2)} pt`, 18, y + 19);
-    doc.text(`Ingreso Venta Aserradero: Q ${ingresoBruto.toFixed(2)}`, 18, y + 25);
-    doc.text(`Flete a pagar al Camión: Q ${fleteCamion.toFixed(2)}`, 110, y + 13);
-    doc.text(`Pago a Motosierrista: Q ${pagoMotosierra.toFixed(2)}`, 110, y + 19);
+    doc.text("N° Camionada:", 18, 41);
     doc.setFont("helvetica", "bold");
+    doc.text(`${c.numero || 'S/N'}`, 42, 41);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Fecha:", 18, 46);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${c.fecha || new Date().toISOString().split('T')[0]}`, 42, 46);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Transportista / Chofer:", 18, 51);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${c.chofer || 'No especificado'}`, 53, 51);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Destino / Aserradero:", 112, 41);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${c.aserradero || 'No especificado'}`, 147, 41);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Motosierrista / Cuadrilla:", 112, 46);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${c.motosierrista || 'No especificado'}`, 151, 46);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("Estado:", 112, 51);
+    doc.setFont("helvetica", "bold");
+    const estadoTexto = c.estado === 'liquidado' ? 'Liquidado' : (c.estado === 'enviado' ? 'En Tránsito / Entregado' : 'En Carga');
+    doc.text(`${estadoTexto}`, 125, 51);
+
+    let y = 58;
+
+    const dibujarHeaderTabla = (currY) => {
+        doc.setFillColor(30, 70, 32);
+        doc.rect(14, currY, 188, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("#", 17, currY + 4.8);
+        doc.text("CLASIFICACIÓN", 26, currY + 4.8);
+        doc.text("LARGO (ft)", 62, currY + 4.8);
+        doc.text("DIÁM. 1 (in)", 92, currY + 4.8);
+        doc.text("DIÁM. 2 (in)", 122, currY + 4.8);
+        doc.text("PROM. (in)", 150, currY + 4.8);
+        doc.text("PIES TABLARES", 176, currY + 4.8);
+        return currY + 7;
+    };
+
+    y = dibujarHeaderTabla(y);
+
+    let totalPt = 0;
+    let cantTrozas = 0;
+    let cantTrocillos = 0;
+    let ptTrozas = 0;
+    let ptTrocillos = 0;
+
+    const listaTrozas = c.trozas || [];
+
+    if (listaTrozas.length === 0) {
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "italic");
+        doc.text("Sin troncos registrados en esta boleta.", 108, y + 8, { align: "center" });
+        y += 16;
+    } else {
+        listaTrozas.forEach((t, idx) => {
+            if (y > 248) {
+                doc.addPage();
+                doc.setFillColor(44, 94, 46);
+                doc.rect(0, 0, 216, 12, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold");
+                doc.text(`FINCA LOS ROBLES - Cubicación Camionada ${c.numero || ''} (Continuación)`, 108, 8, { align: "center" });
+                y = 18;
+                y = dibujarHeaderTabla(y);
+            }
+
+            const ptCalculado = (t.largo && t.d1)
+                ? window.calcularPiesTablaresTroza(t.largo, t.d1, t.d2 || t.d1, 12)
+                : window.redondearCubicacionRegla(t.pt);
+
+            totalPt += ptCalculado;
+            if (t.tipo === 'troza') {
+                cantTrozas++;
+                ptTrozas += ptCalculado;
+            } else {
+                cantTrocillos++;
+                ptTrocillos += ptCalculado;
+            }
+
+            if (idx % 2 === 0) {
+                doc.setFillColor(255, 255, 255);
+            } else {
+                doc.setFillColor(248, 250, 250);
+            }
+            doc.rect(14, y, 188, 5.2, 'F');
+
+            doc.setDrawColor(226, 232, 240);
+            doc.line(14, y + 5.2, 202, y + 5.2);
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7.5);
+
+            const diamProm = ((parseFloat(t.d1) + parseFloat(t.d2 || t.d1)) / 2).toFixed(1);
+
+            doc.setFont("helvetica", "bold");
+            doc.text(String(t.correlativo || (idx + 1)), 17, y + 3.8);
+
+            doc.setFont("helvetica", "normal");
+            doc.text(t.tipo === 'troza' ? '🪵 Troza' : '🌿 Trocillo', 26, y + 3.8);
+            doc.text(`${t.largo} ft`, 64, y + 3.8);
+            doc.text(`${t.d1}"`, 95, y + 3.8);
+            doc.text(`${t.d2 || t.d1}"`, 125, y + 3.8);
+            doc.text(`${diamProm}"`, 152, y + 3.8);
+
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(20, 83, 45);
+            doc.text(`${ptCalculado} pt`, 182, y + 3.8);
+
+            y += 5.2;
+        });
+    }
+
+    y += 5;
+    if (y > 215) {
+        doc.addPage();
+        y = 20;
+    }
+
+    // CUADRO DE RESUMEN Y TOTAL DE CUBICACIÓN (SIN PRECIOS)
+    doc.setFillColor(240, 249, 242);
+    doc.setDrawColor(187, 247, 208);
+    doc.rect(14, y, 188, 30, 'FD');
+
     doc.setTextColor(20, 83, 45);
-    doc.text(`GANANCIA NETA ("LO QUE ME QUEDA"): Q ${neto.toFixed(2)}`, 110, y + 26);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.text("RESUMEN GENERAL DE CUBICACIÓN EN FINCA", 18, y + 6);
+
+    doc.setDrawColor(187, 247, 208);
+    doc.line(18, y + 8, 198, y + 8);
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "normal");
+    doc.text("Total Troncos Cargados:", 18, y + 14);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${listaTrozas.length} unidades`, 65, y + 14);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("• Desglose en Troza:", 18, y + 20);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${cantTrozas} piezas`, 65, y + 20);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("• Desglose en Trocillo:", 18, y + 26);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${cantTrocillos} piezas`, 65, y + 26);
+
+    // Totales de Pies Tablares Finca
+    doc.setFont("helvetica", "normal");
+    doc.text("TOTAL PIES TABLARES (FINCA):", 112, y + 14);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20, 83, 45);
+    doc.text(`${totalPt} pt`, 172, y + 14);
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "normal");
+    doc.text("• Volumen en Troza:", 112, y + 20);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${ptTrozas} pt`, 172, y + 20);
+
+    doc.setFont("helvetica", "normal");
+    doc.text("• Volumen en Trocillo:", 112, y + 26);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${ptTrocillos} pt`, 172, y + 26);
+
+    y += 34;
+
+    // SECCIÓN COMPARATIVA CON EL ASERRADERO / CLIENTE
+    const aserr = c.aserraderoMedicion || {};
+    const tieneMedicionAserradero = aserr.recibida && (parseFloat(aserr.pt) > 0);
+
+    if (tieneMedicionAserradero) {
+        const aserrPt = Math.round(parseFloat(aserr.pt) || 0);
+        const diffPt = aserrPt - totalPt;
+        const pctDiff = totalPt > 0 ? ((diffPt / totalPt) * 100) : 0;
+        const signoDiff = diffPt > 0 ? '+' : '';
+
+        doc.setFillColor(239, 246, 255);
+        doc.setDrawColor(191, 219, 254);
+        doc.rect(14, y, 188, 25, 'FD');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(30, 58, 138);
+        doc.text("COMPARATIVA DE MEDICIÓN CONTRA ASERRADERO (REGISTRADA)", 18, y + 6);
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30, 41, 59);
+        doc.text("Cubicación Finca:", 18, y + 13);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${totalPt} pt`, 46, y + 13);
+
+        doc.setFont("helvetica", "normal");
+        doc.text("Cubicación Aserradero:", 18, y + 19);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 64, 175);
+        doc.text(`${aserrPt} pt`, 54, y + 19);
+
+        doc.setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "normal");
+        doc.text("N° Boleta / Recibo Aserradero:", 95, y + 13);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${aserr.boleta || 'S/N'}`, 146, y + 13);
+
+        doc.setFont("helvetica", "normal");
+        doc.text("Diferencia de Medición:", 95, y + 19);
+        doc.setFont("helvetica", "bold");
+        if (diffPt >= 0) {
+            doc.setTextColor(22, 101, 52);
+        } else {
+            doc.setTextColor(185, 28, 28);
+        }
+        doc.text(`${signoDiff}${diffPt} pt (${pctDiff.toFixed(1)}%)`, 135, y + 19);
+
+        y += 29;
+    } else {
+        doc.setFillColor(254, 252, 247);
+        doc.setDrawColor(253, 230, 138);
+        doc.rect(14, y, 188, 30, 'FD');
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(146, 64, 14);
+        doc.text("CONTROL Y COMPARATIVA DE CUBICACIÓN EN RECEPCIÓN (ASERRADERO / CLIENTE)", 18, y + 6);
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(51, 65, 85);
+
+        doc.text("Volumen Entregado (Finca):", 18, y + 13);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${totalPt} pt`, 60, y + 13);
+
+        doc.setFont("helvetica", "normal");
+        doc.text("Volumen Cubicado por Aserradero: _____________________ pt", 18, y + 20);
+        doc.text("N° Boleta de Entrada Aserradero: ______________________", 18, y + 26);
+
+        doc.text("Diferencia Registrada: ____________________ pt", 116, y + 13);
+        doc.text("Firma Recibe / Inspector: _____________________", 116, y + 20);
+        doc.text("Sello de Conformidad: _______________________", 116, y + 26);
+
+        y += 34;
+    }
+
+    // Pie de página técnico
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "normal");
+    doc.text("Fórmula forestal: (Largo en pies × Diám. 1 en pulg × Diám. 2 en pulg) ÷ 12. Regla de aproximación: decimales > 0.75 aproximan al siguiente entero; decimales ≤ 0.75 se truncan.", 14, y + 2);
+    doc.text(`Finca Los Robles • Documento de control de cubicación emitido para cotejo con el cliente/aserradero • ${new Date().toLocaleDateString('es-GT')}`, 14, y + 6);
 
     doc.save(`Cubicacion_${c.numero || 'Camionada'}.pdf`);
 };
@@ -8883,35 +9122,56 @@ window.compartirCamionadaWhatsApp = (cam) => {
 
     let totalPt = 0, cantTrozas = 0, cantTrocillos = 0, ptTrozas = 0, ptTrocillos = 0;
     (c.trozas || []).forEach(t => {
-        totalPt += t.pt;
-        if (t.tipo === 'troza') { cantTrozas++; ptTrozas += t.pt; }
-        else { cantTrocillos++; ptTrocillos += t.pt; }
+        const pt = (t.largo && t.d1)
+            ? window.calcularPiesTablaresTroza(t.largo, t.d1, t.d2 || t.d1, 12)
+            : window.redondearCubicacionRegla(t.pt);
+        totalPt += pt;
+        if (t.tipo === 'troza') { cantTrozas++; ptTrozas += pt; }
+        else { cantTrocillos++; ptTrocillos += pt; }
     });
 
-    const pVentaTroza = parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 5.0;
-    const pVentaTrocillo = parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 3.5;
-    const pFleteTroza = parseFloat(document.getElementById('madera-flete-troza')?.value) || 1.25;
-    const pFleteTrocillo = parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 1.0;
-    const motosierraModo = document.getElementById('madera-motosierra-modo')?.value || 'pt';
-    const motosierraValor = parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0.5;
+    const incluirPrecios = confirm("¿Deseas incluir precios y liquidación en el mensaje de WhatsApp?\n\n• ACEPTAR: Incluye precios y ganancia (Liquidación interna).\n• CANCELAR: Solo desglose y total de cubicación (Para compartir con cliente / aserradero).");
 
-    const ingresoBruto = (ptTrozas * pVentaTroza) + (ptTrocillos * pVentaTrocillo);
-    const fleteCamion = (ptTrozas * pFleteTroza) + (ptTrocillos * pFleteTrocillo);
-    const pagoMotosierra = motosierraModo === 'fijo' ? motosierraValor : (totalPt * motosierraValor);
-    const gananciaNeta = ingresoBruto - fleteCamion - pagoMotosierra;
+    let texto = '';
+    if (incluirPrecios) {
+        const pVentaTroza = parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 5.0;
+        const pVentaTrocillo = parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 3.5;
+        const pFleteTroza = parseFloat(document.getElementById('madera-flete-troza')?.value) || 1.25;
+        const pFleteTrocillo = parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 1.0;
+        const motosierraModo = document.getElementById('madera-motosierra-modo')?.value || 'pt';
+        const motosierraValor = parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0.5;
 
-    const texto = `🌲 *FINCA LOS ROBLES - BOLETA DE MADERA*\n` +
-        `📦 *Camionada:* ${c.numero || 'S/N'}\n` +
-        `📅 *Fecha:* ${c.fecha || 'Hoy'}\n` +
-        `🚚 *Camión/Chofer:* ${c.chofer || 'N/A'}\n` +
-        `🪚 *Motosierrista:* ${c.motosierrista || 'N/A'}\n` +
-        `🏭 *Aserradero:* ${c.aserradero || 'N/A'}\n\n` +
-        `🪵 *Total Troncos:* ${(c.trozas||[]).length} (${cantTrozas} trozas | ${cantTrocillos} trocillos)\n` +
-        `📏 *Pies Tablares:* ${totalPt.toFixed(2)} pt\n` +
-        `💵 *Ingreso Aserradero:* Q ${ingresoBruto.toFixed(2)}\n` +
-        `🚚 *Flete Camión:* Q ${fleteCamion.toFixed(2)}\n` +
-        `🪚 *Pago Motosierra:* Q ${pagoMotosierra.toFixed(2)}\n` +
-        `💰 *Ganancia Neta:* Q ${gananciaNeta.toFixed(2)}`;
+        const ingresoBruto = (ptTrozas * pVentaTroza) + (ptTrocillos * pVentaTrocillo);
+        const fleteCamion = (ptTrozas * pFleteTroza) + (ptTrocillos * pFleteTrocillo);
+        const pagoMotosierra = motosierraModo === 'fijo' ? motosierraValor : (totalPt * motosierraValor);
+        const gananciaNeta = ingresoBruto - fleteCamion - pagoMotosierra;
+
+        texto = `🌲 *FINCA LOS ROBLES - LIQUIDACIÓN DE CAMIONADA*\n` +
+            `📦 *Camionada:* ${c.numero || 'S/N'}\n` +
+            `📅 *Fecha:* ${c.fecha || 'Hoy'}\n` +
+            `🚚 *Camión/Chofer:* ${c.chofer || 'N/A'}\n` +
+            `🪚 *Motosierrista:* ${c.motosierrista || 'N/A'}\n` +
+            `🏭 *Aserradero:* ${c.aserradero || 'N/A'}\n\n` +
+            `🪵 *Total Troncos:* ${(c.trozas||[]).length} (${cantTrozas} trozas | ${cantTrocillos} trocillos)\n` +
+            `📏 *Pies Tablares:* ${totalPt} pt (${ptTrozas} pt troza | ${ptTrocillos} pt trocillo)\n` +
+            `💵 *Ingreso Aserradero:* Q ${ingresoBruto.toFixed(2)}\n` +
+            `🚚 *Flete Camión:* Q ${fleteCamion.toFixed(2)}\n` +
+            `🪚 *Pago Motosierra:* Q ${pagoMotosierra.toFixed(2)}\n` +
+            `💰 *Ganancia Neta:* Q ${gananciaNeta.toFixed(2)}`;
+    } else {
+        texto = `🌲 *FINCA LOS ROBLES - BOLETA DE CUBICACIÓN*\n` +
+            `📦 *Camionada:* ${c.numero || 'S/N'}\n` +
+            `📅 *Fecha:* ${c.fecha || 'Hoy'}\n` +
+            `🚚 *Transportista:* ${c.chofer || 'N/A'}\n` +
+            `🏭 *Destino / Cliente:* ${c.aserradero || 'N/A'}\n\n` +
+            `🪵 *Total Troncos:* ${(c.trozas||[]).length} piezas\n` +
+            `• Trozas: ${cantTrozas} piezas\n` +
+            `• Trocillos: ${cantTrocillos} piezas\n\n` +
+            `📏 *TOTAL PIES TABLARES (FINCA):* ${totalPt} pt\n` +
+            `• Troza: ${ptTrozas} pt\n` +
+            `• Trocillo: ${ptTrocillos} pt\n\n` +
+            `_Cálculo con regla técnica de campo (decimales >0.75 aproximan al siguiente entero). Boleta para cotejo contra medición de aserradero._`;
+    }
 
     const url = "https://wa.me/?text=" + encodeURIComponent(texto);
     window.open(url, '_blank');
@@ -8921,7 +9181,10 @@ window.exportarTrozasCSV = () => {
     if (camionadaActual.trozas.length === 0) return alert("No hay trozas cargadas para exportar.");
     let csv = "Correlativo,Tipo,Largo_Pies,Diametro1_Pulg,Diametro2_Pulg,Pies_Tablares\n";
     camionadaActual.trozas.forEach(t => {
-        csv += `${t.correlativo},${t.tipo},${t.largo},${t.d1},${t.d2},${t.pt.toFixed(2)}\n`;
+        const pt = (t.largo && t.d1)
+            ? window.calcularPiesTablaresTroza(t.largo, t.d1, t.d2 || t.d1, 12)
+            : window.redondearCubicacionRegla(t.pt);
+        csv += `${t.correlativo},${t.tipo},${t.largo},${t.d1},${t.d2},${pt}\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -8946,11 +9209,12 @@ window.ejecutarCalculadoraRapidaMadera = () => {
     const neto = venta - costoFlete;
 
     const resPt = document.getElementById('madera-calc-res-pt');
-    if (resPt) resPt.innerText = `${pt.toFixed(2)} pt`;
+    if (resPt) resPt.innerText = `${pt} pt`;
 
     const formulaEl = document.getElementById('madera-calc-res-formula');
     if (formulaEl) {
-        formulaEl.innerText = `Fórmula: (${largo} ft × ${d1}" × ${d2}") ÷ 12 = ${pt.toFixed(2)} pies tablares`;
+        const crudo = ((largo * d1 * d2) / 12).toFixed(2);
+        formulaEl.innerText = `Fórmula: (${largo} ft × ${d1}" × ${d2}") ÷ 12 = ${crudo} → ${pt} pt (regla >0.75)`;
     }
 
     const resVenta = document.getElementById('madera-calc-res-venta');
