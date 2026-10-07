@@ -5016,8 +5016,14 @@ window.generarPDFHojaPedido = (pedidoId) => {
 
     doc.setFont("helvetica", "bold");
     doc.text("Estado:", 120, y + 20);
-    doc.setFont("helvetica", "normal");
-    doc.text(d.estado === 'entregado' ? '🟢 ENTREGADO' : '🟡 PENDIENTE DE ENTREGA', 135, y + 20);
+    if (d.estado === 'entregado') {
+        doc.setTextColor(22, 101, 52);
+        doc.text("ENTREGADO", 136, y + 20);
+    } else {
+        doc.setTextColor(180, 83, 9);
+        doc.text("PENDIENTE DE ENTREGA", 136, y + 20);
+    }
+    doc.setTextColor(40, 40, 40);
 
     if (d.notas) {
         doc.setFont("helvetica", "bold");
@@ -5040,11 +5046,11 @@ window.generarPDFHojaPedido = (pedidoId) => {
     doc.rect(14, y, 188, 7, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(8);
-    doc.text("[ ✓ ]", 17, y + 5);
-    doc.text("PRODUCTO Y PRESENTACIÓN", 30, y + 5);
-    doc.text("CANTIDAD", 120, y + 5);
-    doc.text("PRECIO UNIT.", 145, y + 5);
-    doc.text("SUBTOTAL (Q)", 175, y + 5);
+    doc.text("[  ]", 17, y + 5);
+    doc.text("DESCRIPCIÓN DEL PRODUCTO", 27, y + 5);
+    doc.text("CANTIDAD", 132, y + 5, { align: "center" });
+    doc.text("PRECIO UNIT.", 166, y + 5, { align: "right" });
+    doc.text("SUBTOTAL (Q)", 198, y + 5, { align: "right" });
 
     y += 7;
 
@@ -5055,39 +5061,92 @@ window.generarPDFHojaPedido = (pedidoId) => {
         const sub = it.subtotal || (it.cantidad * it.precio);
         granTotal += sub;
 
-        if (idx % 2 === 1) {
-            doc.setFillColor(248, 250, 248);
+        // Limpiar descripción: quitar información técnica de lotes y redundancias
+        let desc = (it.nombre || it.tipo || 'Producto').trim();
+        const pres = (it.presentacion && it.presentacion !== 'N/A' && it.presentacion !== '-') ? it.presentacion.trim() : '';
+
+        if (pres) {
+            if (desc.includes('(Entero/Molido)')) {
+                desc = desc.replace('(Entero/Molido)', `(${pres})`).trim();
+            } else if (desc.toLowerCase().endsWith('(entero/molido)')) {
+                desc = desc.substring(0, desc.length - 15).trim() + ` (${pres})`;
+            } else if (!desc.toLowerCase().includes(pres.toLowerCase())) {
+                desc = `${desc} (${pres})`;
+            }
+        }
+        // Quitar emojis o caracteres no soportados en la fuente de jsPDF
+        desc = desc.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/gu, '').trim();
+
+        // Wrap automático para evitar que el texto monte otras columnas
+        const descLines = doc.splitTextToSize(desc, 88);
+        const rowHeight = Math.max(7, 3.5 + descLines.length * 3.8);
+
+        if (y + rowHeight > 248) {
+            doc.addPage();
+            y = 20;
+            doc.setFillColor(44, 94, 46);
             doc.rect(14, y, 188, 7, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.text("[  ]", 17, y + 5);
+            doc.text("DESCRIPCIÓN DEL PRODUCTO", 27, y + 5);
+            doc.text("CANTIDAD", 132, y + 5, { align: "center" });
+            doc.text("PRECIO UNIT.", 166, y + 5, { align: "right" });
+            doc.text("SUBTOTAL (Q)", 198, y + 5, { align: "right" });
+            y += 7;
         }
 
-        doc.rect(18, y + 1.5, 4, 4);
+        if (idx % 2 === 1) {
+            doc.setFillColor(248, 250, 248);
+            doc.rect(14, y, 188, rowHeight, 'F');
+        }
+
+        // Borde inferior sutil
+        doc.setDrawColor(226, 232, 240);
+        doc.line(14, y + rowHeight, 202, y + rowHeight);
+
+        // Cuadro de verificación
+        doc.setDrawColor(160, 160, 160);
+        doc.rect(17, y + (rowHeight - 4) / 2, 4, 4);
+
+        // Descripción
         doc.setFont("helvetica", "bold");
         doc.setTextColor(30, 30, 30);
         doc.setFontSize(8.5);
-        const loteTxtPdf = (it.tipo === 'Tostado' && it.loteDocId) ? ` | Lote: ${it.loteInfo ? it.loteInfo.substring(0, 30) : 'Asignado'}` : '';
-        doc.text(it.nombre + (it.presentacion !== 'N/A' ? ` (${it.presentacion})` : '') + loteTxtPdf, 30, y + 5);
+        doc.text(descLines, 27, y + 4.6);
 
+        // Cantidad centrada
         doc.setFont("helvetica", "normal");
-        doc.text(`${it.cantidad} ${it.unidad}`, 120, y + 5);
-        doc.text(`Q ${(it.precio || 0).toFixed(2)}`, 145, y + 5);
-        doc.setFont("helvetica", "bold");
-        doc.text(`Q ${sub.toFixed(2)}`, 175, y + 5);
+        doc.text(`${it.cantidad} ${it.unidad || ''}`.trim(), 132, y + 4.6, { align: "center" });
 
-        y += 7;
+        // Precio unitario alineado a la derecha
+        const pUnit = parseFloat(it.precio) || 0;
+        doc.text(`Q ${pUnit.toFixed(2)}`, 166, y + 4.6, { align: "right" });
+
+        // Subtotal alineado a la derecha
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(20, 83, 45);
+        doc.text(`Q ${sub.toFixed(2)}`, 198, y + 4.6, { align: "right" });
+
+        y += rowHeight;
     });
 
-    // Total Bar
+    // Barra de Total
     y += 2;
     doc.setFillColor(240, 245, 240);
-    doc.rect(14, y, 188, 10, 'F');
+    doc.rect(14, y, 188, 9, 'F');
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(44, 94, 46);
-    doc.text("TOTAL DEL PEDIDO A COBRAR:", 80, y + 7);
+    doc.text("TOTAL DEL PEDIDO A COBRAR:", 160, y + 6.2, { align: "right" });
     doc.setFontSize(12);
-    doc.text(`Q ${granTotal.toFixed(2)}`, 165, y + 7);
+    doc.text(`Q ${granTotal.toFixed(2)}`, 198, y + 6.2, { align: "right" });
 
-    y += 18;
+    y += 14;
+    if (y > 210) {
+        doc.addPage();
+        y = 20;
+    }
 
     // Sección de Liquidación y Entrega
     doc.setFillColor(250, 250, 248);
@@ -5104,21 +5163,21 @@ window.generarPDFHojaPedido = (pedidoId) => {
     doc.setFontSize(8);
     doc.setTextColor(60, 60, 60);
     doc.text("Fecha y Hora de Entrega Efectiva:  ____________________________________", 18, y + 14);
-    doc.text("Forma de Pago Recibida:   [  ] Efectivo     [  ] Transferencia     [  ] Tarjeta     [  ] Crédito (Pendiente)", 18, y + 21);
+    doc.text("Forma de Pago Recibida:   [  ] Efectivo     [  ] Transferencia     [  ] Tarjeta     [  ] Crédito", 18, y + 21);
 
     // Firmas
-    doc.line(25, y + 40, 95, y + 40);
+    doc.line(25, y + 38, 95, y + 38);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
-    doc.text("Entregado por (Finca Los Robles)", 35, y + 44);
+    doc.text("Entregado por (Finca Los Robles)", 35, y + 42);
 
-    doc.line(115, y + 40, 185, y + 40);
-    doc.text("Recibido Conforme (Firma y Nombre Cliente)", 120, y + 44);
+    doc.line(115, y + 38, 185, y + 38);
+    doc.text("Recibido Conforme (Firma y Nombre Cliente)", 120, y + 42);
 
     // Pie de página
     doc.setFontSize(8);
     doc.setTextColor(110, 110, 110);
-    doc.text("Generado: " + new Date().toLocaleString('es-GT') + "  |  Finca Los Robles - Café de Especialidad  |  v2026.09.02", 108, 270, { align: "center" });
+    doc.text(`Generado: ${new Date().toLocaleString('es-GT')}  |  Finca Los Robles - Café de Especialidad`, 108, 270, { align: "center" });
 
     doc.save(`${d.folio || 'Pedido'}_${(d.clienteNombre || 'Cliente').replace(/[^a-zA-Z0-9]/g, '_')}.pdf`);
     alert(`✅ Hoja de Pedido PDF (${d.folio || ''}) descargada.`);
