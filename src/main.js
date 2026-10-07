@@ -69,6 +69,45 @@ let anioCalendarioActual = new Date().getFullYear();
 let proyectoActualEditando = null;
 let proyectoActualNotaId = null;
 
+// --- VARIABLES DE ROLES Y PERMISOS DE USUARIOS ---
+const DEFAULT_MODULOS_OPERADOR = ['madera', 'catacion', 'proyectos', 'muestreo'];
+let currentUserRol = 'operador';
+let currentUserPermissions = [...DEFAULT_MODULOS_OPERADOR];
+let isAdmin = false;
+let currentAuthUsername = null;
+let todosLosUsuarios = [];
+
+// --- VARIABLES DEL MÓDULO DE CUBICACIÓN DE MADERA ---
+let todasLasCamionadas = [];
+let camionadaActual = {
+    id: null,
+    numero: 'CAM-' + new Date().getFullYear() + '-001',
+    fecha: new Date().toISOString().split('T')[0],
+    chofer: '',
+    motosierrista: '',
+    aserradero: '',
+    estado: 'cargando',
+    precios: {
+        ventaTroza: 5.00,
+        ventaTrocillo: 3.50,
+        fleteTroza: 1.25,
+        fleteTrocillo: 1.00,
+        motosierraModo: 'pt',
+        motosierraValor: 0.50
+    },
+    trozas: [],
+    aserraderoMedicion: {
+        recibida: false,
+        pt: 0,
+        montoCobrado: 0,
+        boleta: ''
+    }
+};
+let trozaActualEditandoIndex = null;
+let filtroEstadoHistorialMadera = 'todas';
+let busquedaHistorialMaderaTerm = '';
+let subtabMaderaActual = 'nueva';
+
 const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
 const PRECIOS_DEFAULT = {
@@ -207,30 +246,50 @@ function construirMenu() {
         document.getElementById('logout-text').innerText = 'Salir';
         document.getElementById('guest-badge-top').style.display = 'inline-block';
     } else {
-        const items = [
+        const todosLosModulos = [
+            { id:'madera', icon:'🪵', label:'Cubicación Madera' },
+            { id:'catacion', icon:'☕', label:'Catación SCA' },
+            { id:'proyectos', icon:'🗂️', label:'Proyectos y Pendientes' },
+            { id:'muestreo', icon:'🔬', label:'Muestreo Lab' },
             { id:'dashboard', icon:'📊', label:'Dashboard' },
             { id:'pedidos', icon:'📋', label:'Pedidos' },
             { id:'ventas', icon:'💰', label:'Ventas' },
             { id:'clientes', icon:'👥', label:'Clientes' },
             { id:'inventario', icon:'📦', label:'Inventario' },
-            { id:'proyectos', icon:'🗂️', label:'Proyectos y Pendientes' },
             { id:'trafico', icon:'🌐', label:'Tráfico Web' },
             { id:'precios', icon:'🏷️', label:'Lista de Precios' },
             { id:'costos', icon:'🧮', label:'Costos Tostado' },
             { id:'cotizador', icon:'💵', label:'Cotizador Verde' },
             { id:'tostado', icon:'🔥', label:'Control Tostado' },
-            { id:'catacion', icon:'☕', label:'Catación SCA' },
-            { id:'muestreo', icon:'🔬', label:'Muestreo Lab' }
+            { id:'usuarios', icon:'👥', label:'Usuarios y Permisos', adminOnly: true }
         ];
-        items.forEach((it, i) => {
+
+        let itemsVisibles = [];
+        if (isAdmin) {
+            itemsVisibles = todosLosModulos;
+        } else {
+            // Usuario estándar: SOLO ve los módulos permitidos asignados por el Admin
+            // (Por requerimiento: madera, catacion, proyectos, muestreo)
+            const permitidos = (currentUserPermissions && currentUserPermissions.length > 0)
+                ? currentUserPermissions
+                : DEFAULT_MODULOS_OPERADOR;
+            itemsVisibles = todosLosModulos.filter(m => !m.adminOnly && permitidos.includes(m.id));
+            if (itemsVisibles.length === 0) {
+                itemsVisibles = todosLosModulos.filter(m => DEFAULT_MODULOS_OPERADOR.includes(m.id));
+            }
+        }
+
+        itemsVisibles.forEach((it, i) => {
             const div = document.createElement('div');
-            div.className = 'menu-item' + (i===0?' active':'');
+            div.className = 'menu-item' + (i === 0 ? ' active' : '');
             div.onclick = () => window.showSection(it.id, div);
             div.innerHTML = `<span class="icon">${it.icon}</span> ${it.label}`;
             container.appendChild(div);
         });
+
         document.getElementById('menu-password-section').style.display = 'block';
-        document.getElementById('sidebar-user-info').innerText = currentAuthEmail || 'Usuario';
+        const displayUser = currentAuthUsername ? `${currentAuthUsername} (${isAdmin ? 'Admin' : 'Operador'})` : (currentAuthEmail || 'Usuario');
+        document.getElementById('sidebar-user-info').innerText = displayUser;
         document.getElementById('logout-text').innerText = 'Cerrar Sesión';
         document.getElementById('guest-badge-top').style.display = 'none';
     }
@@ -247,6 +306,8 @@ function entrarAlSistema() {
         cargarPedidos();
         cargarProyectos();
         cargarTraficoWeb();
+        cargarCamionadas();
+        if (isAdmin) cargarUsuariosPermisos();
         window.calcularCotizador();
         window.onVentaTipoChange();
     } else {
@@ -254,43 +315,144 @@ function entrarAlSistema() {
     }
     window.calcularCatacion();
     generarTablaTostado();
+
+    // Seleccionar automáticamente la primera sección accesible
+    if (modoInvitado) {
+        window.showSection('catacion');
+    } else if (isAdmin) {
+        window.showSection('dashboard');
+    } else {
+        const primera = (currentUserPermissions && currentUserPermissions[0]) || 'madera';
+        window.showSection(primera);
+    }
 }
 
 window.login = async () => {
-    const email = document.getElementById('login-email').value.trim();
+    const inputVal = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
-    if (!email || !password) return showError('login-error', '⚠️ Ingresa correo y contraseña.');
+    if (!inputVal || !password) return showError('login-error', '⚠️ Ingresa tu usuario o correo y contraseña.');
     const btn = document.getElementById('btn-login');
     btn.disabled = true; btn.innerText = "Ingresando...";
     document.getElementById('login-error').style.display = 'none';
     isManualLogin = true;
     modoInvitado = false;
+
     try {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
-        currentAuthUid = cred.user.uid; currentAuthEmail = cred.user.email;
-        const userDoc = await getDoc(doc(db, "usuarios", currentAuthUid));
-        if (userDoc.exists() && userDoc.data().primerLogin === true) {
-            alert("🔑 Es tu primer ingreso. Te enviaremos un correo para cambiar tu contraseña.");
-            await sendPasswordResetEmail(auth, email);
-            await updateDoc(doc(db, "usuarios", currentAuthUid), { primerLogin: false });
-            await signOut(auth);
-            showError('login-error', '📧 Revisa tu correo para establecer tu nueva contraseña.');
-            isManualLogin = false;
-            btn.disabled = false; btn.innerText = "Ingresar";
+        // CASO 1: Ingreso por Nombre de Usuario (sin @)
+        if (!inputVal.includes('@')) {
+            const usernameClean = inputVal.toLowerCase().trim();
+            const qUser = query(collection(db, "usuarios"), where("username", "==", usernameClean));
+            const snapUser = await getDocs(qUser);
+
+            if (snapUser.empty) {
+                // Cuenta de contingencia admin inicial
+                if (usernameClean === 'admin' && (password === 'admin' || password === '123456' || password === 'robles2026')) {
+                    isAdmin = true;
+                    currentUserRol = 'admin';
+                    currentUserPermissions = ['all'];
+                    currentAuthUid = 'admin_default';
+                    currentAuthUsername = 'admin';
+                    currentAuthEmail = 'admin@fincalosrobles.local';
+                    localStorage.setItem('flr_usuario_activo', JSON.stringify({
+                        uid: currentAuthUid, username: 'admin', rol: 'admin', email: currentAuthEmail, permissions: ['all']
+                    }));
+                    entrarAlSistema();
+                    return;
+                }
+                throw { code: 'custom/user-not-found', message: '❌ El usuario "' + inputVal + '" no está registrado.' };
+            }
+
+            const docSnap = snapUser.docs[0];
+            const uData = docSnap.data();
+
+            if (uData.password && uData.password !== password) {
+                throw { code: 'custom/wrong-password', message: '❌ Contraseña incorrecta para el usuario ' + inputVal + '.' };
+            }
+
+            currentAuthUid = docSnap.id;
+            currentAuthUsername = uData.username || usernameClean;
+            currentAuthEmail = uData.email || (usernameClean + '@fincalosrobles.app');
+            currentUserRol = uData.rol || 'operador';
+            isAdmin = (currentUserRol === 'admin');
+            currentUserPermissions = Array.isArray(uData.modulosPermitidos) && uData.modulosPermitidos.length > 0
+                ? uData.modulosPermitidos
+                : (isAdmin ? ['all'] : [...DEFAULT_MODULOS_OPERADOR]);
+
+            localStorage.setItem('flr_usuario_activo', JSON.stringify({
+                uid: currentAuthUid,
+                username: currentAuthUsername,
+                nombre: uData.nombre || currentAuthUsername,
+                rol: currentUserRol,
+                email: currentAuthEmail,
+                permissions: currentUserPermissions
+            }));
+
+            try {
+                await updateDoc(doc(db, "usuarios", docSnap.id), { ultimoAcceso: new Date().toISOString() });
+            } catch(e) {}
+
+            entrarAlSistema();
             return;
         }
+
+        // CASO 2: Ingreso por Correo Electrónico
+        const email = inputVal.toLowerCase().trim();
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        currentAuthUid = cred.user.uid;
+        currentAuthEmail = cred.user.email;
+        currentAuthUsername = email.split('@')[0];
+
+        if (email === 'orobles.asesor@gmail.com') {
+            isAdmin = true;
+            currentUserRol = 'admin';
+            currentUserPermissions = ['all'];
+        } else {
+            let uDoc = await getDoc(doc(db, "usuarios", currentAuthUid));
+            if (!uDoc.exists()) {
+                const qU = query(collection(db, "usuarios"), where("email", "==", email));
+                const sU = await getDocs(qU);
+                if (!sU.empty) uDoc = sU.docs[0];
+            }
+
+            if (uDoc.exists()) {
+                const uData = uDoc.data();
+                currentUserRol = uData.rol || 'operador';
+                isAdmin = (currentUserRol === 'admin');
+                currentUserPermissions = Array.isArray(uData.modulosPermitidos) && uData.modulosPermitidos.length > 0
+                    ? uData.modulosPermitidos
+                    : (isAdmin ? ['all'] : [...DEFAULT_MODULOS_OPERADOR]);
+                if (uData.username) currentAuthUsername = uData.username;
+            } else {
+                currentUserRol = 'operador';
+                isAdmin = false;
+                currentUserPermissions = [...DEFAULT_MODULOS_OPERADOR];
+            }
+        }
+
+        localStorage.setItem('flr_usuario_activo', JSON.stringify({
+            uid: currentAuthUid,
+            username: currentAuthUsername,
+            rol: currentUserRol,
+            email: currentAuthEmail,
+            permissions: currentUserPermissions
+        }));
+
         entrarAlSistema();
     } catch (e) {
-        const msgs = {
-            'auth/invalid-credential': '❌ Correo o contraseña incorrectos.',
-            'auth/wrong-password': '❌ Contraseña incorrecta.',
-            'auth/user-not-found': '❌ No existe una cuenta con este correo.',
-            'auth/invalid-email': '❌ Formato de correo no válido.',
-            'auth/user-disabled': '❌ Cuenta deshabilitada.',
-            'auth/too-many-requests': '❌ Demasiados intentos.',
-            'auth/network-request-failed': '❌ Sin conexión a internet.'
-        };
-        showError('login-error', msgs[e.code] || ('❌ Error: ' + e.message));
+        if (e.code && e.code.startsWith('custom/')) {
+            showError('login-error', e.message);
+        } else {
+            const msgs = {
+                'auth/invalid-credential': '❌ Usuario/correo o contraseña incorrectos.',
+                'auth/wrong-password': '❌ Contraseña incorrecta.',
+                'auth/user-not-found': '❌ No existe una cuenta con este correo.',
+                'auth/invalid-email': '❌ Formato de correo no válido.',
+                'auth/user-disabled': '❌ Cuenta deshabilitada.',
+                'auth/too-many-requests': '❌ Demasiados intentos. Espera unos minutos.',
+                'auth/network-request-failed': '❌ Sin conexión a internet.'
+            };
+            showError('login-error', msgs[e.code] || ('❌ Error: ' + (e.message || 'No se pudo iniciar sesión')));
+        }
     } finally {
         btn.disabled = false; btn.innerText = "Ingresar";
         setTimeout(() => { isManualLogin = false; }, 3000);
@@ -301,20 +463,24 @@ window.loginInvitado = () => {
     modoInvitado = true;
     invitadoId = obtenerOCrearInvitadoId();
     currentAuthUid = null; currentAuthEmail = null;
+    currentUserRol = 'invitado';
+    currentUserPermissions = ['catacion'];
+    isAdmin = false;
     entrarAlSistema();
 };
 
 window.cambiarContrasena = async () => {
     if (modoInvitado) { alert("Los invitados no pueden cambiar contraseña."); return; }
     if (!currentAuthEmail) return;
-    if (!confirm(`Se enviará un enlace a:\n${currentAuthEmail}\n\n¿Continuar?`)) return;
+    if (!confirm(`Se enviará un enlace de restablecimiento a:\n${currentAuthEmail}\n\n¿Continuar?`)) return;
     try {
         await sendPasswordResetEmail(auth, currentAuthEmail);
-        alert("✅ Correo enviado.");
+        alert("✅ Enlace enviado a tu correo.");
     } catch (e) { alert("❌ Error: " + e.message); }
 };
 
 window.logout = async () => {
+    localStorage.removeItem('flr_usuario_activo');
     if (modoInvitado) {
         modoInvitado = false;
         document.getElementById('app-screen').style.display = 'none';
@@ -325,20 +491,80 @@ window.logout = async () => {
     location.reload();
 };
 
-onAuthStateChanged(auth, (user) => {
-    if (isManualLogin || modoInvitado) return;
-    if (user) {
-        getDoc(doc(db, "usuarios", user.uid)).then(s => {
-            if (s.exists()) {
-                currentAuthUid = user.uid; currentAuthEmail = user.email;
+function verificarSesionLocalGuardada() {
+    const saved = localStorage.getItem('flr_usuario_activo');
+    if (saved) {
+        try {
+            const u = JSON.parse(saved);
+            if (u && (u.uid || u.username)) {
+                currentAuthUid = u.uid;
+                currentAuthUsername = u.username;
+                currentAuthEmail = u.email;
+                currentUserRol = u.rol || 'operador';
+                isAdmin = (currentUserRol === 'admin' || currentAuthEmail === 'orobles.asesor@gmail.com');
+                currentUserPermissions = Array.isArray(u.permissions) && u.permissions.length > 0
+                    ? u.permissions
+                    : (isAdmin ? ['all'] : [...DEFAULT_MODULOS_OPERADOR]);
                 modoInvitado = false;
                 entrarAlSistema();
-            } else { signOut(auth); }
-        }).catch(() => {});
+                return true;
+            }
+        } catch(e) {}
+    }
+    return false;
+}
+
+onAuthStateChanged(auth, async (user) => {
+    if (isManualLogin || modoInvitado) return;
+    if (user) {
+        currentAuthUid = user.uid;
+        currentAuthEmail = user.email;
+        currentAuthUsername = user.email.split('@')[0];
+        if (user.email === 'orobles.asesor@gmail.com') {
+            isAdmin = true;
+            currentUserRol = 'admin';
+            currentUserPermissions = ['all'];
+        } else {
+            try {
+                const s = await getDoc(doc(db, "usuarios", user.uid));
+                if (s.exists()) {
+                    const d = s.data();
+                    currentUserRol = d.rol || 'operador';
+                    isAdmin = (currentUserRol === 'admin');
+                    currentUserPermissions = Array.isArray(d.modulosPermitidos) && d.modulosPermitidos.length > 0
+                        ? d.modulosPermitidos
+                        : (isAdmin ? ['all'] : [...DEFAULT_MODULOS_OPERADOR]);
+                    if (d.username) currentAuthUsername = d.username;
+                } else {
+                    currentUserRol = 'operador';
+                    isAdmin = false;
+                    currentUserPermissions = [...DEFAULT_MODULOS_OPERADOR];
+                }
+            } catch(e) {
+                currentUserRol = 'operador';
+                currentUserPermissions = [...DEFAULT_MODULOS_OPERADOR];
+            }
+        }
+        modoInvitado = false;
+        entrarAlSistema();
+    } else {
+        verificarSesionLocalGuardada();
     }
 });
 
 window.showSection = (id, el) => {
+    // Si es usuario regular y la sección no está permitida, redirigir
+    if (!modoInvitado && !isAdmin && currentUserPermissions && !currentUserPermissions.includes('all') && !currentUserPermissions.includes(id)) {
+        const permitidoFallback = currentUserPermissions[0] || 'madera';
+        const targetPermitido = document.getElementById(permitidoFallback);
+        if (targetPermitido) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            targetPermitido.classList.add('active');
+        }
+        return;
+    }
+
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
     const targetSection = document.getElementById(id);
@@ -364,6 +590,10 @@ window.showSection = (id, el) => {
         renderProyectos();
     } else if (id === 'trafico') {
         cargarTraficoWeb();
+    } else if (id === 'madera') {
+        inicializarModuloMadera();
+    } else if (id === 'usuarios') {
+        cargarUsuariosPermisos();
     }
 };
 
@@ -5579,13 +5809,13 @@ function actualizarVisibilidadVistasProyectos() {
     if (btnCal) btnCal.classList.toggle('active', vistaProyectosActual === 'calendar');
 
     if (cardsEl) {
-        cardsEl.style.display = (vistaProyectosActual === 'cards') ? 'grid' : 'none';
+        cardsEl.style.setProperty('display', (vistaProyectosActual === 'cards') ? 'grid' : 'none', 'important');
     }
     if (tableEl) {
-        tableEl.style.display = (vistaProyectosActual === 'table') ? 'block' : 'none';
+        tableEl.style.setProperty('display', (vistaProyectosActual === 'table') ? 'block' : 'none', 'important');
     }
     if (calEl) {
-        calEl.style.display = (vistaProyectosActual === 'calendar') ? 'block' : 'none';
+        calEl.style.setProperty('display', (vistaProyectosActual === 'calendar') ? 'block' : 'none', 'important');
     }
 }
 window.actualizarVisibilidadVistasProyectos = actualizarVisibilidadVistasProyectos;
@@ -5974,7 +6204,12 @@ function renderProyectos() {
     }
 
     // Renderizar también la vista de Calendario con los filtros aplicados
-    renderCalendarioProyectos(listaFiltrada);
+    try {
+        renderCalendarioProyectos(listaFiltrada);
+    } catch (e) {
+        console.debug('Error renderizando calendario:', e);
+    }
+    actualizarVisibilidadVistasProyectos();
 }
 
 window.abrirModalNuevoProyecto = () => {
@@ -7384,3 +7619,1287 @@ window.copiarSnippetAlPortapapeles = async () => {
         alert("Selecciona y copia el texto del recuadro manualmente.");
     }
 };
+
+// =========================================================================
+// --- MÓDULO: CUBICACIÓN DE MADERA (PIES TABLARES Y CONTROL DE CAMIONADAS) ---
+// =========================================================================
+
+window.inicializarModuloMadera = () => {
+    // Si la camionada actual no tiene fecha, poner la fecha de hoy
+    const fechaEl = document.getElementById('madera-fecha');
+    if (fechaEl && !fechaEl.value) {
+        fechaEl.value = new Date().toISOString().split('T')[0];
+    }
+    const numEl = document.getElementById('madera-numero');
+    if (numEl && !numEl.value) {
+        numEl.value = 'CAM-' + new Date().getFullYear() + '-' + String(todasLasCamionadas.length + 1).padStart(3, '0');
+    }
+    renderTablaTrozasCamionada();
+    recalcularTotalesCamionada();
+    actualizarCalculoTrozaEnVivo();
+    renderTablaHistorialMadera();
+};
+
+window.mostrarSubtabMadera = (subtab) => {
+    subtabMaderaActual = subtab;
+    const tabNueva = document.getElementById('madera-subtab-nueva');
+    const tabHist = document.getElementById('madera-subtab-historial');
+    const tabCalc = document.getElementById('madera-subtab-calc');
+
+    const btnNueva = document.getElementById('tab-btn-madera-nueva');
+    const btnHist = document.getElementById('tab-btn-madera-historial');
+    const btnCalc = document.getElementById('tab-btn-madera-calc');
+
+    if (tabNueva) tabNueva.style.display = (subtab === 'nueva') ? 'block' : 'none';
+    if (tabHist) tabHist.style.display = (subtab === 'historial') ? 'block' : 'none';
+    if (tabCalc) tabCalc.style.display = (subtab === 'calc') ? 'block' : 'none';
+
+    if (btnNueva) btnNueva.classList.toggle('active', subtab === 'nueva');
+    if (btnHist) btnHist.classList.toggle('active', subtab === 'historial');
+    if (btnCalc) btnCalc.classList.toggle('active', subtab === 'calc');
+
+    if (subtab === 'historial') {
+        renderTablaHistorialMadera();
+    } else if (subtab === 'calc') {
+        ejecutarCalculadoraRapidaMadera();
+    }
+};
+
+// Cálculo estándar en pie tablar: (Largo en pies × D1 en pulg × D2 en pulg) ÷ 12
+window.calcularPiesTablaresTroza = (largoPies, d1Pulg, d2Pulg, divisor = 12) => {
+    const l = parseFloat(largoPies) || 0;
+    const d1 = parseFloat(d1Pulg) || 0;
+    const d2 = parseFloat(d2Pulg) || d1;
+    if (l <= 0 || d1 <= 0) return 0;
+    const div = parseFloat(divisor) || 12;
+    const pt = (l * d1 * d2) / div;
+    return Math.round(pt * 100) / 100;
+};
+
+window.actualizarCalculoTrozaEnVivo = () => {
+    const largo = parseFloat(document.getElementById('madera-in-largo')?.value) || 0;
+    const d1 = parseFloat(document.getElementById('madera-in-d1')?.value) || 0;
+    const d2 = parseFloat(document.getElementById('madera-in-d2')?.value) || d1;
+    const tipoSelect = document.getElementById('madera-in-tipo');
+
+    // Auto-sugerencia de clasificación según diámetro en cruz promedio (umbral: 10 pulgadas)
+    const diamProm = (d1 > 0 && d2 > 0) ? ((d1 + d2) / 2) : d1;
+    if (diamProm > 0 && tipoSelect && !tipoSelect.dataset.manualModified) {
+        if (diamProm >= 10) tipoSelect.value = 'troza';
+        else tipoSelect.value = 'trocillo';
+    }
+
+    const pt = window.calcularPiesTablaresTroza(largo, d1, d2, 12);
+    const previewEl = document.getElementById('madera-in-preview-pt');
+    if (previewEl) {
+        previewEl.innerText = `${pt.toFixed(2)} pt`;
+    }
+};
+
+window.agregarTrozaACamionada = () => {
+    const correlativoInput = document.getElementById('madera-in-correlativo');
+    const tipoInput = document.getElementById('madera-in-tipo');
+    const largoInput = document.getElementById('madera-in-largo');
+    const d1Input = document.getElementById('madera-in-d1');
+    const d2Input = document.getElementById('madera-in-d2');
+
+    const correlativo = parseInt(correlativoInput?.value) || (camionadaActual.trozas.length + 1);
+    const tipo = tipoInput?.value || 'troza';
+    const largo = parseFloat(largoInput?.value) || 0;
+    const d1 = parseFloat(d1Input?.value) || 0;
+    const d2 = parseFloat(d2Input?.value) || d1;
+
+    if (largo <= 0 || d1 <= 0) {
+        alert("⚠️ Ingresa al menos el largo en pies y el diámetro 1 en pulgadas.");
+        if (largo <= 0 && largoInput) largoInput.focus();
+        else if (d1Input) d1Input.focus();
+        return;
+    }
+
+    const pt = window.calcularPiesTablaresTroza(largo, d1, d2, 12);
+
+    if (trozaActualEditandoIndex !== null && camionadaActual.trozas[trozaActualEditandoIndex]) {
+        // Modo Edición / Corrección de medida existente
+        camionadaActual.trozas[trozaActualEditandoIndex] = {
+            id: camionadaActual.trozas[trozaActualEditandoIndex].id,
+            correlativo,
+            tipo,
+            largo,
+            d1,
+            d2,
+            pt
+        };
+        trozaActualEditandoIndex = null;
+        const btnAdd = document.getElementById('madera-btn-agregar-troza');
+        if (btnAdd) {
+            btnAdd.innerText = '➕ Cargar Tronco';
+            btnAdd.className = 'btn btn-success';
+        }
+        const btnCancel = document.getElementById('madera-btn-cancelar-edicion-troza');
+        if (btnCancel) btnCancel.style.display = 'none';
+    } else {
+        // Nueva Troza en la lista
+        camionadaActual.trozas.push({
+            id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            correlativo,
+            tipo,
+            largo,
+            d1,
+            d2,
+            pt
+        });
+    }
+
+    // Limpiar campos y avanzar correlativo
+    if (largoInput) largoInput.value = '';
+    if (d1Input) d1Input.value = '';
+    if (d2Input) d2Input.value = '';
+    if (correlativoInput) correlativoInput.value = camionadaActual.trozas.length + 1;
+    if (tipoInput) delete tipoInput.dataset.manualModified;
+
+    renderTablaTrozasCamionada();
+    recalcularTotalesCamionada();
+    actualizarCalculoTrozaEnVivo();
+
+    if (largoInput) largoInput.focus();
+};
+
+window.editarTrozaDeCamionada = (index) => {
+    const item = camionadaActual.trozas[index];
+    if (!item) return;
+
+    trozaActualEditandoIndex = index;
+    const corrInput = document.getElementById('madera-in-correlativo');
+    const tipoInput = document.getElementById('madera-in-tipo');
+    const largoInput = document.getElementById('madera-in-largo');
+    const d1Input = document.getElementById('madera-in-d1');
+    const d2Input = document.getElementById('madera-in-d2');
+
+    if (corrInput) corrInput.value = item.correlativo;
+    if (tipoInput) {
+        tipoInput.value = item.tipo;
+        tipoInput.dataset.manualModified = 'true';
+    }
+    if (largoInput) largoInput.value = item.largo;
+    if (d1Input) d1Input.value = item.d1;
+    if (d2Input) d2Input.value = item.d2;
+
+    const btnAdd = document.getElementById('madera-btn-agregar-troza');
+    if (btnAdd) {
+        btnAdd.innerText = '✔️ Actualizar Medida';
+        btnAdd.className = 'btn btn-edit';
+    }
+    const btnCancel = document.getElementById('madera-btn-cancelar-edicion-troza');
+    if (btnCancel) btnCancel.style.display = 'block';
+
+    actualizarCalculoTrozaEnVivo();
+    if (largoInput) largoInput.focus();
+};
+
+window.cancelarEdicionTroza = () => {
+    trozaActualEditandoIndex = null;
+    const corrInput = document.getElementById('madera-in-correlativo');
+    const tipoInput = document.getElementById('madera-in-tipo');
+    const largoInput = document.getElementById('madera-in-largo');
+    const d1Input = document.getElementById('madera-in-d1');
+    const d2Input = document.getElementById('madera-in-d2');
+
+    if (largoInput) largoInput.value = '';
+    if (d1Input) d1Input.value = '';
+    if (d2Input) d2Input.value = '';
+    if (corrInput) corrInput.value = camionadaActual.trozas.length + 1;
+    if (tipoInput) delete tipoInput.dataset.manualModified;
+
+    const btnAdd = document.getElementById('madera-btn-agregar-troza');
+    if (btnAdd) {
+        btnAdd.innerText = '➕ Cargar Tronco';
+        btnAdd.className = 'btn btn-success';
+    }
+    const btnCancel = document.getElementById('madera-btn-cancelar-edicion-troza');
+    if (btnCancel) btnCancel.style.display = 'none';
+
+    actualizarCalculoTrozaEnVivo();
+};
+
+window.eliminarTrozaDeCamionada = (index) => {
+    if (confirm(`¿Eliminar tronco #${camionadaActual.trozas[index]?.correlativo} de la camionada?`)) {
+        camionadaActual.trozas.splice(index, 1);
+        if (trozaActualEditandoIndex === index) cancelarEdicionTroza();
+        renderTablaTrozasCamionada();
+        recalcularTotalesCamionada();
+    }
+};
+
+window.renderTablaTrozasCamionada = () => {
+    const tbody = document.getElementById('tbody-madera-trozas');
+    const countEl = document.getElementById('madera-tabla-trozas-count');
+    if (countEl) countEl.innerText = camionadaActual.trozas.length;
+    if (!tbody) return;
+
+    if (camionadaActual.trozas.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="10" style="text-align:center; padding:2rem; color:#94a3b8;">
+                    🪵 Aún no has ingresado troncos a esta camionada. Ingresa las medidas arriba para comenzar a calcular en tiempo real.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    const pVentaTroza = parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 5.00;
+    const pVentaTrocillo = parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 3.50;
+    const pFleteTroza = parseFloat(document.getElementById('madera-flete-troza')?.value) || 1.25;
+    const pFleteTrocillo = parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 1.00;
+
+    tbody.innerHTML = '';
+    camionadaActual.trozas.forEach((t, idx) => {
+        const diamProm = ((t.d1 + t.d2) / 2).toFixed(1);
+        const precioVenta = t.tipo === 'troza' ? pVentaTroza : pVentaTrocillo;
+        const precioFlete = t.tipo === 'troza' ? pFleteTroza : pFleteTrocillo;
+        const ventaEst = (t.pt * precioVenta);
+        const fleteEst = (t.pt * precioFlete);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-weight:bold; text-align:center;">#${t.correlativo}</td>
+            <td>
+                <span class="${t.tipo === 'troza' ? 'madera-badge-troza' : 'madera-badge-trocillo'}">
+                    ${t.tipo === 'troza' ? '🪵 Troza' : '🌿 Trocillo'}
+                </span>
+            </td>
+            <td style="text-align:center;">${t.largo} ft</td>
+            <td style="text-align:center;">${t.d1}"</td>
+            <td style="text-align:center;">${t.d2}"</td>
+            <td style="text-align:center; color:#64748b;">${diamProm}"</td>
+            <td style="font-weight:bold; color:var(--primary); text-align:right;">${t.pt.toFixed(2)} pt</td>
+            <td style="color:#15803d; text-align:right;">Q ${ventaEst.toFixed(2)}</td>
+            <td style="color:#dc2626; text-align:right;">Q ${fleteEst.toFixed(2)}</td>
+            <td style="text-align:center; white-space:nowrap;">
+                <button class="btn btn-xs btn-edit" onclick="editarTrozaDeCamionada(${idx})" title="Editar Medida">✏️</button>
+                <button class="btn btn-xs btn-danger" onclick="eliminarTrozaDeCamionada(${idx})" title="Eliminar">🗑️</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.recalcularTotalesCamionada = () => {
+    const pVentaTroza = parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 0;
+    const pVentaTrocillo = parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 0;
+    const pFleteTroza = parseFloat(document.getElementById('madera-flete-troza')?.value) || 0;
+    const pFleteTrocillo = parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 0;
+    const motosierraModo = document.getElementById('madera-motosierra-modo')?.value || 'pt';
+    const motosierraValor = parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0;
+
+    let cantTrozas = 0;
+    let cantTrocillos = 0;
+    let ptTrozas = 0;
+    let ptTrocillos = 0;
+
+    camionadaActual.trozas.forEach(t => {
+        if (t.tipo === 'troza') {
+            cantTrozas++;
+            ptTrozas += t.pt;
+        } else {
+            cantTrocillos++;
+            ptTrocillos += t.pt;
+        }
+    });
+
+    const totalTroncos = cantTrozas + cantTrocillos;
+    const totalPt = ptTrozas + ptTrocillos;
+
+    const ingresoBruto = (ptTrozas * pVentaTroza) + (ptTrocillos * pVentaTrocillo);
+    const fleteCamion = (ptTrozas * pFleteTroza) + (ptTrocillos * pFleteTrocillo);
+    const pagoMotosierra = motosierraModo === 'fijo' ? motosierraValor : (totalPt * motosierraValor);
+    const gananciaNeta = ingresoBruto - fleteCamion - pagoMotosierra;
+
+    // Actualizar KPIs en interfaz
+    const kpiTroncos = document.getElementById('madera-kpi-troncos-total');
+    if (kpiTroncos) kpiTroncos.innerText = totalTroncos;
+    const kpiTroncosDesglose = document.getElementById('madera-kpi-troncos-desglose');
+    if (kpiTroncosDesglose) kpiTroncosDesglose.innerText = `${cantTrozas} trozas | ${cantTrocillos} trocillos`;
+
+    const kpiPt = document.getElementById('madera-kpi-pt-total');
+    if (kpiPt) kpiPt.innerText = `${totalPt.toFixed(2)} pt`;
+    const kpiPtDesglose = document.getElementById('madera-kpi-pt-desglose');
+    if (kpiPtDesglose) kpiPtDesglose.innerText = `${ptTrozas.toFixed(1)} pt troza | ${ptTrocillos.toFixed(1)} pt trocillo`;
+
+    const kpiIngreso = document.getElementById('madera-kpi-ingreso-bruto');
+    if (kpiIngreso) kpiIngreso.innerText = `Q ${ingresoBruto.toFixed(2)}`;
+
+    const kpiFlete = document.getElementById('madera-kpi-flete-camion');
+    if (kpiFlete) kpiFlete.innerText = `Q ${fleteCamion.toFixed(2)}`;
+
+    const kpiMotosierra = document.getElementById('madera-kpi-pago-motosierra');
+    if (kpiMotosierra) kpiMotosierra.innerText = `Q ${pagoMotosierra.toFixed(2)}`;
+
+    const kpiNeto = document.getElementById('madera-kpi-ganancia-neta');
+    if (kpiNeto) {
+        kpiNeto.innerText = `Q ${gananciaNeta.toFixed(2)}`;
+        kpiNeto.style.color = gananciaNeta >= 0 ? '#14532d' : '#b91c1c';
+    }
+
+    calcularComparativaAserradero();
+};
+
+window.togglePanelAserradero = (checked) => {
+    const panel = document.getElementById('madera-panel-aserradero-campos');
+    if (panel) panel.style.display = checked ? 'block' : 'none';
+    if (checked) {
+        calcularComparativaAserradero();
+    }
+};
+
+window.calcularComparativaAserradero = () => {
+    const checkAserradero = document.getElementById('madera-check-aserradero');
+    if (!checkAserradero || !checkAserradero.checked) return;
+
+    let totalPtFinca = 0;
+    let ptTrozaFinca = 0;
+    let ptTrocilloFinca = 0;
+    camionadaActual.trozas.forEach(t => {
+        totalPtFinca += t.pt;
+        if (t.tipo === 'troza') ptTrozaFinca += t.pt;
+        else ptTrocilloFinca += t.pt;
+    });
+
+    const pVentaTroza = parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 0;
+    const pVentaTrocillo = parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 0;
+    const pFleteTroza = parseFloat(document.getElementById('madera-flete-troza')?.value) || 0;
+    const pFleteTrocillo = parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 0;
+    const motosierraModo = document.getElementById('madera-motosierra-modo')?.value || 'pt';
+    const motosierraValor = parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0;
+
+    const fleteCamion = (ptTrozaFinca * pFleteTroza) + (ptTrocilloFinca * pFleteTrocillo);
+    const pagoMotosierra = motosierraModo === 'fijo' ? motosierraValor : (totalPtFinca * motosierraValor);
+    const ingresoFincaEst = (ptTrozaFinca * pVentaTroza) + (ptTrocilloFinca * pVentaTrocillo);
+
+    const ptAserraderoInput = document.getElementById('madera-aserradero-pt');
+    const ptAserradero = parseFloat(ptAserraderoInput?.value) || 0;
+
+    const montoCobradoInput = document.getElementById('madera-aserradero-monto-cobrado');
+    let montoCobrado = parseFloat(montoCobradoInput?.value);
+
+    // Si no ha ingresado el monto total de cobro pero sí los pt de aserradero, estimarlo con precio promedio
+    const precioPromedioPt = totalPtFinca > 0 ? (ingresoFincaEst / totalPtFinca) : 5.0;
+    if (isNaN(montoCobrado) || montoCobrado <= 0) {
+        if (ptAserradero > 0) {
+            montoCobrado = ptAserradero * precioPromedioPt;
+        } else {
+            montoCobrado = 0;
+        }
+    }
+
+    const diffPt = ptAserradero - totalPtFinca;
+    const pctVar = totalPtFinca > 0 ? ((diffPt / totalPtFinca) * 100) : 0;
+    const diffDinero = montoCobrado - ingresoFincaEst;
+    const gananciaRealFinal = montoCobrado - fleteCamion - pagoMotosierra;
+
+    // Renderizar resultados en pantalla
+    const diffPtEl = document.getElementById('madera-diff-pt');
+    if (diffPtEl) {
+        const signo = diffPt > 0 ? '+' : '';
+        diffPtEl.innerText = `${signo}${diffPt.toFixed(2)} pt`;
+        diffPtEl.style.color = diffPt >= 0 ? '#16a34a' : '#dc2626';
+    }
+
+    const diffPctEl = document.getElementById('madera-diff-pct');
+    if (diffPctEl) {
+        const signo = pctVar > 0 ? '+' : '';
+        diffPctEl.innerText = `${signo}${pctVar.toFixed(1)}% diferencia con finca`;
+        diffPctEl.style.color = pctVar >= 0 ? '#16a34a' : '#dc2626';
+    }
+
+    const diffDineroEl = document.getElementById('madera-diff-dinero');
+    if (diffDineroEl) {
+        const signo = diffDinero > 0 ? '+' : '';
+        diffDineroEl.innerText = `Q ${signo}${diffDinero.toFixed(2)}`;
+        diffDineroEl.style.color = diffDinero >= 0 ? '#16a34a' : '#dc2626';
+    }
+
+    const liqCamionEl = document.getElementById('madera-liq-camion');
+    if (liqCamionEl) liqCamionEl.innerText = `Q ${fleteCamion.toFixed(2)}`;
+
+    const liqMotosierraEl = document.getElementById('madera-liq-motosierra');
+    if (liqMotosierraEl) liqMotosierraEl.innerText = `Q ${pagoMotosierra.toFixed(2)}`;
+
+    const liqGananciaEl = document.getElementById('madera-liq-ganancia-final');
+    if (liqGananciaEl) {
+        liqGananciaEl.innerText = `Q ${gananciaRealFinal.toFixed(2)}`;
+        liqGananciaEl.style.color = gananciaRealFinal >= 0 ? '#14532d' : '#b91c1c';
+    }
+};
+
+window.guardarCamionadaActual = async () => {
+    const numero = document.getElementById('madera-numero')?.value.trim() || ('CAM-' + Date.now().toString().slice(-4));
+    const fecha = document.getElementById('madera-fecha')?.value || new Date().toISOString().split('T')[0];
+    const chofer = document.getElementById('madera-chofer')?.value.trim() || '';
+    const motosierrista = document.getElementById('madera-motosierrista')?.value.trim() || '';
+    const aserradero = document.getElementById('madera-aserradero')?.value.trim() || '';
+    const estado = document.getElementById('madera-estado')?.value || 'cargando';
+
+    if (camionadaActual.trozas.length === 0) {
+        if (!confirm("⚠️ Esta camionada aún no tiene trozas registradas. ¿Deseas guardarla como borrador?")) {
+            return;
+        }
+    }
+
+    const precios = {
+        ventaTroza: parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 5.0,
+        ventaTrocillo: parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 3.5,
+        fleteTroza: parseFloat(document.getElementById('madera-flete-troza')?.value) || 1.25,
+        fleteTrocillo: parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 1.0,
+        motosierraModo: document.getElementById('madera-motosierra-modo')?.value || 'pt',
+        motosierraValor: parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0.5
+    };
+
+    const checkAserradero = document.getElementById('madera-check-aserradero')?.checked || false;
+    const aserraderoMedicion = {
+        recibida: checkAserradero,
+        pt: parseFloat(document.getElementById('madera-aserradero-pt')?.value) || 0,
+        montoCobrado: parseFloat(document.getElementById('madera-aserradero-monto-cobrado')?.value) || 0,
+        boleta: document.getElementById('madera-aserradero-boleta')?.value.trim() || ''
+    };
+
+    let cantTrozas = 0, cantTrocillos = 0, ptTrozas = 0, ptTrocillos = 0;
+    camionadaActual.trozas.forEach(t => {
+        if (t.tipo === 'troza') { cantTrozas++; ptTrozas += t.pt; }
+        else { cantTrocillos++; ptTrocillos += t.pt; }
+    });
+    const totalPtFinca = ptTrozas + ptTrocillos;
+    const ingresoFinca = (ptTrozas * precios.ventaTroza) + (ptTrocillos * precios.ventaTrocillo);
+    const fleteCamion = (ptTrozas * precios.fleteTroza) + (ptTrocillos * precios.fleteTrocillo);
+    const pagoMotosierra = precios.motosierraModo === 'fijo' ? precios.motosierraValor : (totalPtFinca * precios.motosierraValor);
+    const gananciaNetaFinca = ingresoFinca - fleteCamion - pagoMotosierra;
+
+    const dataCamionada = {
+        numero,
+        fecha,
+        chofer,
+        motosierrista,
+        aserradero,
+        estado,
+        precios,
+        trozas: camionadaActual.trozas,
+        aserraderoMedicion,
+        resumen: {
+            cantTrozas,
+            cantTrocillos,
+            totalTroncos: camionadaActual.trozas.length,
+            ptTrozas,
+            ptTrocillos,
+            totalPtFinca,
+            ingresoFinca,
+            fleteCamion,
+            pagoMotosierra,
+            gananciaNetaFinca
+        },
+        actualizado: new Date().toISOString()
+    };
+
+    const docId = camionadaActual.id || ('cam_' + Date.now());
+
+    try {
+        await setDoc(doc(db, "cubicacion_madera", docId), dataCamionada);
+        camionadaActual.id = docId;
+        document.getElementById('madera-camionada-id').value = docId;
+
+        // Actualizar lista local
+        const idxExist = todasLasCamionadas.findIndex(c => c.id === docId);
+        if (idxExist >= 0) todasLasCamionadas[idxExist] = { id: docId, data: dataCamionada };
+        else todasLasCamionadas.unshift({ id: docId, data: dataCamionada });
+
+        localStorage.setItem('flr_camionadas_cache', JSON.stringify(todasLasCamionadas));
+
+        alert(`✅ Camionada ${numero} guardada correctamente.`);
+        renderTablaHistorialMadera();
+    } catch (e) {
+        console.error("Error guardando camionada:", e);
+        // Fallback local
+        const idxExist = todasLasCamionadas.findIndex(c => c.id === docId);
+        if (idxExist >= 0) todasLasCamionadas[idxExist] = { id: docId, data: dataCamionada };
+        else todasLasCamionadas.unshift({ id: docId, data: dataCamionada });
+        localStorage.setItem('flr_camionadas_cache', JSON.stringify(todasLasCamionadas));
+        alert(`✅ Camionada ${numero} guardada en memoria local.`);
+        renderTablaHistorialMadera();
+    }
+};
+
+window.cargarCamionadas = async () => {
+    try {
+        const q = query(collection(db, "cubicacion_madera"), orderBy("fecha", "desc"));
+        const snap = await getDocs(q);
+        todasLasCamionadas = [];
+        snap.forEach(d => {
+            todasLasCamionadas.push({ id: d.id, data: d.data() });
+        });
+        localStorage.setItem('flr_camionadas_cache', JSON.stringify(todasLasCamionadas));
+    } catch (e) {
+        const cached = localStorage.getItem('flr_camionadas_cache');
+        if (cached) {
+            try { todasLasCamionadas = JSON.parse(cached); } catch(err) { todasLasCamionadas = []; }
+        }
+    }
+    const countBadge = document.getElementById('madera-count-historial');
+    if (countBadge) countBadge.innerText = todasLasCamionadas.length;
+    renderTablaHistorialMadera();
+};
+
+window.filtrarHistorialMadera = () => {
+    busquedaHistorialMaderaTerm = (document.getElementById('madera-historial-buscar')?.value || '').toLowerCase().trim();
+    filtroEstadoHistorialMadera = document.getElementById('madera-historial-filtro-estado')?.value || 'todas';
+    renderTablaHistorialMadera();
+};
+
+window.renderTablaHistorialMadera = () => {
+    const tbody = document.getElementById('tbody-madera-historial');
+    if (!tbody) return;
+
+    let lista = todasLasCamionadas.filter(item => {
+        const d = item.data;
+        if (filtroEstadoHistorialMadera !== 'todas' && d.estado !== filtroEstadoHistorialMadera) return false;
+        if (busquedaHistorialMaderaTerm) {
+            const num = (d.numero || '').toLowerCase();
+            const ch = (d.chofer || '').toLowerCase();
+            const as = (d.aserradero || '').toLowerCase();
+            const mo = (d.motosierrista || '').toLowerCase();
+            if (!num.includes(busquedaHistorialMaderaTerm) && !ch.includes(busquedaHistorialMaderaTerm) &&
+                !as.includes(busquedaHistorialMaderaTerm) && !mo.includes(busquedaHistorialMaderaTerm)) {
+                return false;
+            }
+        }
+        return true;
+    });
+
+    // Calcular KPIs acumulados históricos
+    let totViajes = lista.length;
+    let totPt = 0;
+    let totIngreso = 0;
+    let totFletes = 0;
+    let totMotos = 0;
+    let totNeto = 0;
+
+    lista.forEach(item => {
+        const res = item.data.resumen || {};
+        const aserr = item.data.aserraderoMedicion || {};
+        totPt += (res.totalPtFinca || 0);
+        totFletes += (res.fleteCamion || 0);
+        totMotos += (res.pagoMotosierra || 0);
+
+        if (aserr.recibida && aserr.montoCobrado > 0) {
+            totIngreso += aserr.montoCobrado;
+            totNeto += (aserr.montoCobrado - (res.fleteCamion || 0) - (res.pagoMotosierra || 0));
+        } else {
+            totIngreso += (res.ingresoFinca || 0);
+            totNeto += (res.gananciaNetaFinca || 0);
+        }
+    });
+
+    const kpiTotViajes = document.getElementById('madera-hist-kpi-total-viajes');
+    if (kpiTotViajes) kpiTotViajes.innerText = totViajes;
+    const kpiTotPt = document.getElementById('madera-hist-kpi-total-pt');
+    if (kpiTotPt) kpiTotPt.innerText = `${totPt.toFixed(1)} pt`;
+    const kpiTotIngresos = document.getElementById('madera-hist-kpi-total-ingresos');
+    if (kpiTotIngresos) kpiTotIngresos.innerText = `Q ${totIngreso.toFixed(2)}`;
+    const kpiTotFletes = document.getElementById('madera-hist-kpi-total-fletes');
+    if (kpiTotFletes) kpiTotFletes.innerText = `Q ${totFletes.toFixed(2)}`;
+    const kpiTotMotos = document.getElementById('madera-hist-kpi-total-motosierras');
+    if (kpiTotMotos) kpiTotMotos.innerText = `Q ${totMotos.toFixed(2)}`;
+    const kpiTotNeto = document.getElementById('madera-hist-kpi-total-neto');
+    if (kpiTotNeto) kpiTotNeto.innerText = `Q ${totNeto.toFixed(2)}`;
+
+    tbody.innerHTML = '';
+    if (lista.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="11" style="text-align:center; padding:2rem; color:#888;">
+                    No hay camionadas registradas que coincidan con la búsqueda.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    lista.forEach(item => {
+        const d = item.data;
+        const res = d.resumen || {};
+        const aserr = d.aserraderoMedicion || {};
+        const id = item.id;
+
+        const estadoBadge = d.estado === 'liquidado'
+            ? '<span class="user-tag-badge" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0;">✅ Liquidado</span>'
+            : d.estado === 'enviado'
+            ? '<span class="user-tag-badge" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd;">🚚 En Camino</span>'
+            : '<span class="user-tag-badge" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">🪵 En Carga</span>';
+
+        const ptFinca = (res.totalPtFinca || 0).toFixed(1);
+        const ptAserr = (aserr.recibida && aserr.pt > 0) ? `${aserr.pt.toFixed(1)} pt` : '<span style="color:#94a3b8;">Pendiente</span>';
+        
+        let diffBadge = '-';
+        if (aserr.recibida && aserr.pt > 0) {
+            const diff = aserr.pt - res.totalPtFinca;
+            const signo = diff > 0 ? '+' : '';
+            const color = diff >= 0 ? '#16a34a' : '#dc2626';
+            diffBadge = `<strong style="color:${color};">${signo}${diff.toFixed(1)} pt</strong>`;
+        }
+
+        const neto = (aserr.recibida && aserr.montoCobrado > 0)
+            ? (aserr.montoCobrado - (res.fleteCamion||0) - (res.pagoMotosierra||0))
+            : (res.gananciaNetaFinca || 0);
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><strong>${d.numero || 'S/N'}</strong></td>
+            <td>${d.fecha || 'N/A'}</td>
+            <td>${d.chofer || '<span style="color:#94a3b8;">Sin chofer</span>'}</td>
+            <td>${d.aserradero || '<span style="color:#94a3b8;">Sin aserradero</span>'}</td>
+            <td style="text-align:center;">${(res.totalTroncos || (d.trozas||[]).length)} troncos</td>
+            <td style="font-weight:bold; color:var(--primary); text-align:right;">${ptFinca} pt</td>
+            <td style="text-align:right;">${ptAserr}</td>
+            <td style="text-align:right;">${diffBadge}</td>
+            <td style="font-weight:bold; color:#14532d; text-align:right;">Q ${neto.toFixed(2)}</td>
+            <td style="text-align:center;">${estadoBadge}</td>
+            <td style="white-space:nowrap; text-align:center;">
+                <button class="btn btn-xs" style="background:#0284c7; color:white;" onclick="abrirDetalleCamionada('${id}')" title="Ver Detalle y Liquidación">👁️</button>
+                <button class="btn btn-xs btn-edit" onclick="cargarCamionadaEnEditor('${id}')" title="Modificar en Editor">✏️</button>
+                <button class="btn btn-xs btn-danger" onclick="eliminarCamionada('${id}')" title="Eliminar">🗑️</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.cargarCamionadaEnEditor = (id) => {
+    const item = todasLasCamionadas.find(c => c.id === id);
+    if (!item) return alert("Camionada no encontrada.");
+    const d = item.data;
+
+    camionadaActual = {
+        id: id,
+        numero: d.numero || '',
+        fecha: d.fecha || '',
+        chofer: d.chofer || '',
+        motosierrista: d.motosierrista || '',
+        aserradero: d.aserradero || '',
+        estado: d.estado || 'cargando',
+        precios: d.precios || {
+            ventaTroza: 5.0, ventaTrocillo: 3.5, fleteTroza: 1.25, fleteTrocillo: 1.0, motosierraModo: 'pt', motosierraValor: 0.5
+        },
+        trozas: Array.isArray(d.trozas) ? JSON.parse(JSON.stringify(d.trozas)) : [],
+        aserraderoMedicion: d.aserraderoMedicion || { recibida: false, pt: 0, montoCobrado: 0, boleta: '' }
+    };
+
+    document.getElementById('madera-camionada-id').value = id;
+    document.getElementById('madera-numero').value = camionadaActual.numero;
+    document.getElementById('madera-fecha').value = camionadaActual.fecha;
+    document.getElementById('madera-chofer').value = camionadaActual.chofer;
+    document.getElementById('madera-motosierrista').value = camionadaActual.motosierrista;
+    document.getElementById('madera-aserradero').value = camionadaActual.aserradero;
+    document.getElementById('madera-estado').value = camionadaActual.estado;
+
+    document.getElementById('madera-precio-venta-troza').value = camionadaActual.precios.ventaTroza;
+    document.getElementById('madera-precio-venta-trocillo').value = camionadaActual.precios.ventaTrocillo;
+    document.getElementById('madera-flete-troza').value = camionadaActual.precios.fleteTroza;
+    document.getElementById('madera-flete-trocillo').value = camionadaActual.precios.fleteTrocillo;
+    document.getElementById('madera-motosierra-modo').value = camionadaActual.precios.motosierraModo;
+    document.getElementById('madera-pago-motosierra-valor').value = camionadaActual.precios.motosierraValor;
+
+    const checkAserradero = document.getElementById('madera-check-aserradero');
+    if (checkAserradero) {
+        checkAserradero.checked = !!camionadaActual.aserraderoMedicion.recibida;
+        togglePanelAserradero(checkAserradero.checked);
+    }
+    document.getElementById('madera-aserradero-pt').value = camionadaActual.aserraderoMedicion.pt || '';
+    document.getElementById('madera-aserradero-monto-cobrado').value = camionadaActual.aserraderoMedicion.montoCobrado || '';
+    document.getElementById('madera-aserradero-boleta').value = camionadaActual.aserraderoMedicion.boleta || '';
+
+    mostrarSubtabMadera('nueva');
+    renderTablaTrozasCamionada();
+    recalcularTotalesCamionada();
+};
+
+window.limpiarFormularioCamionada = () => {
+    camionadaActual = {
+        id: null,
+        numero: 'CAM-' + new Date().getFullYear() + '-' + String(todasLasCamionadas.length + 1).padStart(3, '0'),
+        fecha: new Date().toISOString().split('T')[0],
+        chofer: '',
+        motosierrista: '',
+        aserradero: '',
+        estado: 'cargando',
+        precios: {
+            ventaTroza: 5.0, ventaTrocillo: 3.5, fleteTroza: 1.25, fleteTrocillo: 1.0, motosierraModo: 'pt', motosierraValor: 0.5
+        },
+        trozas: [],
+        aserraderoMedicion: { recibida: false, pt: 0, montoCobrado: 0, boleta: '' }
+    };
+
+    document.getElementById('madera-camionada-id').value = '';
+    document.getElementById('madera-numero').value = camionadaActual.numero;
+    document.getElementById('madera-fecha').value = camionadaActual.fecha;
+    document.getElementById('madera-chofer').value = '';
+    document.getElementById('madera-motosierrista').value = '';
+    document.getElementById('madera-aserradero').value = '';
+    document.getElementById('madera-estado').value = 'cargando';
+
+    document.getElementById('madera-in-correlativo').value = '1';
+    document.getElementById('madera-in-largo').value = '';
+    document.getElementById('madera-in-d1').value = '';
+    document.getElementById('madera-in-d2').value = '';
+
+    const checkAserradero = document.getElementById('madera-check-aserradero');
+    if (checkAserradero) {
+        checkAserradero.checked = false;
+        togglePanelAserradero(false);
+    }
+    document.getElementById('madera-aserradero-pt').value = '';
+    document.getElementById('madera-aserradero-monto-cobrado').value = '';
+    document.getElementById('madera-aserradero-boleta').value = '';
+
+    renderTablaTrozasCamionada();
+    recalcularTotalesCamionada();
+    actualizarCalculoTrozaEnVivo();
+};
+
+window.eliminarCamionada = async (id) => {
+    const item = todasLasCamionadas.find(c => c.id === id);
+    const num = item?.data?.numero || 'esta camionada';
+    if (!confirm(`¿Estás seguro de eliminar ${num}? Esta acción no se puede deshacer.`)) return;
+
+    try {
+        await deleteDoc(doc(db, "cubicacion_madera", id));
+        todasLasCamionadas = todasLasCamionadas.filter(c => c.id !== id);
+        localStorage.setItem('flr_camionadas_cache', JSON.stringify(todasLasCamionadas));
+        alert("🗑️ Camionada eliminada.");
+        renderTablaHistorialMadera();
+    } catch (e) {
+        todasLasCamionadas = todasLasCamionadas.filter(c => c.id !== id);
+        localStorage.setItem('flr_camionadas_cache', JSON.stringify(todasLasCamionadas));
+        alert("🗑️ Camionada eliminada localmente.");
+        renderTablaHistorialMadera();
+    }
+};
+
+let camionadaActualEnModal = null;
+
+window.abrirDetalleCamionada = (id) => {
+    const item = todasLasCamionadas.find(c => c.id === id);
+    if (!item) return;
+    const d = item.data;
+    camionadaActualEnModal = item;
+
+    const modal = document.getElementById('modal-detalle-camionada');
+    const body = document.getElementById('modal-camionada-body');
+    const titulo = document.getElementById('modal-camionada-titulo');
+    const subtitulo = document.getElementById('modal-camionada-subtitulo');
+
+    if (titulo) titulo.innerText = `🪵 Boleta de Camionada: ${d.numero || 'S/N'}`;
+    if (subtitulo) subtitulo.innerText = `Fecha: ${d.fecha || 'N/A'} | Transportista: ${d.chofer || 'Sin chofer'} | Aserradero: ${d.aserradero || 'N/A'}`;
+
+    const res = d.resumen || {};
+    const aserr = d.aserraderoMedicion || {};
+    const precios = d.precios || {};
+
+    let filasTrozas = '';
+    (d.trozas || []).forEach(t => {
+        const diamProm = ((t.d1 + t.d2) / 2).toFixed(1);
+        filasTrozas += `
+            <tr>
+                <td style="text-align:center; font-weight:bold;">#${t.correlativo}</td>
+                <td><span class="${t.tipo==='troza'?'madera-badge-troza':'madera-badge-trocillo'}">${t.tipo==='troza'?'Troza':'Trocillo'}</span></td>
+                <td style="text-align:center;">${t.largo} ft</td>
+                <td style="text-align:center;">${t.d1}" × ${t.d2}" (${diamProm}")</td>
+                <td style="text-align:right; font-weight:bold; color:var(--primary);">${t.pt.toFixed(2)} pt</td>
+            </tr>
+        `;
+    });
+
+    const totalPtFinca = res.totalPtFinca || 0;
+    const ingresoFinca = res.ingresoFinca || 0;
+    const fleteCamion = res.fleteCamion || 0;
+    const pagoMotosierra = res.pagoMotosierra || 0;
+    const gananciaFinca = res.gananciaNetaFinca || 0;
+
+    let panelAserraderoHTML = '';
+    if (aserr.recibida && aserr.pt > 0) {
+        const diffPt = aserr.pt - totalPtFinca;
+        const pctDiff = totalPtFinca > 0 ? ((diffPt / totalPtFinca) * 100) : 0;
+        const montoCobrado = aserr.montoCobrado || ingresoFinca;
+        const gananciaReal = montoCobrado - fleteCamion - pagoMotosierra;
+
+        panelAserraderoHTML = `
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:1rem; margin-top:1rem;">
+                <h4 style="margin:0 0 0.5rem; color:#166534;">⚖️ Medición y Liquidación del Aserradero</h4>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px;">
+                    <div><span style="font-size:0.75rem; color:#64748b;">pt Aserradero:</span><div style="font-size:1.1rem; font-weight:bold; color:#1e40af;">${aserr.pt.toFixed(2)} pt</div></div>
+                    <div><span style="font-size:0.75rem; color:#64748b;">Diferencia con Finca:</span><div style="font-size:1.1rem; font-weight:bold; color:${diffPt>=0?'#16a34a':'#dc2626'};">${diffPt>0?'+':''}${diffPt.toFixed(2)} pt (${pctDiff.toFixed(1)}%)</div></div>
+                    <div><span style="font-size:0.75rem; color:#64748b;">Monto Cobrado Aserradero:</span><div style="font-size:1.1rem; font-weight:bold; color:#15803d;">Q ${montoCobrado.toFixed(2)}</div></div>
+                    <div><span style="font-size:0.75rem; color:#64748b;">GANANCIA REAL FINAL:</span><div style="font-size:1.3rem; font-weight:bold; color:#14532d;">Q ${gananciaReal.toFixed(2)}</div></div>
+                </div>
+            </div>
+        `;
+    }
+
+    if (body) {
+        body.innerHTML = `
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px; margin-bottom:1rem; background:#f8fafc; padding:12px; border-radius:8px;">
+                <div><span style="font-size:0.75rem; color:#64748b;">Motosierrista:</span><div style="font-weight:bold;">${d.motosierrista || 'Sin asignar'}</div></div>
+                <div><span style="font-size:0.75rem; color:#64748b;">Transportista / Camión:</span><div style="font-weight:bold;">${d.chofer || 'Sin chofer'}</div></div>
+                <div><span style="font-size:0.75rem; color:#64748b;">Destino:</span><div style="font-weight:bold;">${d.aserradero || 'Sin aserradero'}</div></div>
+                <div><span style="font-size:0.75rem; color:#64748b;">Tarifas Venta:</span><div style="font-weight:bold; font-size:0.85rem;">Troza Q${precios.ventaTroza}/pt | Trocillo Q${precios.ventaTrocillo}/pt</div></div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:8px; margin-bottom:1rem;">
+                <div style="background:#e0f2fe; padding:8px; border-radius:6px; text-align:center;">
+                    <span style="font-size:0.72rem; color:#0369a1; font-weight:bold;">TOTAL PT FINCA</span>
+                    <div style="font-size:1.25rem; font-weight:bold; color:#0c4a6e;">${totalPtFinca.toFixed(2)} pt</div>
+                </div>
+                <div style="background:#f0fdf4; padding:8px; border-radius:6px; text-align:center;">
+                    <span style="font-size:0.72rem; color:#15803d; font-weight:bold;">INGRESO ESTIMADO</span>
+                    <div style="font-size:1.25rem; font-weight:bold; color:#14532d;">Q ${ingresoFinca.toFixed(2)}</div>
+                </div>
+                <div style="background:#fef2f2; padding:8px; border-radius:6px; text-align:center;">
+                    <span style="font-size:0.72rem; color:#dc2626; font-weight:bold;">FLETE CAMIÓN</span>
+                    <div style="font-size:1.25rem; font-weight:bold; color:#991b1b;">Q ${fleteCamion.toFixed(2)}</div>
+                </div>
+                <div style="background:#fffbeb; padding:8px; border-radius:6px; text-align:center;">
+                    <span style="font-size:0.72rem; color:#b45309; font-weight:bold;">MOTOSIERRISTA</span>
+                    <div style="font-size:1.25rem; font-weight:bold; color:#78350f;">Q ${pagoMotosierra.toFixed(2)}</div>
+                </div>
+                <div style="background:#ecfdf5; padding:8px; border-radius:6px; text-align:center; border:1px solid #6ee7b7;">
+                    <span style="font-size:0.72rem; color:#065f46; font-weight:bold;">LO QUE ME QUEDA</span>
+                    <div style="font-size:1.35rem; font-weight:bold; color:#047857;">Q ${gananciaFinca.toFixed(2)}</div>
+                </div>
+            </div>
+
+            <div class="table-wrapper" style="max-height:280px; overflow-y:auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th># Troza</th>
+                            <th>Tipo</th>
+                            <th>Largo</th>
+                            <th>Diámetros Rodaja</th>
+                            <th>Pies Tablares (pt)</th>
+                        </tr>
+                    </thead>
+                    <tbody>${filasTrozas}</tbody>
+                </table>
+            </div>
+
+            ${panelAserraderoHTML}
+        `;
+    }
+
+    if (modal) modal.style.display = 'flex';
+};
+
+window.editarCamionadaDesdeModal = () => {
+    if (!camionadaActualEnModal) return;
+    cerrarModal('modal-detalle-camionada');
+    cargarCamionadaEnEditor(camionadaActualEnModal.id);
+};
+
+window.descargarPDFModalCamionada = () => {
+    if (!camionadaActualEnModal) return;
+    descargarPDFCamionada(camionadaActualEnModal.data);
+};
+
+window.compartirWhatsAppModalCamionada = () => {
+    if (!camionadaActualEnModal) return;
+    compartirCamionadaWhatsApp(camionadaActualEnModal.data);
+};
+
+window.descargarPDFCamionadaActual = () => {
+    const dataCamionada = {
+        numero: document.getElementById('madera-numero')?.value || 'CAM-001',
+        fecha: document.getElementById('madera-fecha')?.value || '',
+        chofer: document.getElementById('madera-chofer')?.value || '',
+        motosierrista: document.getElementById('madera-motosierrista')?.value || '',
+        aserradero: document.getElementById('madera-aserradero')?.value || '',
+        precios: {
+            ventaTroza: parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 5.0,
+            ventaTrocillo: parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 3.5,
+            fleteTroza: parseFloat(document.getElementById('madera-flete-troza')?.value) || 1.25,
+            fleteTrocillo: parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 1.0,
+            motosierraModo: document.getElementById('madera-motosierra-modo')?.value || 'pt',
+            motosierraValor: parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0.5
+        },
+        trozas: camionadaActual.trozas
+    };
+    descargarPDFCamionada(dataCamionada);
+};
+
+window.descargarPDFCamionada = (c) => {
+    const jsPDF = getJsPDF();
+    if (!jsPDF) return alert("Librería PDF no disponible.");
+    const doc = new jsPDF();
+
+    doc.setFillColor(44, 94, 46);
+    doc.rect(0, 0, 210, 28, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("FINCA LOS ROBLES - CUBICACIÓN DE MADERA", 105, 12, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Boleta de Control y Liquidación de Camionada", 105, 20, { align: "center" });
+
+    doc.setTextColor(30, 30, 30);
+    doc.setFontSize(10);
+    let y = 38;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`N° Camionada: ${c.numero || 'S/N'}`, 14, y);
+    doc.text(`Fecha: ${c.fecha || 'N/A'}`, 130, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.text(`Transportista / Chofer: ${c.chofer || 'N/A'}`, 14, y);
+    doc.text(`Aserradero: ${c.aserradero || 'N/A'}`, 130, y);
+    y += 6;
+    doc.text(`Motosierrista: ${c.motosierrista || 'N/A'}`, 14, y);
+    y += 10;
+
+    // Tabla de Trozas
+    doc.setFillColor(240, 244, 240);
+    doc.rect(14, y, 182, 7, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("#", 16, y + 5);
+    doc.text("TIPO", 28, y + 5);
+    doc.text("LARGO (ft)", 55, y + 5);
+    doc.text("D1 (in)", 85, y + 5);
+    doc.text("D2 (in)", 110, y + 5);
+    doc.text("PROM (in)", 135, y + 5);
+    doc.text("PIES TABLARES", 170, y + 5);
+    y += 8;
+
+    doc.setFont("helvetica", "normal");
+    let totalPt = 0, cantTrozas = 0, cantTrocillos = 0, ptTrozas = 0, ptTrocillos = 0;
+
+    (c.trozas || []).forEach(t => {
+        if (y > 270) {
+            doc.addPage();
+            y = 20;
+        }
+        totalPt += t.pt;
+        if (t.tipo === 'troza') { cantTrozas++; ptTrozas += t.pt; }
+        else { cantTrocillos++; ptTrocillos += t.pt; }
+
+        const prom = ((t.d1 + t.d2) / 2).toFixed(1);
+        doc.text(String(t.correlativo), 16, y);
+        doc.text(t.tipo === 'troza' ? 'Troza' : 'Trocillo', 28, y);
+        doc.text(`${t.largo} ft`, 55, y);
+        doc.text(`${t.d1}"`, 85, y);
+        doc.text(`${t.d2}"`, 110, y);
+        doc.text(`${prom}"`, 135, y);
+        doc.text(`${t.pt.toFixed(2)} pt`, 175, y);
+        y += 5;
+    });
+
+    y += 6;
+    if (y > 240) { doc.addPage(); y = 20; }
+
+    // Resumen financiero
+    const precios = c.precios || { ventaTroza: 5.0, ventaTrocillo: 3.5, fleteTroza: 1.25, fleteTrocillo: 1.0, motosierraModo: 'pt', motosierraValor: 0.5 };
+    const ingresoBruto = (ptTrozas * precios.ventaTroza) + (ptTrocillos * precios.ventaTrocillo);
+    const fleteCamion = (ptTrozas * precios.fleteTroza) + (ptTrocillos * precios.fleteTrocillo);
+    const pagoMotosierra = precios.motosierraModo === 'fijo' ? precios.motosierraValor : (totalPt * precios.motosierraValor);
+    const neto = ingresoBruto - fleteCamion - pagoMotosierra;
+
+    doc.setFillColor(245, 247, 245);
+    doc.rect(14, y, 182, 35, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(44, 94, 46);
+    doc.text("RESUMEN DE LIQUIDACIÓN Y CUBICACIÓN", 18, y + 6);
+    doc.setTextColor(40, 40, 40);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Troncos: ${(c.trozas||[]).length} (${cantTrozas} trozas, ${cantTrocillos} trocillos)`, 18, y + 13);
+    doc.text(`Total Pies Tablares (Finca): ${totalPt.toFixed(2)} pt`, 18, y + 19);
+    doc.text(`Ingreso Venta Aserradero: Q ${ingresoBruto.toFixed(2)}`, 18, y + 25);
+    doc.text(`Flete a pagar al Camión: Q ${fleteCamion.toFixed(2)}`, 110, y + 13);
+    doc.text(`Pago a Motosierrista: Q ${pagoMotosierra.toFixed(2)}`, 110, y + 19);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(20, 83, 45);
+    doc.text(`GANANCIA NETA ("LO QUE ME QUEDA"): Q ${neto.toFixed(2)}`, 110, y + 26);
+
+    doc.save(`Cubicacion_${c.numero || 'Camionada'}.pdf`);
+};
+
+window.compartirCamionadaWhatsApp = (cam) => {
+    const c = cam || {
+        numero: document.getElementById('madera-numero')?.value || 'CAM-001',
+        fecha: document.getElementById('madera-fecha')?.value || '',
+        chofer: document.getElementById('madera-chofer')?.value || '',
+        motosierrista: document.getElementById('madera-motosierrista')?.value || '',
+        aserradero: document.getElementById('madera-aserradero')?.value || '',
+        trozas: camionadaActual.trozas
+    };
+
+    let totalPt = 0, cantTrozas = 0, cantTrocillos = 0, ptTrozas = 0, ptTrocillos = 0;
+    (c.trozas || []).forEach(t => {
+        totalPt += t.pt;
+        if (t.tipo === 'troza') { cantTrozas++; ptTrozas += t.pt; }
+        else { cantTrocillos++; ptTrocillos += t.pt; }
+    });
+
+    const pVentaTroza = parseFloat(document.getElementById('madera-precio-venta-troza')?.value) || 5.0;
+    const pVentaTrocillo = parseFloat(document.getElementById('madera-precio-venta-trocillo')?.value) || 3.5;
+    const pFleteTroza = parseFloat(document.getElementById('madera-flete-troza')?.value) || 1.25;
+    const pFleteTrocillo = parseFloat(document.getElementById('madera-flete-trocillo')?.value) || 1.0;
+    const motosierraModo = document.getElementById('madera-motosierra-modo')?.value || 'pt';
+    const motosierraValor = parseFloat(document.getElementById('madera-pago-motosierra-valor')?.value) || 0.5;
+
+    const ingresoBruto = (ptTrozas * pVentaTroza) + (ptTrocillos * pVentaTrocillo);
+    const fleteCamion = (ptTrozas * pFleteTroza) + (ptTrocillos * pFleteTrocillo);
+    const pagoMotosierra = motosierraModo === 'fijo' ? motosierraValor : (totalPt * motosierraValor);
+    const gananciaNeta = ingresoBruto - fleteCamion - pagoMotosierra;
+
+    const texto = `🌲 *FINCA LOS ROBLES - BOLETA DE MADERA*\n` +
+        `📦 *Camionada:* ${c.numero || 'S/N'}\n` +
+        `📅 *Fecha:* ${c.fecha || 'Hoy'}\n` +
+        `🚚 *Camión/Chofer:* ${c.chofer || 'N/A'}\n` +
+        `🪚 *Motosierrista:* ${c.motosierrista || 'N/A'}\n` +
+        `🏭 *Aserradero:* ${c.aserradero || 'N/A'}\n\n` +
+        `🪵 *Total Troncos:* ${(c.trozas||[]).length} (${cantTrozas} trozas | ${cantTrocillos} trocillos)\n` +
+        `📏 *Pies Tablares:* ${totalPt.toFixed(2)} pt\n` +
+        `💵 *Ingreso Aserradero:* Q ${ingresoBruto.toFixed(2)}\n` +
+        `🚚 *Flete Camión:* Q ${fleteCamion.toFixed(2)}\n` +
+        `🪚 *Pago Motosierra:* Q ${pagoMotosierra.toFixed(2)}\n` +
+        `💰 *Ganancia Neta:* Q ${gananciaNeta.toFixed(2)}`;
+
+    const url = "https://wa.me/?text=" + encodeURIComponent(texto);
+    window.open(url, '_blank');
+};
+
+window.exportarTrozasCSV = () => {
+    if (camionadaActual.trozas.length === 0) return alert("No hay trozas cargadas para exportar.");
+    let csv = "Correlativo,Tipo,Largo_Pies,Diametro1_Pulg,Diametro2_Pulg,Pies_Tablares\n";
+    camionadaActual.trozas.forEach(t => {
+        csv += `${t.correlativo},${t.tipo},${t.largo},${t.d1},${t.d2},${t.pt.toFixed(2)}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Trozas_${camionadaActual.numero || 'Carga'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+window.ejecutarCalculadoraRapidaMadera = () => {
+    const largo = parseFloat(document.getElementById('madera-calc-largo')?.value) || 0;
+    const d1 = parseFloat(document.getElementById('madera-calc-d1')?.value) || 0;
+    const d2 = parseFloat(document.getElementById('madera-calc-d2')?.value) || d1;
+    const precio = parseFloat(document.getElementById('madera-calc-precio')?.value) || 0;
+    const flete = parseFloat(document.getElementById('madera-calc-flete')?.value) || 0;
+
+    const pt = window.calcularPiesTablaresTroza(largo, d1, d2, 12);
+    const venta = pt * precio;
+    const costoFlete = pt * flete;
+    const neto = venta - costoFlete;
+
+    const resPt = document.getElementById('madera-calc-res-pt');
+    if (resPt) resPt.innerText = `${pt.toFixed(2)} pt`;
+
+    const formulaEl = document.getElementById('madera-calc-res-formula');
+    if (formulaEl) {
+        formulaEl.innerText = `Fórmula: (${largo} ft × ${d1}" × ${d2}") ÷ 12 = ${pt.toFixed(2)} pies tablares`;
+    }
+
+    const resVenta = document.getElementById('madera-calc-res-venta');
+    if (resVenta) resVenta.innerText = `Q ${venta.toFixed(2)}`;
+
+    const resFlete = document.getElementById('madera-calc-res-flete');
+    if (resFlete) resFlete.innerText = `Q ${costoFlete.toFixed(2)}`;
+
+    const resNeto = document.getElementById('madera-calc-res-neto');
+    if (resNeto) {
+        resNeto.innerText = `Q ${neto.toFixed(2)}`;
+        resNeto.style.color = neto >= 0 ? '#14532d' : '#b91c1c';
+    }
+};
+
+// =========================================================================
+// --- GESTIÓN DE USUARIOS Y CONTROL DE PERMISOS (PANEL DE ADMINISTRADOR) ---
+// =========================================================================
+
+window.cargarUsuariosPermisos = async () => {
+    const tbody = document.getElementById('tbody-usuarios-permisos');
+    if (!tbody) return;
+
+    try {
+        const snap = await getDocs(collection(db, "usuarios"));
+        todosLosUsuarios = [];
+        snap.forEach(d => {
+            todosLosUsuarios.push({ id: d.id, ...d.data() });
+        });
+    } catch (e) {
+        console.error("Error cargando usuarios:", e);
+    }
+
+    if (todosLosUsuarios.length === 0) {
+        // Mostrar cuenta de admin predeterminada
+        todosLosUsuarios = [
+            {
+                id: 'admin_principal',
+                username: 'admin',
+                nombre: 'Administrador Principal (Finca Los Robles)',
+                rol: 'admin',
+                email: 'orobles.asesor@gmail.com',
+                modulosPermitidos: ['all'],
+                ultimoAcceso: new Date().toISOString()
+            }
+        ];
+    }
+
+    tbody.innerHTML = '';
+    todosLosUsuarios.forEach(u => {
+        const tr = document.createElement('tr');
+        const rolBadge = u.rol === 'admin'
+            ? '<span class="user-tag-badge user-tag-admin">⭐ Administrador</span>'
+            : '<span class="user-tag-badge user-tag-operador">👤 Operador</span>';
+
+        let modulosHTML = '';
+        if (u.rol === 'admin' || (u.modulosPermitidos && u.modulosPermitidos.includes('all'))) {
+            modulosHTML = '<span style="color:#15803d; font-weight:bold; font-size:0.8rem;">🌟 Acceso Total a Todos los Módulos</span>';
+        } else {
+            const mods = Array.isArray(u.modulosPermitidos) && u.modulosPermitidos.length > 0 ? u.modulosPermitidos : DEFAULT_MODULOS_OPERADOR;
+            modulosHTML = mods.map(m => `<span style="display:inline-block; background:#f1f5f9; padding:2px 6px; border-radius:4px; font-size:0.75rem; margin:2px;">${m}</span>`).join(' ');
+        }
+
+        const ultimoAcc = u.ultimoAcceso ? new Date(u.ultimoAcceso).toLocaleDateString('es-GT', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : 'Nunca';
+
+        tr.innerHTML = `
+            <td><strong>${u.username || u.email || 'Usuario'}</strong></td>
+            <td>${u.nombre || '<span style="color:#94a3b8;">Sin nombre</span>'}</td>
+            <td>${rolBadge}</td>
+            <td>${modulosHTML}</td>
+            <td style="font-size:0.8rem; color:#64748b;">${ultimoAcc}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-xs btn-edit" onclick="abrirModalEditarUsuario('${u.id}')" title="Editar Permisos">✏️ Permisos</button>
+                ${u.username !== 'admin' && u.email !== 'orobles.asesor@gmail.com' ? `
+                    <button class="btn btn-xs btn-danger" onclick="eliminarUsuario('${u.id}')" title="Eliminar">🗑️</button>
+                ` : ''}
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
+};
+
+window.abrirModalCrearUsuario = () => {
+    document.getElementById('modal-usuario-id').value = '';
+    document.getElementById('modal-usuario-titulo').innerText = '👤 Registrar Nuevo Usuario';
+    document.getElementById('modal-usuario-username').value = '';
+    document.getElementById('modal-usuario-username').disabled = false;
+    document.getElementById('modal-usuario-nombre').value = '';
+    document.getElementById('modal-usuario-password').value = '';
+    document.getElementById('modal-usuario-rol').value = 'operador';
+    document.getElementById('modal-usuario-password-hint').innerText = 'Escribe la contraseña para este usuario.';
+
+    seleccionarModulosDefault();
+    document.getElementById('modal-usuario').style.display = 'flex';
+};
+
+window.abrirModalEditarUsuario = (id) => {
+    const u = todosLosUsuarios.find(item => item.id === id);
+    if (!u) return;
+
+    document.getElementById('modal-usuario-id').value = id;
+    document.getElementById('modal-usuario-titulo').innerText = `✏️ Editar Usuario: ${u.username || u.email}`;
+    document.getElementById('modal-usuario-username').value = u.username || '';
+    document.getElementById('modal-usuario-nombre').value = u.nombre || '';
+    document.getElementById('modal-usuario-password').value = u.password || '';
+    document.getElementById('modal-usuario-password-hint').innerText = 'Deja como está o escribe una nueva contraseña.';
+    document.getElementById('modal-usuario-rol').value = u.rol || 'operador';
+
+    const permitidos = Array.isArray(u.modulosPermitidos) ? u.modulosPermitidos : DEFAULT_MODULOS_OPERADOR;
+    document.querySelectorAll('.check-modulo-permiso').forEach(cb => {
+        cb.checked = u.rol === 'admin' || permitidos.includes(cb.value);
+    });
+
+    document.getElementById('modal-usuario').style.display = 'flex';
+};
+
+window.onRolUsuarioChange = (rol) => {
+    if (rol === 'admin') {
+        seleccionarTodosModulos(true);
+    } else {
+        seleccionarModulosDefault();
+    }
+};
+
+window.seleccionarTodosModulos = (estado) => {
+    document.querySelectorAll('.check-modulo-permiso').forEach(cb => {
+        cb.checked = !!estado;
+    });
+};
+
+window.seleccionarModulosDefault = () => {
+    document.querySelectorAll('.check-modulo-permiso').forEach(cb => {
+        cb.checked = DEFAULT_MODULOS_OPERADOR.includes(cb.value);
+    });
+};
+
+window.guardarUsuarioPermisos = async () => {
+    const id = document.getElementById('modal-usuario-id')?.value;
+    const username = document.getElementById('modal-usuario-username')?.value.toLowerCase().trim();
+    const nombre = document.getElementById('modal-usuario-nombre')?.value.trim();
+    const password = document.getElementById('modal-usuario-password')?.value;
+    const rol = document.getElementById('modal-usuario-rol')?.value || 'operador';
+
+    if (!username) {
+        alert("⚠️ Ingresa un nombre de usuario.");
+        return;
+    }
+
+    if (!id && !password) {
+        alert("⚠️ Ingresa una contraseña para el nuevo usuario.");
+        return;
+    }
+
+    const modulosSeleccionados = [];
+    document.querySelectorAll('.check-modulo-permiso:checked').forEach(cb => {
+        modulosSeleccionados.push(cb.value);
+    });
+
+    const docId = id || ('usr_' + username.replace(/[^a-z0-9]/g, ''));
+    const userData = {
+        username,
+        nombre: nombre || username,
+        rol,
+        modulosPermitidos: rol === 'admin' ? ['all'] : modulosSeleccionados,
+        actualizado: new Date().toISOString()
+    };
+    if (password) userData.password = password;
+
+    try {
+        await setDoc(doc(db, "usuarios", docId), userData, { merge: true });
+        alert(`✅ Usuario ${username} guardado con éxito.`);
+        cerrarModal('modal-usuario');
+        cargarUsuariosPermisos();
+    } catch (e) {
+        console.error("Error guardando usuario:", e);
+        alert("❌ Error: " + e.message);
+    }
+};
+
+window.eliminarUsuario = async (id) => {
+    const u = todosLosUsuarios.find(item => item.id === id);
+    if (!u) return;
+    if (!confirm(`¿Eliminar al usuario ${u.username || u.email}? Ya no podrá ingresar a la aplicación.`)) return;
+
+    try {
+        await deleteDoc(doc(db, "usuarios", id));
+        alert("🗑️ Usuario eliminado.");
+        cargarUsuariosPermisos();
+    } catch (e) {
+        alert("❌ Error: " + e.message);
+    }
+};
+
