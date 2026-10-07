@@ -1971,6 +1971,9 @@
                         <option value="administrativo">📂 Administrativo</option>
                         <option value="otro">📌 Otro</option>
                     </select>
+                    <select id="proy-filtro-responsable" onchange="filtrarProyectos()" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; min-height:38px;">
+                        <option value="todos">👤 Todos los Responsables</option>
+                    </select>
                     <select id="proy-orden" onchange="filtrarProyectos()" style="padding:8px; border-radius:6px; border:1px solid #ccc; font-size:0.85rem; min-height:38px;">
                         <option value="limite_asc">📅 Fecha límite (Próximos)</option>
                         <option value="avance_asc">📉 Menor avance %</option>
@@ -3162,9 +3165,18 @@
                     <option value="completado">✅ Completado</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label>👤 Responsable / Asignado</label>
-                <input type="text" id="modal-proy-responsable" class="yellow-input" placeholder="Ej: Don Carlos, Equipo Tostaduría, Oficina...">
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>👤 Responsable / Asignado a Usuario Registrado</label>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <select id="modal-proy-responsable-select" class="yellow-input" style="flex:1; min-width:200px;" onchange="onSeleccionarUsuarioResponsable(this.value)">
+                        <option value="">-- Seleccionar de usuarios registrados --</option>
+                    </select>
+                    <input type="text" id="modal-proy-responsable" class="yellow-input" style="flex:1; min-width:200px;" placeholder="O escribe responsable / alias manual..." list="datalist-usuarios-registrados">
+                    <datalist id="datalist-usuarios-registrados"></datalist>
+                </div>
+                <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:2px;">
+                    Puedes elegir un usuario registrado del sistema (ej: orobles, operadores) o escribir un nombre personalizado.
+                </small>
             </div>
             <div class="form-group">
                 <label>📅 Fecha de Inicio</label>
