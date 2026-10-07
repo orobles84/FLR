@@ -721,6 +721,45 @@
             cursor: grabbing;
         }
 
+        /* TRÁFICO WEB Y ANALÍTICA */
+        .trafico-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        .trafico-kpi-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid #0284c7;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .trafico-kpi-card.kpi-hoy { border-left-color: #10b981; }
+        .trafico-kpi-card.kpi-paises { border-left-color: #8b5cf6; }
+        .trafico-kpi-card.kpi-movil { border-left-color: #f59e0b; }
+        .geo-country-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        .geo-bar-fill {
+            height: 6px;
+            border-radius: 3px;
+            background: #0284c7;
+            transition: width 0.4s ease;
+        }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -1944,6 +1983,163 @@
                     <div id="cal-sin-fecha-items" style="display:flex; gap:8px; flex-wrap:wrap; min-height:40px; align-items:center;"></div>
                 </div>
             </div>
+        </div>
+
+        <!-- MÓDULO: TRÁFICO Y VISITAS WEB (PÁGINA PÚBLICA) -->
+        <div id="trafico" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
+                <div>
+                    <h2 style="margin:0; border:none; padding:0; color:var(--primary);">🌐 Tráfico y Visitas de la Página Web</h2>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#666;">
+                        Monitoreo en tiempo real de ingresos a <a href="https://orobles84.github.io/FincaLosRobles/" target="_blank" rel="noopener noreferrer" style="color:#0284c7; font-weight:600; text-decoration:underline;">orobles84.github.io/FincaLosRobles/</a>
+                    </p>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-small" style="background:#0f766e; color:white; font-weight:bold;" onclick="cargarTraficoWeb()">🔄 Actualizar Datos</button>
+                    <button class="btn btn-small" style="background:#4338ca; color:white; font-weight:bold;" onclick="abrirModalSnippetWeb()">📋 Ver Código para la Web</button>
+                    <button class="btn btn-small" style="background:#475569; color:white;" onclick="simularVisitaPrueba()" title="Registra una visita de prueba en vivo para verificar el flujo">🧪 Visita de Prueba</button>
+                </div>
+            </div>
+
+            <!-- FILTRO DE RANGO DE FECHAS Y PAÍSES -->
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:1.25rem; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-size:0.85rem; font-weight:bold; color:#475569;">📅 Periodo:</span>
+                    <select id="trafico-filtro-periodo" onchange="renderizarTraficoWeb()" style="padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.85rem; min-height:34px;">
+                        <option value="todos">Todo el Historial</option>
+                        <option value="hoy">Hoy</option>
+                        <option value="7dias">Últimos 7 Días</option>
+                        <option value="30dias">Últimos 30 Días</option>
+                    </select>
+                    <span style="font-size:0.85rem; font-weight:bold; color:#475569; margin-left:8px;">🌍 País:</span>
+                    <select id="trafico-filtro-pais" onchange="renderizarTraficoWeb()" style="padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.85rem; min-height:34px;">
+                        <option value="todos">Todos los Países</option>
+                    </select>
+                </div>
+                <div id="trafico-ultima-sincro" style="font-size:0.8rem; color:#64748b;">
+                    Última sincronización: En espera...
+                </div>
+            </div>
+
+            <!-- KPI CARDS -->
+            <div class="trafico-kpi-grid">
+                <div class="trafico-kpi-card">
+                    <span style="font-size:0.82rem; font-weight:bold; color:#64748b; text-transform:uppercase;">👁️ Total de Visitas</span>
+                    <h3 id="trafico-kpi-total" style="font-size:2rem; margin:8px 0 0; color:var(--primary);">0</h3>
+                    <span style="font-size:0.75rem; color:#64748b;">Ingresos registrados</span>
+                </div>
+                <div class="trafico-kpi-card kpi-hoy">
+                    <span style="font-size:0.82rem; font-weight:bold; color:#15803d; text-transform:uppercase;">⚡ Visitas Hoy</span>
+                    <h3 id="trafico-kpi-hoy" style="font-size:2rem; margin:8px 0 0; color:#15803d;">0</h3>
+                    <span style="font-size:0.75rem; color:#15803d;">En las últimas 24 horas</span>
+                </div>
+                <div class="trafico-kpi-card kpi-paises">
+                    <span style="font-size:0.82rem; font-weight:bold; color:#6d28d9; text-transform:uppercase;">🌍 Países Únicos</span>
+                    <h3 id="trafico-kpi-paises" style="font-size:2rem; margin:8px 0 0; color:#6d28d9;">0</h3>
+                    <span style="font-size:0.75rem; color:#6d28d9;">Naciones conectadas</span>
+                </div>
+                <div class="trafico-kpi-card kpi-movil">
+                    <span style="font-size:0.82rem; font-weight:bold; color:#b45309; text-transform:uppercase;">📱 Tráfico Móvil</span>
+                    <h3 id="trafico-kpi-movil" style="font-size:2rem; margin:8px 0 0; color:#b45309;">0%</h3>
+                    <span style="font-size:0.75rem; color:#b45309;">Smartphones / Tablets</span>
+                </div>
+            </div>
+
+            <!-- GRÁFICAS -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.25rem; margin-bottom:1.5rem;">
+                <div style="background:white; padding:1.25rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                    <h3 style="margin:0 0 1rem; font-size:1rem; color:var(--primary); display:flex; align-items:center; gap:6px;">
+                        📈 Evolución de Visitas (Por Día)
+                    </h3>
+                    <div style="height:240px; position:relative;">
+                        <canvas id="chart-trafico-dias"></canvas>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:1rem;">
+                    <div style="background:white; padding:1.25rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 0.75rem; font-size:0.95rem; color:var(--primary);">📱 Dispositivos</h3>
+                        <div style="height:190px; position:relative;">
+                            <canvas id="chart-trafico-dispositivos"></canvas>
+                        </div>
+                    </div>
+                    <div style="background:white; padding:1.25rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                        <h3 style="margin:0 0 0.75rem; font-size:0.95rem; color:var(--primary);">🔗 Fuentes / Origen</h3>
+                        <div style="height:190px; position:relative;">
+                            <canvas id="chart-trafico-fuentes"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN GEOGRÁFICA Y TOP CIUDADES -->
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px, 1fr)); gap:1.25rem; margin-bottom:1.5rem;">
+                <div style="background:white; padding:1.25rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                    <h3 style="margin:0 0 1rem; font-size:1rem; color:var(--primary);">🗺️ Visitas por País</h3>
+                    <div id="trafico-lista-paises" style="max-height:280px; overflow-y:auto;">
+                        <div style="color:#94a3b8; font-style:italic; font-size:0.85rem;">Cargando distribución geográfica...</div>
+                    </div>
+                </div>
+                <div style="background:white; padding:1.25rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                    <h3 style="margin:0 0 1rem; font-size:1rem; color:var(--primary);">🏙️ Regiones y Ciudades</h3>
+                    <div id="trafico-lista-ciudades" style="max-height:280px; overflow-y:auto;">
+                        <div style="color:#94a3b8; font-style:italic; font-size:0.85rem;">Cargando ciudades...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- REGISTRO EN TIEMPO REAL / BITÁCORA DE INGRESOS -->
+            <div style="background:white; padding:1.25rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; color:var(--primary);">⚡ Registro Detallado de Ingresos</h3>
+                        <p style="margin:2px 0 0; font-size:0.8rem; color:#64748b;">Historial de visitantes con ubicación detectada, dispositivo y navegador</p>
+                    </div>
+                    <span id="trafico-total-registros-badge" style="font-size:0.8rem; background:#f1f5f9; color:#475569; padding:4px 12px; border-radius:12px; font-weight:600;">0 registros</span>
+                </div>
+                <div class="table-wrapper">
+                    <table id="tabla-trafico-visitas">
+                        <thead>
+                            <tr>
+                                <th>Fecha y Hora</th>
+                                <th>País</th>
+                                <th>Región / Ciudad</th>
+                                <th>Dispositivo</th>
+                                <th>Navegador</th>
+                                <th>Fuente</th>
+                                <th>Idioma</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td colspan="7" style="text-align:center; padding:1.5rem; color:#888;">Cargando registros de visitas...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL SNIPPET / CÓDIGO WEB -->
+<div class="modal-overlay" id="modal-snippet-web">
+    <div class="modal-content-large" style="max-width:860px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+            <h3 style="margin:0; color:var(--primary);">📋 Código de Rastreo para tu Página Web</h3>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-snippet-web')" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+        <p style="font-size:0.88rem; color:#475569; margin:0 0 1rem; line-height:1.4;">
+            Para empezar a recibir datos en este panel, copia el siguiente bloque de código y pégalo en tu repositorio de GitHub en el archivo <strong><code>index.html</code></strong> de tu página pública (<code>https://orobles84.github.io/FincaLosRobles/</code>), <strong>justo antes de la etiqueta <code>&lt;/body&gt;</code></strong>:
+        </p>
+        <div style="position:relative; margin-bottom:1rem;">
+            <pre id="codigo-snippet-pre" style="background:#0f172a; color:#f8fafc; padding:1rem; border-radius:8px; font-size:0.76rem; overflow-x:auto; max-height:320px; font-family:monospace; line-height:1.45;"></pre>
+            <button class="btn btn-small" id="btn-copiar-snippet" onclick="copiarSnippetAlPortapapeles()" style="position:absolute; top:10px; right:10px; background:#2563eb; color:white; font-size:0.8rem; padding:4px 12px; font-weight:600;">
+                📋 Copiar Código
+            </button>
+        </div>
+        <div class="info-box" style="margin-top:0; font-size:0.84rem; background:#f0fdf4; border-left-color:#16a34a; color:#14532d;">
+            ✅ <strong>100% Invisible para los visitantes:</strong> Este código no inserta ningún texto, banner ni contador en tu página web. Funciona en segundo plano de manera silenciosa y ligera, y <strong>solo tú con tu cuenta de administrador puedes ver las estadísticas aquí en esta aplicación</strong>.
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:1rem;">
+            <button class="btn btn-secondary" onclick="cerrarModal('modal-snippet-web')">Cerrar</button>
         </div>
     </div>
 </div>
