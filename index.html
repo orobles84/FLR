@@ -3358,6 +3358,50 @@
     </div>
 </div>
 
+<!-- MODAL: CAMBIAR CONTRASEÑA -->
+<div class="modal-overlay" id="modal-cambiar-contrasena">
+    <div class="modal-content-large" style="max-width:460px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.5rem; margin-bottom:1rem;">
+            <div>
+                <h3 style="margin:0; color:var(--primary);">🔑 Cambiar Contraseña</h3>
+                <span style="font-size:0.82rem; color:#64748b;" id="pwd-user-label">Actualizar contraseña</span>
+            </div>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-cambiar-contrasena')" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+
+        <form onsubmit="event.preventDefault(); guardarNuevaContrasena();" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="form-group" style="margin:0;">
+                <label style="font-weight:600; font-size:0.88rem; color:#334155;">Nueva Contraseña</label>
+                <div style="position:relative; display:flex; align-items:center;">
+                    <input type="password" id="input-nueva-contrasena" required minlength="4" placeholder="Mínimo 4 caracteres" style="width:100%; padding:10px 38px 10px 12px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.95rem;">
+                    <span onclick="togglePasswordVisibility('input-nueva-contrasena', this)" style="position:absolute; right:10px; cursor:pointer; font-size:1.1rem; user-select:none;" title="Mostrar/Ocultar">👁️</span>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin:0;">
+                <label style="font-weight:600; font-size:0.88rem; color:#334155;">Confirmar Contraseña</label>
+                <div style="position:relative; display:flex; align-items:center;">
+                    <input type="password" id="input-confirmar-contrasena" required minlength="4" placeholder="Repite la nueva contraseña" style="width:100%; padding:10px 38px 10px 12px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.95rem;">
+                    <span onclick="togglePasswordVisibility('input-confirmar-contrasena', this)" style="position:absolute; right:10px; cursor:pointer; font-size:1.1rem; user-select:none;" title="Mostrar/Ocultar">👁️</span>
+                </div>
+            </div>
+
+            <div id="pwd-msg-feedback" style="display:none; padding:8px 12px; border-radius:6px; font-size:0.85rem;"></div>
+
+            <div style="display:flex; gap:10px; margin-top:0.5rem; flex-wrap:wrap;">
+                <button type="submit" class="btn btn-primary" id="btn-guardar-contrasena" style="flex:2; min-width:160px; padding:10px;">💾 Guardar Contraseña</button>
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modal-cambiar-contrasena')" style="flex:1; min-width:100px;">Cancelar</button>
+            </div>
+
+            <div id="pwd-opcion-email" style="display:none; text-align:center; margin-top:0.4rem; padding-top:0.4rem; border-top:1px dashed #e2e8f0;">
+                <button type="button" onclick="enviarEnlaceResetEmail()" style="color:#0284c7; background:none; border:none; cursor:pointer; text-decoration:underline; font-size:0.82rem;">
+                    📧 ¿Prefieres recibir un enlace en tu correo para restablecer?
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="version-tag">v2026.09.03</div>
 
 <script type="module" src="./src/main.js"></script>
