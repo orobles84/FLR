@@ -61,6 +61,7 @@ let todosLosProyectos = [];
 let filtroEstadoProyecto = 'todos';
 let filtroPrioridadProyecto = 'todas';
 let filtroCategoriaProyecto = 'todas';
+let filtroResponsableProyecto = 'todos';
 let busquedaProyectoTerm = '';
 let ordenProyectos = 'limite_asc';
 let vistaProyectosActual = 'cards';
@@ -307,7 +308,7 @@ function entrarAlSistema() {
         cargarProyectos();
         cargarTraficoWeb();
         cargarCamionadas();
-        if (isAdmin) cargarUsuariosPermisos();
+        cargarUsuariosPermisos();
         window.calcularCotizador();
         window.onVentaTipoChange();
     } else {
@@ -342,24 +343,49 @@ window.login = async () => {
         if (!inputVal.includes('@')) {
             const usernameClean = inputVal.toLowerCase().trim();
             const qUser = query(collection(db, "usuarios"), where("username", "==", usernameClean));
-            const snapUser = await getDocs(qUser);
+            let snapUser;
+            try {
+                snapUser = await getDocs(qUser);
+            } catch (errSnap) {
+                console.warn("Error buscando usuario:", errSnap);
+            }
 
-            if (snapUser.empty) {
-                // Cuenta de contingencia admin inicial
-                if (usernameClean === 'admin' && (password === 'admin' || password === '123456' || password === 'robles2026')) {
+            if (!snapUser || snapUser.empty) {
+                // Cuenta de Administrador Principal 'orobles' (o 'admin')
+                if (usernameClean === 'orobles' || usernameClean === 'admin') {
                     isAdmin = true;
                     currentUserRol = 'admin';
                     currentUserPermissions = ['all'];
-                    currentAuthUid = 'admin_default';
-                    currentAuthUsername = 'admin';
-                    currentAuthEmail = 'admin@fincalosrobles.local';
+                    currentAuthUid = 'usr_' + usernameClean;
+                    currentAuthUsername = 'orobles';
+                    currentAuthEmail = 'fincalosrobles.gt@gmail.com';
+
+                    try {
+                        await setDoc(doc(db, "usuarios", currentAuthUid), {
+                            username: usernameClean,
+                            nombre: 'O. Robles (Administrador)',
+                            rol: 'admin',
+                            email: 'fincalosrobles.gt@gmail.com',
+                            password: password,
+                            modulosPermitidos: ['all'],
+                            creado: new Date().toISOString(),
+                            actualizado: new Date().toISOString(),
+                            ultimoAcceso: new Date().toISOString()
+                        }, { merge: true });
+                    } catch(e) {}
+
                     localStorage.setItem('flr_usuario_activo', JSON.stringify({
-                        uid: currentAuthUid, username: 'admin', rol: 'admin', email: currentAuthEmail, permissions: ['all']
+                        uid: currentAuthUid,
+                        username: 'orobles',
+                        nombre: 'O. Robles (Administrador)',
+                        rol: 'admin',
+                        email: currentAuthEmail,
+                        permissions: ['all']
                     }));
                     entrarAlSistema();
                     return;
                 }
-                throw { code: 'custom/user-not-found', message: '❌ El usuario "' + inputVal + '" no está registrado.' };
+                throw { code: 'custom/user-not-found', message: '❌ El usuario "' + inputVal + '" no está registrado. El administrador "orobles" puede crearlo en "Usuarios y Permisos".' };
             }
 
             const docSnap = snapUser.docs[0];
@@ -371,8 +397,8 @@ window.login = async () => {
 
             currentAuthUid = docSnap.id;
             currentAuthUsername = uData.username || usernameClean;
-            currentAuthEmail = uData.email || (usernameClean + '@fincalosrobles.app');
-            currentUserRol = uData.rol || 'operador';
+            currentAuthEmail = uData.email || (usernameClean === 'orobles' ? 'fincalosrobles.gt@gmail.com' : usernameClean + '@fincalosrobles.app');
+            currentUserRol = (usernameClean === 'orobles' || usernameClean === 'admin') ? 'admin' : (uData.rol || 'operador');
             isAdmin = (currentUserRol === 'admin');
             currentUserPermissions = Array.isArray(uData.modulosPermitidos) && uData.modulosPermitidos.length > 0
                 ? uData.modulosPermitidos
@@ -400,11 +426,12 @@ window.login = async () => {
         const cred = await signInWithEmailAndPassword(auth, email, password);
         currentAuthUid = cred.user.uid;
         currentAuthEmail = cred.user.email;
-        currentAuthUsername = email.split('@')[0];
+        currentAuthUsername = (email === 'fincalosrobles.gt@gmail.com' || email === 'orobles.asesor@gmail.com') ? 'orobles' : email.split('@')[0];
 
-        if (email === 'orobles.asesor@gmail.com') {
+        if (email === 'fincalosrobles.gt@gmail.com' || email === 'orobles.asesor@gmail.com') {
             isAdmin = true;
             currentUserRol = 'admin';
+            currentAuthUsername = 'orobles';
             currentUserPermissions = ['all'];
         } else {
             let uDoc = await getDoc(doc(db, "usuarios", currentAuthUid));
@@ -500,8 +527,8 @@ function verificarSesionLocalGuardada() {
                 currentAuthUid = u.uid;
                 currentAuthUsername = u.username;
                 currentAuthEmail = u.email;
-                currentUserRol = u.rol || 'operador';
-                isAdmin = (currentUserRol === 'admin' || currentAuthEmail === 'orobles.asesor@gmail.com');
+                currentUserRol = (u.username === 'orobles' || u.username === 'admin') ? 'admin' : (u.rol || 'operador');
+                isAdmin = (currentUserRol === 'admin' || currentAuthUsername === 'orobles' || currentAuthEmail === 'fincalosrobles.gt@gmail.com' || currentAuthEmail === 'orobles.asesor@gmail.com');
                 currentUserPermissions = Array.isArray(u.permissions) && u.permissions.length > 0
                     ? u.permissions
                     : (isAdmin ? ['all'] : [...DEFAULT_MODULOS_OPERADOR]);
@@ -519,10 +546,11 @@ onAuthStateChanged(auth, async (user) => {
     if (user) {
         currentAuthUid = user.uid;
         currentAuthEmail = user.email;
-        currentAuthUsername = user.email.split('@')[0];
-        if (user.email === 'orobles.asesor@gmail.com') {
+        currentAuthUsername = (user.email === 'fincalosrobles.gt@gmail.com' || user.email === 'orobles.asesor@gmail.com') ? 'orobles' : user.email.split('@')[0];
+        if (user.email === 'fincalosrobles.gt@gmail.com' || user.email === 'orobles.asesor@gmail.com') {
             isAdmin = true;
             currentUserRol = 'admin';
+            currentAuthUsername = 'orobles';
             currentUserPermissions = ['all'];
         } else {
             try {
@@ -5934,6 +5962,11 @@ function renderProyectos() {
         listaFiltrada = listaFiltrada.filter(p => (p.data.categoria || 'campo') === filtroCategoriaProyecto);
     }
 
+    if (filtroResponsableProyecto && filtroResponsableProyecto !== 'todos') {
+        const respTerm = filtroResponsableProyecto.toLowerCase();
+        listaFiltrada = listaFiltrada.filter(p => (p.data.responsable || '').toLowerCase().includes(respTerm));
+    }
+
     if (busquedaProyectoTerm) {
         const term = busquedaProyectoTerm.toLowerCase();
         listaFiltrada = listaFiltrada.filter(p => {
@@ -6212,6 +6245,54 @@ function renderProyectos() {
     actualizarVisibilidadVistasProyectos();
 }
 
+window.actualizarSelectsUsuariosResponsables = () => {
+    const sel = document.getElementById('modal-proy-responsable-select');
+    const dl = document.getElementById('datalist-usuarios-registrados');
+    const selFiltro = document.getElementById('proy-filtro-responsable');
+
+    if (sel) {
+        const valActual = sel.value;
+        sel.innerHTML = '<option value="">-- Seleccionar de usuarios registrados --</option>';
+        todosLosUsuarios.forEach(u => {
+            const opt = document.createElement('option');
+            const display = u.nombre ? `${u.nombre} (@${u.username})` : `@${u.username}`;
+            opt.value = u.nombre || u.username;
+            opt.textContent = `${display} [${u.rol === 'admin' ? 'Admin' : 'Operador'}]`;
+            sel.appendChild(opt);
+        });
+        if (valActual) sel.value = valActual;
+    }
+
+    if (dl) {
+        dl.innerHTML = '';
+        todosLosUsuarios.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.nombre || u.username;
+            opt.label = `@${u.username} (${u.rol === 'admin' ? 'Admin' : 'Operador'})`;
+            dl.appendChild(opt);
+        });
+    }
+
+    if (selFiltro) {
+        const valActualFiltro = selFiltro.value;
+        selFiltro.innerHTML = '<option value="todos">👤 Todos los Responsables</option>';
+        todosLosUsuarios.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.nombre || u.username;
+            opt.textContent = `👤 ${u.nombre || u.username}`;
+            selFiltro.appendChild(opt);
+        });
+        if (valActualFiltro) selFiltro.value = valActualFiltro;
+    }
+};
+
+window.onSeleccionarUsuarioResponsable = (val) => {
+    if (val) {
+        const inp = document.getElementById('modal-proy-responsable');
+        if (inp) inp.value = val;
+    }
+};
+
 window.abrirModalNuevoProyecto = () => {
     proyectoActualEditando = null;
     document.getElementById('modal-proyecto-titulo').innerText = "➕ Nuevo Proyecto / Pendiente";
@@ -6220,6 +6301,9 @@ window.abrirModalNuevoProyecto = () => {
     document.getElementById('modal-proy-categoria').value = "campo";
     document.getElementById('modal-proy-prioridad').value = "media";
     document.getElementById('modal-proy-estado').value = "en_progreso";
+    actualizarSelectsUsuariosResponsables();
+    const selResp = document.getElementById('modal-proy-responsable-select');
+    if (selResp) selResp.value = "";
     document.getElementById('modal-proy-responsable').value = "";
     document.getElementById('modal-proy-fecha-inicio').value = new Date().toISOString().split('T')[0];
     document.getElementById('modal-proy-fecha-limite').value = "";
@@ -6244,7 +6328,14 @@ window.abrirModalEditarProyecto = (id) => {
     document.getElementById('modal-proy-categoria').value = d.categoria || "campo";
     document.getElementById('modal-proy-prioridad').value = d.prioridad || "media";
     document.getElementById('modal-proy-estado').value = d.estado || "en_progreso";
-    document.getElementById('modal-proy-responsable').value = d.responsable || "";
+    actualizarSelectsUsuariosResponsables();
+    const respVal = d.responsable || "";
+    document.getElementById('modal-proy-responsable').value = respVal;
+    const selResp = document.getElementById('modal-proy-responsable-select');
+    if (selResp) {
+        const found = Array.from(selResp.options).some(o => o.value === respVal);
+        selResp.value = found ? respVal : "";
+    }
     document.getElementById('modal-proy-fecha-inicio').value = d.fechaInicio || "";
     document.getElementById('modal-proy-fecha-limite').value = d.fechaLimite || "";
     document.getElementById('modal-proy-descripcion').value = d.descripcion || "";
@@ -6542,6 +6633,7 @@ window.filtrarProyectos = () => {
     filtroEstadoProyecto = document.getElementById('proy-filtro-estado')?.value || 'todos';
     filtroPrioridadProyecto = document.getElementById('proy-filtro-prioridad')?.value || 'todas';
     filtroCategoriaProyecto = document.getElementById('proy-filtro-categoria')?.value || 'todas';
+    filtroResponsableProyecto = document.getElementById('proy-filtro-responsable')?.value || 'todos';
     ordenProyectos = document.getElementById('proy-orden')?.value || 'limite_asc';
     renderProyectos();
 };
@@ -8730,9 +8822,6 @@ window.ejecutarCalculadoraRapidaMadera = () => {
 // =========================================================================
 
 window.cargarUsuariosPermisos = async () => {
-    const tbody = document.getElementById('tbody-usuarios-permisos');
-    if (!tbody) return;
-
     try {
         const snap = await getDocs(collection(db, "usuarios"));
         todosLosUsuarios = [];
@@ -8743,20 +8832,29 @@ window.cargarUsuariosPermisos = async () => {
         console.error("Error cargando usuarios:", e);
     }
 
-    if (todosLosUsuarios.length === 0) {
-        // Mostrar cuenta de admin predeterminada
-        todosLosUsuarios = [
-            {
-                id: 'admin_principal',
-                username: 'admin',
-                nombre: 'Administrador Principal (Finca Los Robles)',
-                rol: 'admin',
-                email: 'orobles.asesor@gmail.com',
-                modulosPermitidos: ['all'],
-                ultimoAcceso: new Date().toISOString()
-            }
-        ];
+    const idxOrobles = todosLosUsuarios.findIndex(u => (u.username || '').toLowerCase() === 'orobles');
+    if (idxOrobles === -1) {
+        todosLosUsuarios.unshift({
+            id: 'usr_orobles',
+            username: 'orobles',
+            nombre: 'O. Robles (Administrador)',
+            rol: 'admin',
+            email: 'fincalosrobles.gt@gmail.com',
+            modulosPermitidos: ['all'],
+            ultimoAcceso: new Date().toISOString()
+        });
+    } else {
+        todosLosUsuarios[idxOrobles].rol = 'admin';
+        todosLosUsuarios[idxOrobles].nombre = todosLosUsuarios[idxOrobles].nombre || 'O. Robles (Administrador)';
     }
+
+    // Actualizar selectores y datalists de proyectos y filtros
+    if (typeof window.actualizarSelectsUsuariosResponsables === 'function') {
+        window.actualizarSelectsUsuariosResponsables();
+    }
+
+    const tbody = document.getElementById('tbody-usuarios-permisos');
+    if (!tbody) return;
 
     tbody.innerHTML = '';
     todosLosUsuarios.forEach(u => {
@@ -8783,7 +8881,7 @@ window.cargarUsuariosPermisos = async () => {
             <td style="font-size:0.8rem; color:#64748b;">${ultimoAcc}</td>
             <td style="white-space:nowrap;">
                 <button class="btn btn-xs btn-edit" onclick="abrirModalEditarUsuario('${u.id}')" title="Editar Permisos">✏️ Permisos</button>
-                ${u.username !== 'admin' && u.email !== 'orobles.asesor@gmail.com' ? `
+                ${u.username !== 'admin' && u.username !== 'orobles' && u.email !== 'fincalosrobles.gt@gmail.com' && u.email !== 'orobles.asesor@gmail.com' ? `
                     <button class="btn btn-xs btn-danger" onclick="eliminarUsuario('${u.id}')" title="Eliminar">🗑️</button>
                 ` : ''}
             </td>
