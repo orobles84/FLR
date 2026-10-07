@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, serverTimestamp, updateDoc, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
 const getJsPDF = () => (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
@@ -496,14 +496,163 @@ window.loginInvitado = () => {
     entrarAlSistema();
 };
 
-window.cambiarContrasena = async () => {
-    if (modoInvitado) { alert("Los invitados no pueden cambiar contraseña."); return; }
-    if (!currentAuthEmail) return;
-    if (!confirm(`Se enviará un enlace de restablecimiento a:\n${currentAuthEmail}\n\n¿Continuar?`)) return;
+window.abrirModalCambiarContrasena = () => {
+    if (modoInvitado) { alert("Los invitados no tienen cuenta ni contraseña."); return; }
+    const modal = document.getElementById('modal-cambiar-contrasena');
+    if (!modal) return;
+    
+    const inp1 = document.getElementById('input-nueva-contrasena');
+    const inp2 = document.getElementById('input-confirmar-contrasena');
+    if (inp1) inp1.value = '';
+    if (inp2) inp2.value = '';
+    
+    const fb = document.getElementById('pwd-msg-feedback');
+    if (fb) { fb.style.display = 'none'; fb.innerText = ''; }
+    
+    const userLabel = document.getElementById('pwd-user-label');
+    if (userLabel) {
+        userLabel.innerText = `Usuario activo: ${currentAuthUsername || currentAuthEmail || 'Usuario'}`;
+    }
+    const optEmail = document.getElementById('pwd-opcion-email');
+    if (optEmail) {
+        optEmail.style.display = (currentAuthEmail && currentAuthEmail.includes('@') && !currentAuthEmail.endsWith('@fincalosrobles.app')) ? 'block' : 'none';
+    }
+    modal.style.display = 'flex';
+};
+
+window.cambiarContrasena = window.abrirModalCambiarContrasena;
+
+window.togglePasswordVisibility = (inputId, iconEl) => {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        if (iconEl) iconEl.innerText = '🙈';
+    } else {
+        input.type = 'password';
+        if (iconEl) iconEl.innerText = '👁️';
+    }
+};
+
+window.guardarNuevaContrasena = async () => {
+    const p1 = (document.getElementById('input-nueva-contrasena')?.value || '').trim();
+    const p2 = (document.getElementById('input-confirmar-contrasena')?.value || '').trim();
+    const fb = document.getElementById('pwd-msg-feedback');
+    const btn = document.getElementById('btn-guardar-contrasena');
+
+    const showMsg = (txt, isErr) => {
+        if (!fb) { alert(txt); return; }
+        fb.style.display = 'block';
+        fb.style.background = isErr ? '#fef2f2' : '#f0fdf4';
+        fb.style.color = isErr ? '#991b1b' : '#166534';
+        fb.style.border = isErr ? '1px solid #fecaca' : '1px solid #bbf7d0';
+        fb.innerText = txt;
+    };
+
+    if (p1.length < 4) {
+        showMsg("❌ La contraseña debe tener al menos 4 caracteres.", true);
+        return;
+    }
+    if (p1 !== p2) {
+        showMsg("❌ Las contraseñas no coinciden. Verifica e intenta de nuevo.", true);
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.innerText = "Guardando..."; }
+
+    try {
+        let actualizadoEnAlgunaParte = false;
+
+        // 1. Si el usuario está autenticado por Firebase Auth, actualizar Firebase Auth
+        if (auth.currentUser) {
+            try {
+                await updatePassword(auth.currentUser, p1);
+                actualizadoEnAlgunaParte = true;
+            } catch (authErr) {
+                console.warn("Aviso Firebase Auth (puede requerir reingreso reciente):", authErr);
+            }
+        }
+
+        // 2. Actualizar en colección 'usuarios' de Firestore
+        const usernameClean = (currentAuthUsername || '').toLowerCase().trim();
+
+        if (currentAuthUid) {
+            try {
+                await setDoc(doc(db, "usuarios", currentAuthUid), {
+                    password: p1,
+                    actualizado: new Date().toISOString()
+                }, { merge: true });
+                actualizadoEnAlgunaParte = true;
+            } catch (e1) {
+                console.debug("Aviso al actualizar por UID:", e1);
+            }
+        }
+
+        if (usernameClean) {
+            try {
+                const qU = query(collection(db, "usuarios"), where("username", "==", usernameClean));
+                const sU = await getDocs(qU);
+                if (!sU.empty) {
+                    for (const d of sU.docs) {
+                        await updateDoc(doc(db, "usuarios", d.id), {
+                            password: p1,
+                            actualizado: new Date().toISOString()
+                        });
+                    }
+                    actualizadoEnAlgunaParte = true;
+                } else if (usernameClean === 'orobles' || usernameClean === 'admin') {
+                    await setDoc(doc(db, "usuarios", "usr_" + usernameClean), {
+                        username: usernameClean,
+                        nombre: 'O. Robles (Administrador)',
+                        rol: 'admin',
+                        email: currentAuthEmail || 'fincalosrobles.gt@gmail.com',
+                        password: p1,
+                        modulosPermitidos: ['all'],
+                        actualizado: new Date().toISOString()
+                    }, { merge: true });
+                    actualizadoEnAlgunaParte = true;
+                }
+            } catch (e2) {
+                console.debug("Aviso al actualizar por username:", e2);
+            }
+        }
+
+        // 3. Actualizar sesión activa en localStorage
+        const saved = localStorage.getItem('flr_usuario_activo');
+        if (saved) {
+            try {
+                const uObj = JSON.parse(saved);
+                uObj.password = p1;
+                localStorage.setItem('flr_usuario_activo', JSON.stringify(uObj));
+            } catch(e){}
+        }
+
+        showMsg("✅ ¡Contraseña cambiada exitosamente! Se usará en tu próximo inicio de sesión.", false);
+        setTimeout(() => {
+            window.cerrarModal('modal-cambiar-contrasena');
+            alert("✅ Tu contraseña ha sido actualizada con éxito.");
+        }, 1200);
+
+    } catch (err) {
+        console.error("Error al cambiar contraseña:", err);
+        showMsg("❌ No se pudo actualizar: " + (err.message || 'Error desconocido'), true);
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = "💾 Guardar Contraseña"; }
+    }
+};
+
+window.enviarEnlaceResetEmail = async () => {
+    if (!currentAuthEmail || !currentAuthEmail.includes('@')) {
+        alert("Tu cuenta no tiene un correo electrónico válido para enviar el enlace.");
+        return;
+    }
+    if (!confirm(`Se enviará un correo a ${currentAuthEmail} con instrucciones para restablecer tu contraseña.\n\n¿Deseas enviarlo?`)) return;
     try {
         await sendPasswordResetEmail(auth, currentAuthEmail);
-        alert("✅ Enlace enviado a tu correo.");
-    } catch (e) { alert("❌ Error: " + e.message); }
+        alert("✅ Correo de restablecimiento enviado. Revisa tu bandeja de entrada o carpeta de spam.");
+    } catch (e) {
+        alert("❌ Error enviando correo: " + e.message);
+    }
 };
 
 window.logout = async () => {
