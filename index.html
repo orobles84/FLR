@@ -760,6 +760,85 @@
             transition: width 0.4s ease;
         }
 
+        /* CUBICACIÓN DE MADERA */
+        .madera-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+        .madera-kpi-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid var(--primary);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .madera-badge-troza {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #bfdbfe;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+        .madera-badge-trocillo {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            display: inline-block;
+        }
+        .madera-diff-panel {
+            background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .madera-tab-bar {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 1.25rem;
+            flex-wrap: wrap;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 4px;
+        }
+        .madera-tab-btn {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 8px 16px;
+            border-radius: 8px 8px 0 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .madera-tab-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .user-tag-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: bold;
+        }
+        .user-tag-admin { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+        .user-tag-operador { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+
         @media (min-width: 768px) {
             .main-content { padding: 80px 2rem 2rem 2rem; }
             .section { padding: 2rem; }
@@ -789,9 +868,10 @@
         </svg>
         <div id="form-login">
             <h2>Iniciar Sesión</h2>
-            <input type="email" id="login-email" placeholder="Correo electrónico">
-            <input type="password" id="login-password" placeholder="Contraseña">
+            <input type="text" id="login-email" placeholder="Usuario o Correo electrónico" autocomplete="username">
+            <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password">
             <button class="btn" id="btn-login" onclick="login()">Ingresar</button>
+            <p style="font-size:0.75rem; color:#64748b; margin-top:6px;">Ingresa con tu usuario asignado o correo registrado.</p>
             <p class="error-msg" id="login-error"></p>
             <div class="divider"><span>o también</span></div>
             <button class="btn btn-guest" onclick="loginInvitado()">👤 Entrar como Invitado (Solo Catación)</button>
@@ -2116,6 +2196,519 @@
                 </div>
             </div>
         </div>
+
+        <!-- MÓDULO: CUBICACIÓN DE MADERA (PIES TABLARES Y CONTROL DE CAMIONADAS) -->
+        <div id="madera" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
+                <div>
+                    <h2 style="margin:0; border:none; padding:0; color:var(--primary);">🪵 Control de Cubicación de Madera</h2>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#666;">
+                        Medición de trozas y trocillos en pies tablares (pt), control de camionadas, fletes, pago a motosierrista y comparativa con aserradero.
+                    </p>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-small" style="background:#166534; color:white; font-weight:bold;" onclick="mostrarSubtabMadera('nueva')">➕ Nueva Camionada</button>
+                    <button class="btn btn-small" style="background:#0369a1; color:white; font-weight:bold;" onclick="mostrarSubtabMadera('historial')">📋 Historial de Camionadas</button>
+                    <button class="btn btn-small" style="background:#475569; color:white;" onclick="mostrarSubtabMadera('calc')">🧮 Calculadora Rápida</button>
+                </div>
+            </div>
+
+            <!-- TABS DE NAVEGACIÓN MADERA -->
+            <div class="madera-tab-bar">
+                <button type="button" class="madera-tab-btn active" id="tab-btn-madera-nueva" onclick="mostrarSubtabMadera('nueva')">🚚 Camionada en Carga</button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-madera-historial" onclick="mostrarSubtabMadera('historial')">📂 Historial de Viajes (<span id="madera-count-historial">0</span>)</button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-madera-calc" onclick="mostrarSubtabMadera('calc')">📏 Calculadora Rápida</button>
+            </div>
+
+            <!-- SUBTAB 1: CAMIONADA EN CARGA / NUEVA O EDITANDO -->
+            <div id="madera-subtab-nueva">
+                <input type="hidden" id="madera-camionada-id">
+                
+                <!-- DATOS GENERALES DEL VIAJE Y TARIFAS -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1rem; margin-bottom:1.25rem;">
+                    <!-- TARJETA 1: DATOS DEL VIAJE -->
+                    <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 0.75rem; color:var(--primary); font-size:0.98rem; display:flex; align-items:center; gap:6px;">
+                            🚚 Datos de la Camionada
+                        </h4>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px;">
+                            <div>
+                                <label style="font-size:0.75rem; font-weight:bold; color:#475569;">N° de Camionada:</label>
+                                <input type="text" id="madera-numero" class="yellow-input" placeholder="CAM-001" style="padding:6px 10px; font-weight:bold;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Fecha de Carga:</label>
+                                <input type="date" id="madera-fecha" style="padding:6px 10px;">
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:6px;">
+                            <div>
+                                <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Camión / Placa / Chofer:</label>
+                                <input type="text" id="madera-chofer" placeholder="Ej: Don Rolando - C-123XYZ" style="padding:6px 10px;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Motosierrista:</label>
+                                <input type="text" id="madera-motosierrista" placeholder="Ej: Don Chepe" style="padding:6px 10px;">
+                            </div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-top:6px;">
+                            <div>
+                                <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Aserradero Destino:</label>
+                                <input type="text" id="madera-aserradero" placeholder="Ej: Aserradero Los Pinos" style="padding:6px 10px;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Estado del Envío:</label>
+                                <select id="madera-estado" style="padding:6px 10px;">
+                                    <option value="cargando">🪵 En Carga en Finca</option>
+                                    <option value="enviado">🚚 Enviado / En Camino</option>
+                                    <option value="liquidado">✅ Liquidado en Aserradero</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TARJETA 2: TARIFAS Y PRECIOS ACORDADOS -->
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:1.25rem; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                        <h4 style="margin:0 0 0.75rem; color:var(--primary); font-size:0.98rem; display:flex; align-items:center; gap:6px;">
+                            💵 Precios y Tarifas de la Carga (Q / pt)
+                        </h4>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                            <div style="background:white; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                                <span style="font-size:0.72rem; color:#1e40af; font-weight:bold;">VENTA TROZA (Me pagan):</span>
+                                <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                    <span style="font-size:0.85rem; font-weight:bold;">Q</span>
+                                    <input type="number" id="madera-precio-venta-troza" value="5.00" step="0.10" style="padding:4px 6px; font-weight:bold; width:100%;" oninput="recalcularTotalesCamionada()">
+                                </div>
+                            </div>
+                            <div style="background:white; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                                <span style="font-size:0.72rem; color:#b45309; font-weight:bold;">VENTA TROCILLO (Me pagan):</span>
+                                <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                    <span style="font-size:0.85rem; font-weight:bold;">Q</span>
+                                    <input type="number" id="madera-precio-venta-trocillo" value="3.50" step="0.10" style="padding:4px 6px; font-weight:bold; width:100%;" oninput="recalcularTotalesCamionada()">
+                                </div>
+                            </div>
+                            <div style="background:white; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                                <span style="font-size:0.72rem; color:#dc2626; font-weight:bold;">FLETE TROZA (Pago camión):</span>
+                                <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                    <span style="font-size:0.85rem; font-weight:bold;">Q</span>
+                                    <input type="number" id="madera-flete-troza" value="1.25" step="0.05" style="padding:4px 6px; font-weight:bold; width:100%;" oninput="recalcularTotalesCamionada()">
+                                </div>
+                            </div>
+                            <div style="background:white; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                                <span style="font-size:0.72rem; color:#dc2626; font-weight:bold;">FLETE TROCILLO (Pago camión):</span>
+                                <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                    <span style="font-size:0.85rem; font-weight:bold;">Q</span>
+                                    <input type="number" id="madera-flete-trocillo" value="1.00" step="0.05" style="padding:4px 6px; font-weight:bold; width:100%;" oninput="recalcularTotalesCamionada()">
+                                </div>
+                            </div>
+                        </div>
+                        <div style="background:white; padding:8px; border-radius:6px; border:1px solid #e2e8f0; margin-top:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <span style="font-size:0.75rem; color:#475569; font-weight:bold;">PAGO MOTOSIERRISTA:</span>
+                                <select id="madera-motosierra-modo" onchange="recalcularTotalesCamionada()" style="padding:2px 6px; font-size:0.75rem; margin-left:4px;">
+                                    <option value="pt">Por Pie Tablar (Q/pt)</option>
+                                    <option value="fijo">Monto Fijo Total (Q)</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:4px;">
+                                <span style="font-size:0.85rem; font-weight:bold;">Q</span>
+                                <input type="number" id="madera-pago-motosierra-valor" value="0.50" step="0.05" style="padding:4px 6px; font-weight:bold; width:110px;" oninput="recalcularTotalesCamionada()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FORMULARIO DE INGRESO RÁPIDO DE TRONCOS -->
+                <div style="background:linear-gradient(135deg, #fdfbf7 0%, #fff 100%); border:2px solid var(--accent); border-radius:12px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
+                        <h4 style="margin:0; color:var(--primary); font-size:1.05rem; display:flex; align-items:center; gap:6px;">
+                            🪵 Ingreso Dinámico de Tronco a la Camionada
+                        </h4>
+                        <span style="font-size:0.8rem; color:#64748b;">
+                            Fórmula: <code>(Largo en pies × D1 en pulg × D2 en pulg) ÷ 12</code>
+                        </span>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px; align-items:end;">
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:bold; color:#475569;"># Correlativo Troza:</label>
+                            <input type="number" id="madera-in-correlativo" value="1" min="1" step="1" class="yellow-input" style="padding:8px; font-weight:bold; text-align:center;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Clasificación:</label>
+                            <select id="madera-in-tipo" style="padding:8px; font-weight:bold;" onchange="actualizarCalculoTrozaEnVivo()">
+                                <option value="troza">🪵 Troza</option>
+                                <option value="trocillo">🌿 Trocillo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Largo (Pies):</label>
+                            <input type="number" id="madera-in-largo" placeholder="Ej: 10, 12, 14" step="0.5" style="padding:8px; font-weight:bold; text-align:center;" oninput="actualizarCalculoTrozaEnVivo()" onkeydown="if(event.key==='Enter') agregarTrozaACamionada()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Diám. 1 (Pulgadas):</label>
+                            <input type="number" id="madera-in-d1" placeholder="Ej: 14" step="0.25" style="padding:8px; font-weight:bold; text-align:center;" oninput="actualizarCalculoTrozaEnVivo()" onkeydown="if(event.key==='Enter') agregarTrozaACamionada()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Diám. 2 (Pulgadas Cruz):</label>
+                            <input type="number" id="madera-in-d2" placeholder="Ej: 16" step="0.25" style="padding:8px; font-weight:bold; text-align:center;" oninput="actualizarCalculoTrozaEnVivo()" onkeydown="if(event.key==='Enter') agregarTrozaACamionada()">
+                        </div>
+                        <div>
+                            <span style="font-size:0.72rem; color:#475569; font-weight:bold;">Pies Tablares (pt):</span>
+                            <div id="madera-in-preview-pt" style="background:#e0f2fe; color:#0369a1; padding:8px; border-radius:6px; font-weight:bold; text-align:center; font-size:1.15rem; border:1px solid #bae6fd;">
+                                0.00 pt
+                            </div>
+                        </div>
+                        <div>
+                            <button type="button" id="madera-btn-agregar-troza" class="btn btn-success" style="margin:0; padding:10px 14px; width:100%; min-height:42px; font-weight:bold;" onclick="agregarTrozaACamionada()">
+                                ➕ Cargar Tronco
+                            </button>
+                            <button type="button" id="madera-btn-cancelar-edicion-troza" class="btn btn-secondary btn-small" style="display:none; width:100%; margin-top:4px;" onclick="cancelarEdicionTroza()">
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPIS EN VIVO DE LA CAMIONADA -->
+                <div class="madera-kpi-grid">
+                    <div class="madera-kpi-card" style="border-left-color:#3b82f6;">
+                        <span style="font-size:0.75rem; font-weight:bold; color:#64748b; text-transform:uppercase;">🪵 Troncos Cargados</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#1e3a8a; margin:4px 0;" id="madera-kpi-troncos-total">0</div>
+                        <span style="font-size:0.75rem; color:#64748b;" id="madera-kpi-troncos-desglose">0 trozas | 0 trocillos</span>
+                    </div>
+                    <div class="madera-kpi-card" style="border-left-color:#059669;">
+                        <span style="font-size:0.75rem; font-weight:bold; color:#64748b; text-transform:uppercase;">📏 Total Pies Tablares (Finca)</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#065f46; margin:4px 0;" id="madera-kpi-pt-total">0.00 pt</div>
+                        <span style="font-size:0.75rem; color:#64748b;" id="madera-kpi-pt-desglose">0 pt troza | 0 pt trocillo</span>
+                    </div>
+                    <div class="madera-kpi-card" style="border-left-color:#16a34a;">
+                        <span style="font-size:0.75rem; font-weight:bold; color:#64748b; text-transform:uppercase;">💵 Ingreso Bruto Estimado</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#15803d; margin:4px 0;" id="madera-kpi-ingreso-bruto">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#15803d;">Venta al Aserradero</span>
+                    </div>
+                    <div class="madera-kpi-card" style="border-left-color:#dc2626;">
+                        <span style="font-size:0.75rem; font-weight:bold; color:#64748b; text-transform:uppercase;">🚚 Flete Camión</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#dc2626; margin:4px 0;" id="madera-kpi-flete-camion">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#dc2626;">A pagar al transportista</span>
+                    </div>
+                    <div class="madera-kpi-card" style="border-left-color:#f59e0b;">
+                        <span style="font-size:0.75rem; font-weight:bold; color:#64748b; text-transform:uppercase;">🪚 Motosierrista</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#b45309; margin:4px 0;" id="madera-kpi-pago-motosierra">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#b45309;">A pagar al operador</span>
+                    </div>
+                    <div class="madera-kpi-card" style="border-left-color:var(--primary); background:linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);">
+                        <span style="font-size:0.78rem; font-weight:bold; color:#166534; text-transform:uppercase;">💰 LO QUE ME QUEDA (NETO)</span>
+                        <div style="font-size:1.8rem; font-weight:bold; color:#14532d; margin:4px 0;" id="madera-kpi-ganancia-neta">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#166534; font-weight:600;">Ganancia Finca después de pagos</span>
+                    </div>
+                </div>
+
+                <!-- TABLA DETALLADA DE TRONCOS DE LA CAMIONADA -->
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <h4 style="margin:0; color:var(--primary); font-size:1.05rem;">
+                                📋 Lista de Troncos en el Camión (<span id="madera-tabla-trozas-count">0</span> troncos)
+                            </h4>
+                            <span style="font-size:0.8rem; color:#64748b;">Puedes modificar o corregir cualquier medida sobre la marcha</span>
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button class="btn btn-small btn-secondary" onclick="exportarTrozasCSV()" style="font-size:0.8rem;">📥 Exportar Datos</button>
+                        </div>
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table id="tabla-madera-trozas">
+                            <thead>
+                                <tr>
+                                    <th># Troza</th>
+                                    <th>Clasificación</th>
+                                    <th>Largo (pies)</th>
+                                    <th>D1 (pulg)</th>
+                                    <th>D2 (pulg)</th>
+                                    <th>Diám. Prom.</th>
+                                    <th>Pies Tablares (pt)</th>
+                                    <th>Venta Est. (Q)</th>
+                                    <th>Flete Est. (Q)</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-madera-trozas">
+                                <tr>
+                                    <td colspan="10" style="text-align:center; padding:2rem; color:#94a3b8;">
+                                        🪵 Aún no has ingresado troncos a esta camionada. Ingresa las medidas arriba para comenzar a calcular en tiempo real.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DE LIQUIDACIÓN Y COMPARATIVA CON EL ASERRADERO -->
+                <div class="madera-diff-panel">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.75rem;">
+                        <h4 style="margin:0; color:var(--primary); font-size:1.05rem; display:flex; align-items:center; gap:6px;">
+                            ⚖️ Cubicación y Liquidación Final del Aserradero (Comparativa)
+                        </h4>
+                        <label style="display:inline-flex; align-items:center; gap:6px; cursor:pointer; font-size:0.85rem; font-weight:bold; color:#1e40af;">
+                            <input type="checkbox" id="madera-check-aserradero" onchange="togglePanelAserradero(this.checked)">
+                            Registrar Medición Recibida del Aserradero
+                        </label>
+                    </div>
+
+                    <div id="madera-panel-aserradero-campos" style="display:none; margin-top:1rem;">
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:1rem;">
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Pies Tablares Cubicados por el Aserradero (pt):</label>
+                                <input type="number" id="madera-aserradero-pt" step="0.01" class="yellow-input" placeholder="Ej: 1420.50" style="padding:8px; font-size:1rem; font-weight:bold;" oninput="calcularComparativaAserradero()">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Total Liquidado / Pagado por Aserradero (Q):</label>
+                                <input type="number" id="madera-aserradero-monto-cobrado" step="0.01" placeholder="Calculado auto o ingresa valor real" style="padding:8px; font-size:1rem; font-weight:bold;" oninput="calcularComparativaAserradero()">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Boleta / Documento de Aserradero:</label>
+                                <input type="text" id="madera-aserradero-boleta" placeholder="Ej: Boleta #4829" style="padding:8px;">
+                            </div>
+                        </div>
+
+                        <!-- RESULTADOS DE LA COMPARATIVA -->
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; background:white; padding:1rem; border-radius:8px; border:1px solid #cbd5e1;">
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748b; font-weight:bold;">Diferencia Pies Tablares:</span>
+                                <div id="madera-diff-pt" style="font-size:1.3rem; font-weight:bold; color:#334155; margin-top:2px;">0.00 pt</div>
+                                <span id="madera-diff-pct" style="font-size:0.75rem; color:#64748b;">0.0% variación</span>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748b; font-weight:bold;">Diferencia en Dinero:</span>
+                                <div id="madera-diff-dinero" style="font-size:1.3rem; font-weight:bold; color:#334155; margin-top:2px;">Q 0.00</div>
+                                <span style="font-size:0.75rem; color:#64748b;">Impacto en cobro</span>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748b; font-weight:bold;">Total Pagado al Camión:</span>
+                                <div id="madera-liq-camion" style="font-size:1.3rem; font-weight:bold; color:#dc2626; margin-top:2px;">Q 0.00</div>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748b; font-weight:bold;">Total Pagado a Motosierra:</span>
+                                <div id="madera-liq-motosierra" style="font-size:1.3rem; font-weight:bold; color:#b45309; margin-top:2px;">Q 0.00</div>
+                            </div>
+                            <div style="background:#f0fdf4; padding:8px; border-radius:6px; border:1px solid #bbf7d0;">
+                                <span style="font-size:0.75rem; color:#166534; font-weight:bold;">GANANCIA REAL FINAL ("LO QUE ME QUEDÓ"):</span>
+                                <div id="madera-liq-ganancia-final" style="font-size:1.4rem; font-weight:bold; color:#14532d; margin-top:2px;">Q 0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ACCIONES INFERIORES DE LA CAMIONADA -->
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:1.5rem; padding-top:1rem; border-top:1px solid #e2e8f0;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button class="btn btn-success" style="font-weight:bold; min-width:180px;" onclick="guardarCamionadaActual()">
+                            💾 Guardar Camionada
+                        </button>
+                        <button class="btn btn-pdf" style="min-width:150px;" onclick="descargarPDFCamionadaActual()">
+                            📄 Boleta / PDF
+                        </button>
+                        <button class="btn" style="background:#25D366; color:white; min-width:170px;" onclick="compartirCamionadaWhatsApp()">
+                            💬 WhatsApp Ticket
+                        </button>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="limpiarFormularioCamionada()" style="min-width:120px;">
+                            🔄 Nueva Camionada
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUBTAB 2: HISTORIAL DE CAMIONADAS -->
+            <div id="madera-subtab-historial" style="display:none;">
+                <!-- FILTROS Y BÚSQUEDA HISTORIAL -->
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:1.25rem; flex-wrap:wrap; gap:10px;">
+                    <div style="flex:1; min-width:240px;">
+                        <input type="text" id="madera-historial-buscar" placeholder="🔍 Buscar por N° de envío, chofer, aserradero, motosierrista..." oninput="filtrarHistorialMadera()" class="yellow-input" style="padding:8px 12px; font-size:0.88rem;">
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <select id="madera-historial-filtro-estado" onchange="filtrarHistorialMadera()" style="padding:8px; border-radius:6px; border:1px solid #cbd5e1; font-size:0.85rem;">
+                            <option value="todas">Todos los Estados</option>
+                            <option value="cargando">🪵 En Carga en Finca</option>
+                            <option value="enviado">🚚 Enviadas / En Camino</option>
+                            <option value="liquidado">✅ Liquidadas en Aserradero</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- KPIS ACUMULADOS HISTÓRICOS -->
+                <div class="madera-kpi-grid">
+                    <div class="madera-kpi-card">
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">🚚 Total Camionadas</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:var(--primary); margin:4px 0;" id="madera-hist-kpi-total-viajes">0</div>
+                        <span style="font-size:0.75rem; color:#64748b;">Envíos registrados</span>
+                    </div>
+                    <div class="madera-kpi-card">
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">📏 Pies Tablares Totales</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#0369a1; margin:4px 0;" id="madera-hist-kpi-total-pt">0 pt</div>
+                        <span style="font-size:0.75rem; color:#64748b;">Volumen medido en finca</span>
+                    </div>
+                    <div class="madera-kpi-card">
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">💵 Ingresos Totales</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#15803d; margin:4px 0;" id="madera-hist-kpi-total-ingresos">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#15803d;">Cobrado / Estimado</span>
+                    </div>
+                    <div class="madera-kpi-card">
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">🚚 Fletes Pagados</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#dc2626; margin:4px 0;" id="madera-hist-kpi-total-fletes">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#dc2626;">A transportistas</span>
+                    </div>
+                    <div class="madera-kpi-card">
+                        <span style="font-size:0.75rem; color:#64748b; font-weight:bold; text-transform:uppercase;">🪚 Motosierras Pagadas</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#b45309; margin:4px 0;" id="madera-hist-kpi-total-motosierras">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#b45309;">A operadores</span>
+                    </div>
+                    <div class="madera-kpi-card" style="background:#f0fdf4; border-left-color:#16a34a;">
+                        <span style="font-size:0.75rem; color:#166534; font-weight:bold; text-transform:uppercase;">💰 GANANCIA NETA TOTAL</span>
+                        <div style="font-size:1.6rem; font-weight:bold; color:#14532d; margin:4px 0;" id="madera-hist-kpi-total-neto">Q 0.00</div>
+                        <span style="font-size:0.75rem; color:#166534;">Lo que me quedó acumulado</span>
+                    </div>
+                </div>
+
+                <!-- TABLA DEL HISTORIAL DE CAMIONADAS -->
+                <div class="table-wrapper">
+                    <table id="tabla-madera-historial">
+                        <thead>
+                            <tr>
+                                <th>N° Envío</th>
+                                <th>Fecha</th>
+                                <th>Camión / Chofer</th>
+                                <th>Aserradero</th>
+                                <th>Troncos</th>
+                                <th>pt Finca</th>
+                                <th>pt Aserradero</th>
+                                <th>Dif. (pt)</th>
+                                <th>Ganancia Neta</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-madera-historial">
+                            <tr>
+                                <td colspan="11" style="text-align:center; padding:2rem; color:#888;">Cargando historial de camionadas...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SUBTAB 3: CALCULADORA RÁPIDA DE TROZA -->
+            <div id="madera-subtab-calc" style="display:none;">
+                <div style="max-width:700px; margin:0 auto; background:white; padding:1.5rem; border-radius:12px; border:1px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                    <h3 style="margin:0 0 0.5rem; color:var(--primary);">🧮 Calculadora Rápida de Campo</h3>
+                    <p style="font-size:0.85rem; color:#64748b; margin-bottom:1.25rem;">
+                        Calcula instantáneamente los pies tablares y valor monetario de cualquier troza individual con medidas en cruz de rodaja.
+                    </p>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Largo de la Troza (Pies):</label>
+                            <input type="number" id="madera-calc-largo" placeholder="Ej: 12" step="0.5" class="yellow-input" style="padding:10px; font-size:1.1rem; font-weight:bold;" oninput="ejecutarCalculadoraRapidaMadera()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Clasificación:</label>
+                            <select id="madera-calc-tipo" style="padding:10px; font-size:1rem; font-weight:bold;" onchange="ejecutarCalculadoraRapidaMadera()">
+                                <option value="troza">🪵 Troza</option>
+                                <option value="trocillo">🌿 Trocillo</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Diámetro 1 en Cruz (Pulgadas):</label>
+                            <input type="number" id="madera-calc-d1" placeholder="Ej: 14" step="0.25" style="padding:10px; font-size:1.1rem; font-weight:bold;" oninput="ejecutarCalculadoraRapidaMadera()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Diámetro 2 en Cruz (Pulgadas):</label>
+                            <input type="number" id="madera-calc-d2" placeholder="Ej: 15" step="0.25" style="padding:10px; font-size:1.1rem; font-weight:bold;" oninput="ejecutarCalculadoraRapidaMadera()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Precio Venta (Q / pt):</label>
+                            <input type="number" id="madera-calc-precio" value="5.00" step="0.10" style="padding:10px; font-size:1rem;" oninput="ejecutarCalculadoraRapidaMadera()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; font-weight:bold; color:#475569;">Flete Camión (Q / pt):</label>
+                            <input type="number" id="madera-calc-flete" value="1.25" step="0.05" style="padding:10px; font-size:1rem;" oninput="ejecutarCalculadoraRapidaMadera()">
+                        </div>
+                    </div>
+
+                    <div style="background:linear-gradient(135deg, #f0fdf4 0%, #e2f5ea 100%); border:2px solid var(--primary); border-radius:10px; padding:1.25rem; margin-top:1.25rem; text-align:center;">
+                        <span style="font-size:0.85rem; font-weight:bold; color:#166534; text-transform:uppercase;">Resultado de Cubicación:</span>
+                        <div style="font-size:2.6rem; font-weight:bold; color:var(--primary); margin:6px 0;" id="madera-calc-res-pt">0.00 pt</div>
+                        <div style="font-size:0.85rem; color:#475569; margin-bottom:8px;" id="madera-calc-res-formula">
+                            Fórmula: (0 ft × 0 pulg × 0 pulg) ÷ 12 = 0 pt
+                        </div>
+                        <div style="display:flex; justify-content:space-around; margin-top:10px; padding-top:10px; border-top:1px solid #bbf7d0; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <span style="font-size:0.75rem; color:#15803d; font-weight:bold;">Ingreso Venta:</span>
+                                <div style="font-size:1.2rem; font-weight:bold; color:#15803d;" id="madera-calc-res-venta">Q 0.00</div>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#dc2626; font-weight:bold;">Costo Flete:</span>
+                                <div style="font-size:1.2rem; font-weight:bold; color:#dc2626;" id="madera-calc-res-flete">Q 0.00</div>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#166534; font-weight:bold;">Ganancia Neta Troza:</span>
+                                <div style="font-size:1.2rem; font-weight:bold; color:#14532d;" id="madera-calc-res-neto">Q 0.00</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO: GESTIÓN DE USUARIOS Y PERMISOS (PANEL DE ADMINISTRADOR) -->
+        <div id="usuarios" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
+                <div>
+                    <h2 style="margin:0; border:none; padding:0; color:var(--primary);">👥 Gestión de Usuarios y Permisos de Módulos</h2>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#666;">
+                        Controla qué módulos ve cada usuario al iniciar sesión en el sistema.
+                    </p>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button class="btn btn-small btn-success" style="font-weight:bold;" onclick="abrirModalCrearUsuario()">➕ Nuevo Usuario</button>
+                    <button class="btn btn-small" style="background:#0f766e; color:white;" onclick="cargarUsuariosPermisos()">🔄 Actualizar Lista</button>
+                </div>
+            </div>
+
+            <!-- EXPLICACIÓN Y RECOMENDACIÓN PRÁCTICA DE ACCESO -->
+            <div style="background:#eff6ff; border:1px solid #bfdbfe; border-left:4px solid #2563eb; border-radius:8px; padding:12px 16px; margin-bottom:1.25rem;">
+                <div style="display:flex; align-items:flex-start; gap:10px;">
+                    <span style="font-size:1.3rem;">💡</span>
+                    <div style="font-size:0.86rem; color:#1e40af; line-height:1.45;">
+                        <strong>Método de Ingreso Práctico:</strong> Tus operarios y trabajadores no necesitan crear ni tener correos reales de Google. Puedes registrar aquí usuarios sencillos como <code>motosierra1</code>, <code>operador_lab</code> o <code>carlos</code> con su contraseña. Al iniciar sesión, el sistema les mostrará <strong>únicamente los módulos que les hayas habilitado</strong> (por ejemplo: Cubicación de Madera, Catación SCA, Proyectos y Muestreo).
+                    </div>
+                </div>
+            </div>
+
+            <!-- TABLA DE USUARIOS Y PERMISOS -->
+            <div class="table-wrapper">
+                <table id="tabla-usuarios-permisos">
+                    <thead>
+                        <tr>
+                            <th>Usuario / Alias</th>
+                            <th>Nombre Completo</th>
+                            <th>Rol</th>
+                            <th>Módulos Permitidos</th>
+                            <th>Último Acceso</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-usuarios-permisos">
+                        <tr>
+                            <td colspan="6" style="text-align:center; padding:2rem; color:#888;">Cargando lista de usuarios y permisos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -2625,7 +3218,135 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.02</div>
+<!-- MODAL: CREAR / EDITAR USUARIO Y PERMISOS -->
+<div class="modal-overlay" id="modal-usuario">
+    <div class="modal-content-large" style="max-width:650px;">
+        <h3 style="color:var(--primary);" id="modal-usuario-titulo">👤 Registrar Nuevo Usuario</h3>
+        <p style="font-size:0.85rem; color:#666; margin-top:2px;">Configura el usuario, contraseña y módulos que podrá ver en el sistema.</p>
+        <input type="hidden" id="modal-usuario-id">
+
+        <div class="form-grid" style="margin-top:1rem;">
+            <div class="form-group">
+                <label>Nombre de Usuario / Alias *</label>
+                <input type="text" id="modal-usuario-username" class="yellow-input" placeholder="Ej: motosierra1, carlos, juan" required autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label>Nombre Completo / Cargo</label>
+                <input type="text" id="modal-usuario-nombre" placeholder="Ej: Juan Carlos (Operador de Campo)">
+            </div>
+            <div class="form-group">
+                <label>Contraseña de Acceso *</label>
+                <input type="password" id="modal-usuario-password" placeholder="Mínimo 4 caracteres" autocomplete="new-password">
+                <small style="font-size:0.7rem; color:#64748b;" id="modal-usuario-password-hint">Escribe la contraseña para este usuario.</small>
+            </div>
+            <div class="form-group">
+                <label>Rol del Usuario</label>
+                <select id="modal-usuario-rol" onchange="onRolUsuarioChange(this.value)">
+                    <option value="operador">👤 Operador / Usuario Estándar</option>
+                    <option value="admin">⭐ Administrador (Acceso Total)</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-top:1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                <h4 style="margin:0; color:var(--primary); font-size:0.95rem;">🛡️ Módulos Habilitados para este Usuario</h4>
+                <div style="font-size:0.75rem;">
+                    <a href="javascript:void(0)" onclick="seleccionarTodosModulos(true)" style="color:#0284c7; margin-right:8px; text-decoration:underline;">Todos</a>
+                    <a href="javascript:void(0)" onclick="seleccionarModulosDefault()" style="color:#16a34a; margin-right:8px; text-decoration:underline;">Por Defecto</a>
+                    <a href="javascript:void(0)" onclick="seleccionarTodosModulos(false)" style="color:#dc2626; text-decoration:underline;">Ninguno</a>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px;" id="modal-usuario-modulos-grid">
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="madera" class="check-modulo-permiso" checked>
+                    <span>🪵 Cubicación Madera</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="catacion" class="check-modulo-permiso" checked>
+                    <span>☕ Catación SCA</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="proyectos" class="check-modulo-permiso" checked>
+                    <span>🗂️ Proyectos y Pendientes</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="muestreo" class="check-modulo-permiso" checked>
+                    <span>🔬 Muestreo Lab</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="dashboard" class="check-modulo-permiso">
+                    <span>📊 Dashboard</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="pedidos" class="check-modulo-permiso">
+                    <span>📋 Pedidos</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="ventas" class="check-modulo-permiso">
+                    <span>💰 Ventas</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="clientes" class="check-modulo-permiso">
+                    <span>👥 Clientes</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="inventario" class="check-modulo-permiso">
+                    <span>📦 Inventario</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="trafico" class="check-modulo-permiso">
+                    <span>🌐 Tráfico Web</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="precios" class="check-modulo-permiso">
+                    <span>🏷️ Lista de Precios</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="costos" class="check-modulo-permiso">
+                    <span>🧮 Costos Tostado</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="cotizador" class="check-modulo-permiso">
+                    <span>💵 Cotizador Verde</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="tostado" class="check-modulo-permiso">
+                    <span>🔥 Control Tostado</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:1.25rem; flex-wrap:wrap;">
+            <button class="btn btn-success" style="flex:2; min-width:180px;" onclick="guardarUsuarioPermisos()">💾 Guardar Usuario</button>
+            <button class="btn btn-secondary" style="flex:1; min-width:120px;" onclick="cerrarModal('modal-usuario')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: DETALLE / LIQUIDACIÓN DE CAMIONADA DE MADERA -->
+<div class="modal-overlay" id="modal-detalle-camionada">
+    <div class="modal-content-large" style="max-width:900px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.5rem; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+            <div>
+                <h3 style="margin:0; color:var(--primary);" id="modal-camionada-titulo">🪵 Detalle de Camionada</h3>
+                <span style="font-size:0.82rem; color:#64748b;" id="modal-camionada-subtitulo">Información completa de carga y liquidación</span>
+            </div>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-detalle-camionada')" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+
+        <div id="modal-camionada-body"></div>
+
+        <div style="display:flex; gap:10px; margin-top:1.5rem; flex-wrap:wrap; justify-content:flex-end;">
+            <button class="btn btn-edit btn-small" id="modal-camionada-btn-editar" onclick="editarCamionadaDesdeModal()">✏️ Modificar en Editor</button>
+            <button class="btn btn-pdf btn-small" id="modal-camionada-btn-pdf" onclick="descargarPDFModalCamionada()">📄 Descargar PDF</button>
+            <button class="btn btn-small" style="background:#25D366; color:white;" id="modal-camionada-btn-wsp" onclick="compartirWhatsAppModalCamionada()">💬 WhatsApp</button>
+            <button class="btn btn-secondary btn-small" onclick="cerrarModal('modal-detalle-camionada')">Cerrar</button>
+        </div>
+    </div>
+</div>
+
+<div class="version-tag">v2026.09.03</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
