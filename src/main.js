@@ -249,6 +249,8 @@ function construirMenu() {
     } else {
         const todosLosModulos = [
             { id:'madera', icon:'🪵', label:'Cubicación Madera' },
+            { id:'cortes', icon:'🧺', label:'Cortes y Cosecha' },
+            { id:'cereza', icon:'🍒', label:'Café Cereza (Venta/Proceso)' },
             { id:'catacion', icon:'☕', label:'Catación SCA' },
             { id:'proyectos', icon:'🗂️', label:'Proyectos y Pendientes' },
             { id:'muestreo', icon:'🔬', label:'Muestreo Lab' },
@@ -769,6 +771,10 @@ window.showSection = (id, el) => {
         cargarTraficoWeb();
     } else if (id === 'madera') {
         inicializarModuloMadera();
+    } else if (id === 'cortes') {
+        inicializarModuloCortes();
+    } else if (id === 'cereza') {
+        inicializarModuloCereza();
     } else if (id === 'usuarios') {
         cargarUsuariosPermisos();
     }
@@ -5042,17 +5048,21 @@ window.generarPDFHojaPedido = (pedidoId) => {
     doc.text("PRODUCTOS SOLICITADOS EN EL PEDIDO", 14, y);
     y += 4;
 
-    doc.setFillColor(44, 94, 46);
-    doc.rect(14, y, 188, 7, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
-    doc.text("[  ]", 17, y + 5);
-    doc.text("DESCRIPCIÓN DEL PRODUCTO", 27, y + 5);
-    doc.text("CANTIDAD", 132, y + 5, { align: "center" });
-    doc.text("PRECIO UNIT.", 166, y + 5, { align: "right" });
-    doc.text("SUBTOTAL (Q)", 198, y + 5, { align: "right" });
+    const dibujarHeaderItemsPedido = (currY) => {
+        doc.setFillColor(44, 94, 46);
+        doc.rect(14, currY, 188, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8);
+        doc.text("#", 17, currY + 4.8);
+        doc.text("DESCRIPCIÓN DEL PRODUCTO", 26, currY + 4.8);
+        doc.text("CANTIDAD", 125, currY + 4.8, { align: "center" });
+        doc.text("PRECIO UNIT.", 160, currY + 4.8, { align: "right" });
+        doc.text("SUBTOTAL (Q)", 198, currY + 4.8, { align: "right" });
+        return currY + 7;
+    };
 
-    y += 7;
+    y = dibujarHeaderItemsPedido(y);
 
     const items = d.items || [];
     let granTotal = 0;
@@ -5061,39 +5071,43 @@ window.generarPDFHojaPedido = (pedidoId) => {
         const sub = it.subtotal || (it.cantidad * it.precio);
         granTotal += sub;
 
-        // Limpiar descripción: quitar información técnica de lotes y redundancias
-        let desc = (it.nombre || it.tipo || 'Producto').trim();
+        // Limpiar descripción según requerimiento: solo descripción (ej. café molido o entero), sin lote ni símbolos extraños
+        let desc = (it.nombre || it.tipo || 'Café').trim();
+
+        // 1. Quitar emojis, caracteres especiales y símbolos residuales
+        desc = desc.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/gu, '').trim();
+
+        // 2. Eliminar cualquier información de lote de tostado
+        desc = desc.replace(/\(?\s*lote\s*[:#\d\w\s\-_]+\)?/gi, '').trim();
+        desc = desc.replace(/lote\s*#?\s*[a-zA-Z0-9\-_]+/gi, '').trim();
+        desc = desc.replace(/lote\s*tostado[:\s\w\d\-_]*/gi, '').trim();
+        desc = desc.replace(/\(Entero\/Molido\)/gi, '').trim();
+
+        // 3. Determinar presentación limpia (Molido o Entero)
         const pres = (it.presentacion && it.presentacion !== 'N/A' && it.presentacion !== '-') ? it.presentacion.trim() : '';
 
-        if (pres) {
-            if (desc.includes('(Entero/Molido)')) {
-                desc = desc.replace('(Entero/Molido)', `(${pres})`).trim();
-            } else if (desc.toLowerCase().endsWith('(entero/molido)')) {
-                desc = desc.substring(0, desc.length - 15).trim() + ` (${pres})`;
-            } else if (!desc.toLowerCase().includes(pres.toLowerCase())) {
-                desc = `${desc} (${pres})`;
+        if (desc.toLowerCase().startsWith('café tostado') || desc.toLowerCase().startsWith('cafe tostado')) {
+            if (pres) {
+                desc = `Café Tostado - ${pres}`;
+            } else {
+                desc = 'Café Tostado';
             }
+        } else if (pres && !desc.toLowerCase().includes(pres.toLowerCase())) {
+            desc = `${desc} - ${pres}`;
         }
-        // Quitar emojis o caracteres no soportados en la fuente de jsPDF
-        desc = desc.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{1F900}-\u{1F9FF}\u{1FA00}-\u{1FA6F}\u{1FA70}-\u{1FAFF}]/gu, '').trim();
 
-        // Wrap automático para evitar que el texto monte otras columnas
-        const descLines = doc.splitTextToSize(desc, 88);
-        const rowHeight = Math.max(7, 3.5 + descLines.length * 3.8);
+        // Limpieza final de signos o espacios dobles
+        desc = desc.replace(/\s{2,}/g, ' ').replace(/^[\s\-_,:]+|[\s\-_,:]+$/g, '').trim();
+        if (!desc) desc = it.tipo || 'Producto';
 
-        if (y + rowHeight > 248) {
+        // Wrap controlado de texto a 92mm de ancho (columna holgada)
+        const descLines = doc.splitTextToSize(desc, 92);
+        const rowHeight = Math.max(7.5, 3.5 + (descLines.length * 4.2));
+
+        if (y + rowHeight > 246) {
             doc.addPage();
             y = 20;
-            doc.setFillColor(44, 94, 46);
-            doc.rect(14, y, 188, 7, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(8);
-            doc.text("[  ]", 17, y + 5);
-            doc.text("DESCRIPCIÓN DEL PRODUCTO", 27, y + 5);
-            doc.text("CANTIDAD", 132, y + 5, { align: "center" });
-            doc.text("PRECIO UNIT.", 166, y + 5, { align: "right" });
-            doc.text("SUBTOTAL (Q)", 198, y + 5, { align: "right" });
-            y += 7;
+            y = dibujarHeaderItemsPedido(y);
         }
 
         if (idx % 2 === 1) {
@@ -5101,34 +5115,39 @@ window.generarPDFHojaPedido = (pedidoId) => {
             doc.rect(14, y, 188, rowHeight, 'F');
         }
 
-        // Borde inferior sutil
+        // Borde inferior sutil entre filas
         doc.setDrawColor(226, 232, 240);
         doc.line(14, y + rowHeight, 202, y + rowHeight);
 
-        // Cuadro de verificación
-        doc.setDrawColor(160, 160, 160);
-        doc.rect(17, y + (rowHeight - 4) / 2, 4, 4);
-
-        // Descripción
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(30, 30, 30);
-        doc.setFontSize(8.5);
-        doc.text(descLines, 27, y + 4.6);
-
-        // Cantidad centrada
+        // Número de ítem
         doc.setFont("helvetica", "normal");
-        doc.text(`${it.cantidad} ${it.unidad || ''}`.trim(), 132, y + 4.6, { align: "center" });
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(8);
+        doc.text(String(idx + 1), 17, y + 4.8);
+
+        // Descripción clara
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(8.5);
+        doc.text(descLines, 26, y + 4.8);
+
+        // Cantidad centrada en su columna
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(8.5);
+        const unidadTxt = it.unidad ? ` ${it.unidad}` : '';
+        doc.text(`${it.cantidad}${unidadTxt}`.trim(), 125, y + 4.8, { align: "center" });
 
         // Precio unitario alineado a la derecha
         const pUnit = parseFloat(it.precio) || 0;
-        doc.text(`Q ${pUnit.toFixed(2)}`, 166, y + 4.6, { align: "right" });
+        doc.text(`Q ${pUnit.toFixed(2)}`, 160, y + 4.8, { align: "right" });
 
         // Subtotal alineado a la derecha
         doc.setFont("helvetica", "bold");
         doc.setTextColor(20, 83, 45);
-        doc.text(`Q ${sub.toFixed(2)}`, 198, y + 4.6, { align: "right" });
+        doc.text(`Q ${sub.toFixed(2)}`, 198, y + 4.8, { align: "right" });
 
-        y += rowHeight;
+        y += rowHeight + 0.8;
     });
 
     // Barra de Total
@@ -9472,4 +9491,1625 @@ window.eliminarUsuario = async (id) => {
         alert("❌ Error: " + e.message);
     }
 };
+
+// =========================================================================
+// --- MÓDULO: CONTROL DE CORTES DE CAFÉ Y PLANILLA SEMANAL DE COSECHA ---
+// =========================================================================
+
+let todosLosPesajesCortes = [];
+let todosLosCortadores = [];
+let pagosCortesRegistrados = {};
+let tarifaLibraCortes = parseFloat(localStorage.getItem('flr_tarifa_corte_lb')) || 0.60;
+
+function obtenerRangoSemanaLunesSabado(fechaRef) {
+    const d = fechaRef ? new Date(fechaRef + 'T12:00:00') : new Date();
+    const day = d.getDay(); // 0: Dom, 1: Lun, ... 6: Sáb
+    // Queremos que la semana inicie el Lunes (1) y termine el Sábado (6)
+    const diffLunes = day === 0 ? -6 : (1 - day);
+    const lunes = new Date(d);
+    lunes.setDate(d.getDate() + diffLunes);
+
+    const sabado = new Date(lunes);
+    sabado.setDate(lunes.getDate() + 5);
+
+    const pad = (n) => String(n).padStart(2, '0');
+    const fInicio = `${lunes.getFullYear()}-${pad(lunes.getMonth() + 1)}-${pad(lunes.getDate())}`;
+    const fFin = `${sabado.getFullYear()}-${pad(sabado.getMonth() + 1)}-${pad(sabado.getDate())}`;
+    return { fInicio, fFin };
+}
+
+window.inicializarModuloCortes = async () => {
+    // 1. Cargar tarifa de corte por libra guardada
+    const tarifaSaved = parseFloat(localStorage.getItem('flr_tarifa_corte_lb'));
+    if (!isNaN(tarifaSaved) && tarifaSaved > 0) {
+        tarifaLibraCortes = tarifaSaved;
+    }
+    const inpTarifa = document.getElementById('cortes-precio-libra');
+    if (inpTarifa) inpTarifa.value = tarifaLibraCortes.toFixed(2);
+
+    // 2. Establecer fechas por defecto si están vacías (Lunes a Sábado de la semana en curso)
+    const fIniInp = document.getElementById('cortes-filtro-inicio');
+    const fFinInp = document.getElementById('cortes-filtro-fin');
+    if (fIniInp && !fIniInp.value) {
+        const { fInicio, fFin } = obtenerRangoSemanaLunesSabado();
+        fIniInp.value = fInicio;
+        if (fFinInp) fFinInp.value = fFin;
+    }
+
+    // Fecha hoy para el formulario de nuevo pesaje
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaInp = document.getElementById('corte-in-fecha');
+    if (fechaInp && !fechaInp.value) fechaInp.value = hoy;
+
+    // 3. Cargar cortadores y pesajes desde Firestore
+    await Promise.all([
+        window.cargarCortadores(),
+        window.cargarPesajesCortes()
+    ]);
+};
+
+window.mostrarSubtabCortes = (tab) => {
+    const tabs = ['planilla', 'pesadas', 'cortadores'];
+    tabs.forEach(t => {
+        const cont = document.getElementById(`cortes-subtab-${t}`);
+        const btn = document.getElementById(`tab-btn-cortes-${t}`);
+        if (cont) cont.style.display = (t === tab) ? 'block' : 'none';
+        if (btn) {
+            if (t === tab) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+
+    if (tab === 'planilla') {
+        window.recalcularPlanillaCortes();
+    } else if (tab === 'pesadas') {
+        window.renderTablaPesajesCortes();
+    } else if (tab === 'cortadores') {
+        window.renderTablaCortadores();
+    }
+};
+
+window.enfocarInputPesada = () => {
+    setTimeout(() => {
+        const el = document.getElementById('corte-in-cortador');
+        if (el) el.focus();
+    }, 100);
+};
+
+window.guardarTarifaCortes = () => {
+    const inp = document.getElementById('cortes-precio-libra');
+    const val = parseFloat(inp?.value) || 0.60;
+    tarifaLibraCortes = val;
+    localStorage.setItem('flr_tarifa_corte_lb', String(val));
+};
+
+window.establecerSemanaActualCortes = () => {
+    const { fInicio, fFin } = obtenerRangoSemanaLunesSabado();
+    const fIniInp = document.getElementById('cortes-filtro-inicio');
+    const fFinInp = document.getElementById('cortes-filtro-fin');
+    if (fIniInp) fIniInp.value = fInicio;
+    if (fFinInp) fFinInp.value = fFin;
+    window.recalcularPlanillaCortes();
+};
+
+window.establecerSemanaAnteriorCortes = () => {
+    const hoy = new Date();
+    hoy.setDate(hoy.getDate() - 7);
+    const pad = (n) => String(n).padStart(2, '0');
+    const fechaPasada = `${hoy.getFullYear()}-${pad(hoy.getMonth() + 1)}-${pad(hoy.getDate())}`;
+    const { fInicio, fFin } = obtenerRangoSemanaLunesSabado(fechaPasada);
+    const fIniInp = document.getElementById('cortes-filtro-inicio');
+    const fFinInp = document.getElementById('cortes-filtro-fin');
+    if (fIniInp) fIniInp.value = fInicio;
+    if (fFinInp) fFinInp.value = fFin;
+    window.recalcularPlanillaCortes();
+};
+
+window.establecerMesActualCortes = () => {
+    const hoy = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const y = hoy.getFullYear();
+    const m = hoy.getMonth() + 1;
+    const ultimoDia = new Date(y, m, 0).getDate();
+    const fInicio = `${y}-${pad(m)}-01`;
+    const fFin = `${y}-${pad(m)}-${pad(ultimoDia)}`;
+
+    const fIniInp = document.getElementById('cortes-filtro-inicio');
+    const fFinInp = document.getElementById('cortes-filtro-fin');
+    if (fIniInp) fIniInp.value = fInicio;
+    if (fFinInp) fFinInp.value = fFin;
+    window.recalcularPlanillaCortes();
+};
+
+// --- GESTIÓN DE CORTADORES ---
+
+window.cargarCortadores = async () => {
+    try {
+        const snap = await getDocs(collection(db, "cortes_cortadores"));
+        todosLosCortadores = [];
+        snap.forEach(d => {
+            todosLosCortadores.push({ id: d.id, data: d.data() });
+        });
+        todosLosCortadores.sort((a, b) => (a.data.nombre || '').localeCompare(b.data.nombre || ''));
+
+        const countEl = document.getElementById('cortes-count-cortadores');
+        if (countEl) countEl.innerText = String(todosLosCortadores.length);
+
+        window.actualizarDatalistCortadores();
+    } catch (e) {
+        console.warn("Aviso al cargar cortadores:", e.message);
+    }
+};
+
+window.actualizarDatalistCortadores = () => {
+    const datalist = document.getElementById('lista-cortadores-datalist');
+    if (!datalist) return;
+    datalist.innerHTML = todosLosCortadores.map(c => `<option value="${c.data.nombre}">`).join('');
+};
+
+window.renderTablaCortadores = () => {
+    const tbody = document.getElementById('tbody-directorio-cortadores');
+    if (!tbody) return;
+
+    if (todosLosCortadores.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" style="text-align:center; padding:1.5rem; color:#888;">
+                    No hay cortadores registrados. Haz clic en <strong>"➕ Agregar Cortador"</strong> o se registrarán automáticamente al ingresar pesadas.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    // Calcular totales históricos cortados por persona
+    const totalesPorCortador = {};
+    const ultimoCortePorCortador = {};
+    todosLosPesajesCortes.forEach(p => {
+        const d = p.data;
+        const nom = (d.cortador || '').trim();
+        if (!nom) return;
+        totalesPorCortador[nom] = (totalesPorCortador[nom] || 0) + (parseFloat(d.libras) || 0);
+        if (!ultimoCortePorCortador[nom] || d.fecha > ultimoCortePorCortador[nom]) {
+            ultimoCortePorCortador[nom] = d.fecha;
+        }
+    });
+
+    tbody.innerHTML = todosLosCortadores.map((c, idx) => {
+        const d = c.data;
+        const totalLbs = totalesPorCortador[d.nombre] || 0;
+        const ult = ultimoCortePorCortador[d.nombre] || 'Sin cortes';
+        return `
+            <tr>
+                <td style="font-weight:bold; color:var(--primary);">${d.nombre}</td>
+                <td>${d.telefono || '<span style="color:#94a3b8;">-</span>'}</td>
+                <td style="text-align:right; font-weight:bold; color:#0f766e;">${totalLbs.toFixed(1)} lbs</td>
+                <td style="text-align:center; font-size:0.85rem; color:#64748b;">${ult}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn btn-xs btn-danger" onclick="eliminarCortador('${c.id}')" title="Eliminar del directorio">🗑️</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.abrirModalNuevoCortador = () => {
+    const nomInp = document.getElementById('in-nuevo-cortador-nombre');
+    const telInp = document.getElementById('in-nuevo-cortador-tel');
+    if (nomInp) nomInp.value = '';
+    if (telInp) telInp.value = '';
+    const m = document.getElementById('modal-nuevo-cortador');
+    if (m) m.style.display = 'flex';
+};
+
+window.guardarNuevoCortador = async () => {
+    const nombre = document.getElementById('in-nuevo-cortador-nombre')?.value.trim();
+    const tel = document.getElementById('in-nuevo-cortador-tel')?.value.trim();
+    if (!nombre) return alert("⚠️ Ingresa el nombre del cortador.");
+
+    try {
+        await addDoc(collection(db, "cortes_cortadores"), {
+            nombre,
+            telefono: tel || '',
+            fechaRegistro: new Date().toISOString()
+        });
+        cerrarModal('modal-nuevo-cortador');
+        await window.cargarCortadores();
+        window.renderTablaCortadores();
+        alert(`✅ Cortador "${nombre}" agregado al directorio.`);
+    } catch (e) {
+        alert("Error al guardar cortador: " + e.message);
+    }
+};
+
+window.eliminarCortador = async (id) => {
+    const c = todosLosCortadores.find(item => item.id === id);
+    if (!c) return;
+    if (!confirm(`¿Eliminar a ${c.data.nombre} del directorio de cortadores? (No se borrarán sus pesajes históricos)`)) return;
+    try {
+        await deleteDoc(doc(db, "cortes_cortadores", id));
+        await window.cargarCortadores();
+        window.renderTablaCortadores();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+// --- REGISTRO Y GESTIÓN DE PESAJES DIARIOS DE CORTES ---
+
+window.cargarPesajesCortes = async () => {
+    try {
+        const snap = await getDocs(collection(db, "cortes_pesajes"));
+        todosLosPesajesCortes = [];
+        snap.forEach(d => {
+            todosLosPesajesCortes.push({ id: d.id, data: d.data() });
+        });
+        // Ordenar por fecha descendente
+        todosLosPesajesCortes.sort((a, b) => (b.data.fecha || '').localeCompare(a.data.fecha || ''));
+
+        // Cargar estado de pagos semanales desde localStorage o Firestore
+        const pagosRaw = localStorage.getItem('flr_cortes_pagos_semanales');
+        if (pagosRaw) {
+            try { pagosCortesRegistrados = JSON.parse(pagosRaw); } catch(e){}
+        }
+
+        window.recalcularPlanillaCortes();
+        window.renderTablaPesajesCortes();
+    } catch (e) {
+        console.warn("Aviso al cargar pesajes de cortes:", e.message);
+    }
+};
+
+window.guardarPesajeCorte = async () => {
+    const fecha = document.getElementById('corte-in-fecha')?.value;
+    const cortador = document.getElementById('corte-in-cortador')?.value.trim();
+    const libras = parseFloat(document.getElementById('corte-in-libras')?.value) || 0;
+    const tablon = document.getElementById('corte-in-tablon')?.value.trim() || '';
+    const notas = document.getElementById('corte-in-notas')?.value.trim() || '';
+
+    if (!fecha) return alert("⚠️ Selecciona la fecha del corte.");
+    if (!cortador) return alert("⚠️ Ingresa el nombre del cortador.");
+    if (libras <= 0) return alert("⚠️ El peso cortado debe ser mayor a 0 libras.");
+
+    try {
+        const docData = {
+            fecha,
+            cortador,
+            libras,
+            tablon,
+            notas,
+            creado: serverTimestamp()
+        };
+
+        await addDoc(collection(db, "cortes_pesajes"), docData);
+
+        // Si el cortador no existe en el directorio, agregarlo automáticamente
+        const existe = todosLosCortadores.some(c => c.data.nombre.toLowerCase() === cortador.toLowerCase());
+        if (!existe) {
+            await addDoc(collection(db, "cortes_cortadores"), {
+                nombre: cortador,
+                telefono: '',
+                fechaRegistro: new Date().toISOString()
+            });
+            await window.cargarCortadores();
+        }
+
+        // Limpiar solo los campos de peso y notas para agilizar el ingreso continuo de más personas
+        document.getElementById('corte-in-cortador').value = '';
+        document.getElementById('corte-in-libras').value = '';
+        document.getElementById('corte-in-notas').value = '';
+        document.getElementById('corte-in-cortador').focus();
+
+        await window.cargarPesajesCortes();
+    } catch (e) {
+        alert("Error al guardar pesaje: " + e.message);
+    }
+};
+
+window.renderTablaPesajesCortes = () => {
+    const tbody = document.getElementById('tbody-pesajes-cortes');
+    if (!tbody) return;
+
+    const busq = (document.getElementById('corte-filtro-busqueda-pesajes')?.value || '').toLowerCase().trim();
+    const fFiltro = document.getElementById('corte-filtro-fecha-pesajes')?.value || '';
+
+    let lista = todosLosPesajesCortes;
+    if (busq) {
+        lista = lista.filter(p => (p.data.cortador || '').toLowerCase().includes(busq) || (p.data.tablon || '').toLowerCase().includes(busq));
+    }
+    if (fFiltro) {
+        lista = lista.filter(p => p.data.fecha === fFiltro);
+    }
+
+    if (lista.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="text-align:center; padding:1.5rem; color:#888;">
+                    No se encontraron pesajes con los filtros seleccionados.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = lista.map(p => {
+        const d = p.data;
+        const lbs = parseFloat(d.libras) || 0;
+        return `
+            <tr>
+                <td style="font-weight:600;">${d.fecha}</td>
+                <td style="font-weight:bold; color:var(--primary);">${d.cortador}</td>
+                <td style="text-align:right; font-weight:bold; font-size:1.05rem; color:#0f766e;">${lbs.toFixed(1)} lbs</td>
+                <td style="color:#64748b;">${d.tablon || '-'}</td>
+                <td style="font-size:0.85rem; color:#64748b;">${d.notas || '-'}</td>
+                <td style="text-align:center;">
+                    <button type="button" class="btn btn-xs btn-danger" onclick="eliminarPesajeCorte('${p.id}')" title="Eliminar pesaje">🗑️</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.limpiarFiltrosPesajesCortes = () => {
+    const b = document.getElementById('corte-filtro-busqueda-pesajes');
+    const f = document.getElementById('corte-filtro-fecha-pesajes');
+    if (b) b.value = '';
+    if (f) f.value = '';
+    window.renderTablaPesajesCortes();
+};
+
+window.eliminarPesajeCorte = async (id) => {
+    if (!confirm("¿Eliminar este registro de pesaje de café?")) return;
+    try {
+        await deleteDoc(doc(db, "cortes_pesajes", id));
+        await window.cargarPesajesCortes();
+    } catch (e) {
+        alert("Error al eliminar pesaje: " + e.message);
+    }
+};
+
+// --- CÁLCULO DE PLANILLA SEMANAL (LUNES A SÁBADO) Y LIQUIDACIÓN ---
+
+window.recalcularPlanillaCortes = () => {
+    const fInicio = document.getElementById('cortes-filtro-inicio')?.value || '';
+    const fFin = document.getElementById('cortes-filtro-fin')?.value || '';
+    const tarifa = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
+
+    // Filtrar pesajes dentro del rango de fechas
+    const pesajesEnRango = todosLosPesajesCortes.filter(p => {
+        const f = p.data.fecha;
+        if (!f) return false;
+        if (fInicio && f < fInicio) return false;
+        if (fFin && f > fFin) return false;
+        return true;
+    });
+
+    // Mapear por cortador y desglose por día
+    // Días de la semana: 1: Lun, 2: Mar, 3: Mié, 4: Jue, 5: Vie, 6: Sáb
+    const cortadoresMap = {};
+
+    let totalLbsGlobal = 0;
+
+    pesajesEnRango.forEach(p => {
+        const d = p.data;
+        const nombre = (d.cortador || 'Sin nombre').trim();
+        const lbs = parseFloat(d.libras) || 0;
+        totalLbsGlobal += lbs;
+
+        if (!cortadoresMap[nombre]) {
+            cortadoresMap[nombre] = {
+                nombre,
+                dias: { lun: 0, mar: 0, mie: 0, jue: 0, vie: 0, sab: 0, otros: 0 },
+                totalLbs: 0
+            };
+        }
+
+        cortadoresMap[nombre].totalLbs += lbs;
+
+        // Determinar día de la semana
+        const fechaObj = new Date(d.fecha + 'T12:00:00');
+        const dayIdx = fechaObj.getDay(); // 0 Dom, 1 Lun, 2 Mar, 3 Mié, 4 Jue, 5 Vie, 6 Sáb
+        if (dayIdx === 1) cortadoresMap[nombre].dias.lun += lbs;
+        else if (dayIdx === 2) cortadoresMap[nombre].dias.mar += lbs;
+        else if (dayIdx === 3) cortadoresMap[nombre].dias.mie += lbs;
+        else if (dayIdx === 4) cortadoresMap[nombre].dias.jue += lbs;
+        else if (dayIdx === 5) cortadoresMap[nombre].dias.vie += lbs;
+        else if (dayIdx === 6) cortadoresMap[nombre].dias.sab += lbs;
+        else cortadoresMap[nombre].dias.otros += lbs;
+    });
+
+    const listaPlanilla = Object.values(cortadoresMap);
+    listaPlanilla.sort((a, b) => b.totalLbs - a.totalLbs);
+
+    const totalMontoGlobal = totalLbsGlobal * tarifa;
+    const totalQuintales = totalLbsGlobal / 100; // 1 quintal cereza = 100 lbs
+    const cortadoresActivosCount = listaPlanilla.length;
+    const promPorPersona = cortadoresActivosCount > 0 ? (totalLbsGlobal / cortadoresActivosCount) : 0;
+
+    // Calcular montos pagados vs pendientes
+    let totalPagado = 0;
+    let totalPendiente = 0;
+    const periodoKey = `${fInicio}_${fFin}`;
+
+    listaPlanilla.forEach(item => {
+        const pagoKey = `${item.nombre}_${periodoKey}`;
+        const estaPagado = pagosCortesRegistrados[pagoKey] === true;
+        const monto = item.totalLbs * tarifa;
+        if (estaPagado) totalPagado += monto;
+        else totalPendiente += monto;
+    });
+
+    // Actualizar KPIs en la interfaz
+    const elKpiLbs = document.getElementById('kpi-cortes-total-libras');
+    if (elKpiLbs) elKpiLbs.innerText = `${totalLbsGlobal.toFixed(1)} lbs`;
+
+    const elKpiQq = document.getElementById('kpi-cortes-total-quintales');
+    if (elKpiQq) elKpiQq.innerText = `${totalQuintales.toFixed(2)} quintales cereza`;
+
+    const elKpiMonto = document.getElementById('kpi-cortes-total-monto');
+    if (elKpiMonto) elKpiMonto.innerText = `Q ${totalMontoGlobal.toFixed(2)}`;
+
+    const elKpiSubMonto = document.getElementById('kpi-cortes-sub-monto');
+    if (elKpiSubMonto) elKpiSubMonto.innerText = `${cortadoresActivosCount} cortador(es) en planilla`;
+
+    const elKpiActivos = document.getElementById('kpi-cortes-cortadores-activos');
+    if (elKpiActivos) elKpiActivos.innerText = String(cortadoresActivosCount);
+
+    const elKpiProm = document.getElementById('kpi-cortes-promedio-persona');
+    if (elKpiProm) elKpiProm.innerText = `${promPorPersona.toFixed(1)} lbs / cortador prom.`;
+
+    const elKpiPagado = document.getElementById('kpi-cortes-estado-pago');
+    if (elKpiPagado) elKpiPagado.innerText = `Q ${totalPagado.toFixed(2)} Pagado`;
+
+    const elKpiPend = document.getElementById('kpi-cortes-estado-pendiente');
+    if (elKpiPend) elKpiPend.innerText = `Q ${totalPendiente.toFixed(2)} pendiente`;
+
+    // Renderizar tabla de planilla
+    const tbody = document.getElementById('tbody-planilla-cortes');
+    const tfoot = document.getElementById('tfoot-planilla-cortes');
+    if (!tbody) return;
+
+    if (listaPlanilla.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="13" style="text-align:center; padding:2rem; color:#888;">
+                    No hay pesajes registrados en el período del <strong>${fInicio || '...'}</strong> al <strong>${fFin || '...'}</strong>.<br>
+                    <small>Registra pesajes diarios en la pestaña <strong>"⚖️ Ingreso de Pesadas Diarias"</strong>.</small>
+                </td>
+            </tr>
+        `;
+        if (tfoot) tfoot.innerHTML = '';
+        return;
+    }
+
+    let totLun = 0, totMar = 0, totMie = 0, totJue = 0, totVie = 0, totSab = 0;
+
+    tbody.innerHTML = listaPlanilla.map((c, idx) => {
+        totLun += c.dias.lun;
+        totMar += c.dias.mar;
+        totMie += c.dias.mie;
+        totJue += c.dias.jue;
+        totVie += c.dias.vie;
+        totSab += c.dias.sab;
+
+        const montoAPagar = c.totalLbs * tarifa;
+        const pagoKey = `${c.nombre}_${periodoKey}`;
+        const estaPagado = pagosCortesRegistrados[pagoKey] === true;
+
+        const badgeEstado = estaPagado
+            ? `<span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">✅ Pagado</span>`
+            : `<span style="background:#fef3c7; color:#b45309; padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">⏳ Pendiente</span>`;
+
+        const btnTogglePago = estaPagado
+            ? `<button type="button" class="btn btn-xs" style="background:#f1f5f9; color:#475569;" onclick="marcarPagoCortadorSemanal('${c.nombre.replace(/'/g, "\\'")}', false)" title="Marcar como pendiente">↩️ Desmarcar</button>`
+            : `<button type="button" class="btn btn-xs btn-success" onclick="marcarPagoCortadorSemanal('${c.nombre.replace(/'/g, "\\'")}', true)" title="Marcar como pagado el sábado">💵 Pagar</button>`;
+
+        const formatDia = (val) => val > 0 ? `${val.toFixed(1)}` : '<span style="color:#cbd5e1;">-</span>';
+
+        return `
+            <tr>
+                <td style="text-align:center; font-weight:bold; color:#64748b;">${idx + 1}</td>
+                <td style="font-weight:bold; color:var(--primary); font-size:0.95rem;">${c.nombre}</td>
+                <td style="text-align:right;">${formatDia(c.dias.lun)}</td>
+                <td style="text-align:right;">${formatDia(c.dias.mar)}</td>
+                <td style="text-align:right;">${formatDia(c.dias.mie)}</td>
+                <td style="text-align:right;">${formatDia(c.dias.jue)}</td>
+                <td style="text-align:right;">${formatDia(c.dias.vie)}</td>
+                <td style="text-align:right;">${formatDia(c.dias.sab)}</td>
+                <td style="text-align:right; font-weight:bold; background:#f0fdf4; font-size:1.05rem; color:#0f766e;">${c.totalLbs.toFixed(1)} lbs</td>
+                <td style="text-align:right; font-size:0.85rem; color:#64748b;">Q ${tarifa.toFixed(2)}</td>
+                <td style="text-align:right; font-weight:bold; background:#ecfdf5; font-size:1.15rem; color:#047857;">Q ${montoAPagar.toFixed(2)}</td>
+                <td style="text-align:center;">${badgeEstado}</td>
+                <td style="text-align:center;">${btnTogglePago}</td>
+            </tr>
+        `;
+    }).join('');
+
+    if (tfoot) {
+        tfoot.innerHTML = `
+            <tr>
+                <td colspan="2" style="text-align:right; font-weight:bold; color:#1e293b;">TOTALES DEL PERÍODO:</td>
+                <td style="text-align:right; font-weight:bold;">${totLun.toFixed(1)}</td>
+                <td style="text-align:right; font-weight:bold;">${totMar.toFixed(1)}</td>
+                <td style="text-align:right; font-weight:bold;">${totMie.toFixed(1)}</td>
+                <td style="text-align:right; font-weight:bold;">${totJue.toFixed(1)}</td>
+                <td style="text-align:right; font-weight:bold;">${totVie.toFixed(1)}</td>
+                <td style="text-align:right; font-weight:bold;">${totSab.toFixed(1)}</td>
+                <td style="text-align:right; font-weight:bold; background:#e0f2fe; color:#0369a1; font-size:1.1rem;">${totalLbsGlobal.toFixed(1)} lbs</td>
+                <td style="text-align:right; color:#64748b;">Q ${tarifa.toFixed(2)}/lb</td>
+                <td style="text-align:right; font-weight:bold; background:#dcfce7; color:#14532d; font-size:1.25rem;">Q ${totalMontoGlobal.toFixed(2)}</td>
+                <td colspan="2" style="text-align:center; font-size:0.85rem; color:#166534;">
+                    ${((totalPagado / (totalMontoGlobal || 1)) * 100).toFixed(0)}% Liquidado
+                </td>
+            </tr>
+        `;
+    }
+};
+
+window.marcarPagoCortadorSemanal = (nombreCortador, nuevoEstado) => {
+    const fInicio = document.getElementById('cortes-filtro-inicio')?.value || '';
+    const fFin = document.getElementById('cortes-filtro-fin')?.value || '';
+    const periodoKey = `${fInicio}_${fFin}`;
+    const pagoKey = `${nombreCortador}_${periodoKey}`;
+
+    pagosCortesRegistrados[pagoKey] = nuevoEstado;
+    localStorage.setItem('flr_cortes_pagos_semanales', JSON.stringify(pagosCortesRegistrados));
+    window.recalcularPlanillaCortes();
+};
+
+// --- INFORMES: PDF OFICIAL DE PLANILLA Y WHATSAPP ---
+
+window.generarPDFPlanillaCortes = () => {
+    const jsPDF = getJsPDF();
+    if (!jsPDF) return alert("Librería jsPDF no disponible.");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+
+    const fInicio = document.getElementById('cortes-filtro-inicio')?.value || '';
+    const fFin = document.getElementById('cortes-filtro-fin')?.value || '';
+    const tarifa = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
+
+    const pesajesEnRango = todosLosPesajesCortes.filter(p => {
+        const f = p.data.fecha;
+        if (!f) return false;
+        if (fInicio && f < fInicio) return false;
+        if (fFin && f > fFin) return false;
+        return true;
+    });
+
+    const cortadoresMap = {};
+    let totalLbsGlobal = 0;
+
+    pesajesEnRango.forEach(p => {
+        const d = p.data;
+        const nombre = (d.cortador || 'Sin nombre').trim();
+        const lbs = parseFloat(d.libras) || 0;
+        totalLbsGlobal += lbs;
+
+        if (!cortadoresMap[nombre]) {
+            cortadoresMap[nombre] = {
+                nombre,
+                dias: { lun: 0, mar: 0, mie: 0, jue: 0, vie: 0, sab: 0 },
+                totalLbs: 0
+            };
+        }
+        cortadoresMap[nombre].totalLbs += lbs;
+
+        const dayIdx = new Date(d.fecha + 'T12:00:00').getDay();
+        if (dayIdx === 1) cortadoresMap[nombre].dias.lun += lbs;
+        else if (dayIdx === 2) cortadoresMap[nombre].dias.mar += lbs;
+        else if (dayIdx === 3) cortadoresMap[nombre].dias.mie += lbs;
+        else if (dayIdx === 4) cortadoresMap[nombre].dias.jue += lbs;
+        else if (dayIdx === 5) cortadoresMap[nombre].dias.vie += lbs;
+        else if (dayIdx === 6) cortadoresMap[nombre].dias.sab += lbs;
+    });
+
+    const lista = Object.values(cortadoresMap);
+    lista.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+
+    const granTotalQ = totalLbsGlobal * tarifa;
+
+    // Encabezado Finca Los Robles
+    doc.setFillColor(44, 94, 46);
+    doc.rect(0, 0, 216, 26, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("FINCA LOS ROBLES", 108, 11, { align: "center" });
+
+    doc.setFontSize(11);
+    doc.text("PLANILLA DE COSECHA Y LIQUIDACIÓN DE CORTADORES", 108, 18, { align: "center" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Control Diario de Recolección de Café • Liquidación Semanal (Lunes a Sábado)", 108, 23, { align: "center" });
+
+    // Ficha de información
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(14, 30, 188, 18, 'FD');
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Período de Corte: Del ${fInicio || 'N/A'} al ${fFin || 'N/A'}`, 18, 36);
+    doc.text(`Tarifa Pagada: Q ${tarifa.toFixed(2)} por libra cortada`, 120, 36);
+
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Cortadores Activos: ${lista.length} personas`, 18, 42);
+    doc.text(`Emisión: ${new Date().toLocaleDateString('es-GT')} • Finca Los Robles`, 120, 42);
+
+    let y = 52;
+
+    const dibujarHeaderTabla = (currY) => {
+        doc.setFillColor(30, 70, 32);
+        doc.rect(14, currY, 188, 7, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7.5);
+        doc.text("#", 16, currY + 4.8);
+        doc.text("TRABAJADOR / CORTADOR", 23, currY + 4.8);
+        doc.text("LUN", 75, currY + 4.8, { align: "right" });
+        doc.text("MAR", 89, currY + 4.8, { align: "right" });
+        doc.text("MIÉ", 103, currY + 4.8, { align: "right" });
+        doc.text("JUE", 117, currY + 4.8, { align: "right" });
+        doc.text("VIE", 131, currY + 4.8, { align: "right" });
+        doc.text("SÁB", 145, currY + 4.8, { align: "right" });
+        doc.text("TOTAL LBS", 163, currY + 4.8, { align: "right" });
+        doc.text("A PAGAR (Q)", 184, currY + 4.8, { align: "right" });
+        doc.text("FIRMA", 195, currY + 4.8);
+        return currY + 7;
+    };
+
+    y = dibujarHeaderTabla(y);
+
+    if (lista.length === 0) {
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(9);
+        doc.text("Sin registros de cortes para el período seleccionado.", 108, y + 10, { align: "center" });
+        y += 20;
+    } else {
+        lista.forEach((c, idx) => {
+            if (y > 248) {
+                doc.addPage();
+                doc.setFillColor(44, 94, 46);
+                doc.rect(0, 0, 216, 12, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold");
+                doc.text(`FINCA LOS ROBLES - Planilla de Cortes (${fInicio} al ${fFin}) - Continuación`, 108, 8, { align: "center" });
+                y = 18;
+                y = dibujarHeaderTabla(y);
+            }
+
+            if (idx % 2 === 1) {
+                doc.setFillColor(248, 250, 248);
+                doc.rect(14, y, 188, 6.2, 'F');
+            }
+
+            doc.setDrawColor(226, 232, 240);
+            doc.line(14, y + 6.2, 202, y + 6.2);
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(7.5);
+
+            doc.setFont("helvetica", "normal");
+            doc.text(String(idx + 1), 16, y + 4.2);
+
+            doc.setFont("helvetica", "bold");
+            const nomCorto = c.nombre.length > 25 ? c.nombre.substring(0, 23) + '..' : c.nombre;
+            doc.text(nomCorto, 23, y + 4.2);
+
+            doc.setFont("helvetica", "normal");
+            doc.text(c.dias.lun > 0 ? c.dias.lun.toFixed(0) : '-', 75, y + 4.2, { align: "right" });
+            doc.text(c.dias.mar > 0 ? c.dias.mar.toFixed(0) : '-', 89, y + 4.2, { align: "right" });
+            doc.text(c.dias.mie > 0 ? c.dias.mie.toFixed(0) : '-', 103, y + 4.2, { align: "right" });
+            doc.text(c.dias.jue > 0 ? c.dias.jue.toFixed(0) : '-', 117, y + 4.2, { align: "right" });
+            doc.text(c.dias.vie > 0 ? c.dias.vie.toFixed(0) : '-', 131, y + 4.2, { align: "right" });
+            doc.text(c.dias.sab > 0 ? c.dias.sab.toFixed(0) : '-', 145, y + 4.2, { align: "right" });
+
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(15, 118, 110);
+            doc.text(`${c.totalLbs.toFixed(1)}`, 163, y + 4.2, { align: "right" });
+
+            const monto = c.totalLbs * tarifa;
+            doc.setTextColor(20, 83, 45);
+            doc.text(`Q ${monto.toFixed(2)}`, 184, y + 4.2, { align: "right" });
+
+            // Línea para firma
+            doc.setDrawColor(180, 180, 180);
+            doc.line(188, y + 4.5, 201, y + 4.5);
+
+            y += 6.2;
+        });
+    }
+
+    y += 4;
+    if (y > 220) {
+        doc.addPage();
+        y = 20;
+    }
+
+    // Cuadro de Resumen General
+    doc.setFillColor(240, 249, 242);
+    doc.setDrawColor(187, 247, 208);
+    doc.rect(14, y, 188, 22, 'FD');
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(20, 83, 45);
+    doc.text("RESUMEN GENERAL DE LIQUIDACIÓN DE COSECHA", 18, y + 6);
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Café Cortado: ${totalLbsGlobal.toFixed(1)} lbs (${(totalLbsGlobal / 100).toFixed(2)} qq cereza)`, 18, y + 14);
+    doc.text(`Tarifa: Q ${tarifa.toFixed(2)} / libra cortada`, 18, y + 19);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20, 83, 45);
+    doc.text(`TOTAL A PAGAR EN PLANILLA: Q ${granTotalQ.toFixed(2)}`, 110, y + 15);
+
+    y += 32;
+
+    // Firmas de Administrador y Mayordomo
+    doc.line(30, y + 14, 90, y + 14);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(70, 70, 70);
+    doc.text("Firma Administrador / Entrega Pago", 38, y + 18);
+
+    doc.line(125, y + 14, 185, y + 14);
+    doc.text("Firma Mayordomo / Verificación Báscula", 132, y + 18);
+
+    doc.save(`Planilla_Cortes_${fInicio}_${fFin}.pdf`);
+    alert("✅ Planilla de Cortes PDF descargada con éxito.");
+};
+
+window.compartirWhatsAppPlanillaCortes = () => {
+    const fInicio = document.getElementById('cortes-filtro-inicio')?.value || '';
+    const fFin = document.getElementById('cortes-filtro-fin')?.value || '';
+    const tarifa = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
+
+    const pesajesEnRango = todosLosPesajesCortes.filter(p => {
+        const f = p.data.fecha;
+        if (!f) return false;
+        if (fInicio && f < fInicio) return false;
+        if (fFin && f > fFin) return false;
+        return true;
+    });
+
+    const cortadoresMap = {};
+    let totalLbsGlobal = 0;
+
+    pesajesEnRango.forEach(p => {
+        const d = p.data;
+        const nombre = (d.cortador || 'Sin nombre').trim();
+        const lbs = parseFloat(d.libras) || 0;
+        totalLbsGlobal += lbs;
+        cortadoresMap[nombre] = (cortadoresMap[nombre] || 0) + lbs;
+    });
+
+    const lista = Object.keys(cortadoresMap).map(k => ({ nombre: k, totalLbs: cortadoresMap[k] }));
+    lista.sort((a, b) => b.totalLbs - a.totalLbs);
+
+    const granTotalQ = totalLbsGlobal * tarifa;
+
+    let texto = `🧺 *FINCA LOS ROBLES - PLANILLA DE CORTE DE CAFÉ*\n` +
+        `📅 *Período:* ${fInicio} al ${fFin} (Lun-Sáb)\n` +
+        `💵 *Tarifa:* Q ${tarifa.toFixed(2)} / lb\n` +
+        `⚖️ *Total Cosechado:* ${totalLbsGlobal.toFixed(1)} lbs (${(totalLbsGlobal/100).toFixed(2)} qq cereza)\n` +
+        `💰 *TOTAL A PAGAR:* Q ${granTotalQ.toFixed(2)}\n` +
+        `👥 *Cortadores:* ${lista.length} personas\n\n` +
+        `*DESGLOSE DE PAGO:* \n`;
+
+    lista.forEach((c, idx) => {
+        const pago = c.totalLbs * tarifa;
+        texto += `${idx + 1}. *${c.nombre}:* ${c.totalLbs.toFixed(1)} lbs → *Q ${pago.toFixed(2)}*\n`;
+    });
+
+    texto += `\n_Liquidación y pago de cosecha de café Finca Los Robles._`;
+
+    const url = "https://wa.me/?text=" + encodeURIComponent(texto);
+    window.open(url, '_blank');
+};
+
+// =========================================================================
+// --- MÓDULO: VENTA Y PROCESAMIENTO DE CAFÉ CEREZA / MADURO (SEPARADO) ---
+// =========================================================================
+
+let todasLasVentasCereza = [];
+let todosLosProcesosCereza = [];
+
+window.inicializarModuloCereza = async () => {
+    // Fecha hoy para los formularios
+    const hoy = new Date().toISOString().split('T')[0];
+    const vtaFecha = document.getElementById('cereza-vta-fecha');
+    if (vtaFecha && !vtaFecha.value) vtaFecha.value = hoy;
+    const procFecha = document.getElementById('cereza-proc-fecha');
+    if (procFecha && !procFecha.value) procFecha.value = hoy;
+
+    // Código sugerido de lote para proceso
+    const procLote = document.getElementById('cereza-proc-lote');
+    if (procLote && !procLote.value) {
+        procLote.value = `CER-${new Date().getFullYear()}-${String(todosLosProcesosCereza.length + 1).padStart(3, '0')}`;
+    }
+
+    await Promise.all([
+        window.cargarVentasCereza(),
+        window.cargarProcesosCereza()
+    ]);
+};
+
+window.mostrarSubtabCereza = (tab) => {
+    const tabs = ['ventas', 'procesos', 'balance'];
+    tabs.forEach(t => {
+        const cont = document.getElementById(`cereza-subtab-${t}`);
+        const btn = document.getElementById(`tab-btn-cereza-${t}`);
+        if (cont) cont.style.display = (t === tab) ? 'block' : 'none';
+        if (btn) {
+            if (t === tab) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+
+    if (tab === 'ventas') {
+        window.renderTablaVentasCereza();
+    } else if (tab === 'procesos') {
+        window.renderTablaProcesosCereza();
+    } else if (tab === 'balance') {
+        window.recalcularBalanceCosecha();
+    }
+};
+
+window.enfocarFormVentaCereza = () => {
+    setTimeout(() => {
+        const el = document.getElementById('cereza-vta-beneficio');
+        if (el) el.focus();
+    }, 100);
+};
+
+window.enfocarFormProcesoCereza = () => {
+    setTimeout(() => {
+        const el = document.getElementById('cereza-proc-libras');
+        if (el) el.focus();
+    }, 100);
+};
+
+// --- SUBMÓDULO: VENTAS DE CAFÉ MADURO A BENEFICIOS ---
+
+window.cargarVentasCereza = async () => {
+    try {
+        const snap = await getDocs(collection(db, "cereza_ventas"));
+        todasLasVentasCereza = [];
+        snap.forEach(d => {
+            todasLasVentasCereza.push({ id: d.id, data: d.data() });
+        });
+        todasLasVentasCereza.sort((a, b) => (b.data.fecha || '').localeCompare(a.data.fecha || ''));
+        window.renderTablaVentasCereza();
+    } catch (e) {
+        console.warn("Aviso al cargar ventas de cereza:", e.message);
+    }
+};
+
+window.actualizarCalculoVentaCereza = (origen) => {
+    const qqInp = document.getElementById('cereza-vta-quintales');
+    const lbsInp = document.getElementById('cereza-vta-libras');
+    const precioInp = document.getElementById('cereza-vta-precio-qq');
+    const previewTotal = document.getElementById('cereza-vta-total-preview');
+
+    let qq = parseFloat(qqInp?.value) || 0;
+    let lbs = parseFloat(lbsInp?.value) || 0;
+    const precio = parseFloat(precioInp?.value) || 0;
+
+    if (origen === 'qq') {
+        lbs = qq * 100;
+        if (lbsInp) lbsInp.value = lbs.toFixed(0);
+    } else if (origen === 'lbs') {
+        qq = lbs / 100;
+        if (qqInp) qqInp.value = qq.toFixed(2);
+    }
+
+    const total = qq * precio;
+    if (previewTotal) previewTotal.innerText = `Q ${total.toFixed(2)}`;
+};
+
+window.guardarVentaCereza = async () => {
+    const fecha = document.getElementById('cereza-vta-fecha')?.value;
+    const beneficio = document.getElementById('cereza-vta-beneficio')?.value.trim();
+    const qq = parseFloat(document.getElementById('cereza-vta-quintales')?.value) || 0;
+    const lbs = parseFloat(document.getElementById('cereza-vta-libras')?.value) || (qq * 100);
+    const precioQq = parseFloat(document.getElementById('cereza-vta-precio-qq')?.value) || 0;
+    const boleta = document.getElementById('cereza-vta-boleta')?.value.trim() || '';
+    const estado = document.getElementById('cereza-vta-estado')?.value || 'cobrado';
+    const notas = document.getElementById('cereza-vta-notas')?.value.trim() || '';
+
+    if (!fecha) return alert("⚠️ Selecciona la fecha de entrega.");
+    if (!beneficio) return alert("⚠️ Ingresa el nombre del beneficio o comprador.");
+    if (qq <= 0) return alert("⚠️ La cantidad en quintales debe ser mayor a 0.");
+    if (precioQq < 0) return alert("⚠️ El precio por quintal no puede ser negativo.");
+
+    const total = qq * precioQq;
+
+    try {
+        const vtaDoc = {
+            fecha,
+            beneficio,
+            quintales: qq,
+            libras: lbs,
+            precioPorQq: precioQq,
+            total,
+            boleta,
+            estado,
+            notas,
+            creado: serverTimestamp()
+        };
+
+        await addDoc(collection(db, "cereza_ventas"), vtaDoc);
+
+        // Limpiar formulario
+        document.getElementById('cereza-vta-beneficio').value = '';
+        document.getElementById('cereza-vta-quintales').value = '';
+        document.getElementById('cereza-vta-libras').value = '';
+        document.getElementById('cereza-vta-boleta').value = '';
+        document.getElementById('cereza-vta-notas').value = '';
+        document.getElementById('cereza-vta-total-preview').innerText = 'Q 0.00';
+
+        await window.cargarVentasCereza();
+        alert(`✅ Venta a "${beneficio}" registrada por Q ${total.toFixed(2)}.`);
+    } catch (e) {
+        alert("Error al guardar venta: " + e.message);
+    }
+};
+
+window.renderTablaVentasCereza = () => {
+    const tbody = document.getElementById('tbody-ventas-cereza');
+    if (!tbody) return;
+
+    let totQq = 0;
+    let totLbs = 0;
+    let totCobrado = 0;
+    let totPendiente = 0;
+
+    todasLasVentasCereza.forEach(v => {
+        const d = v.data;
+        const qq = parseFloat(d.quintales) || 0;
+        const lbs = parseFloat(d.libras) || (qq * 100);
+        const monto = parseFloat(d.total) || 0;
+        totQq += qq;
+        totLbs += lbs;
+        if (d.estado === 'pendiente') totPendiente += monto;
+        else totCobrado += monto;
+    });
+
+    const precioPromedio = totQq > 0 ? ((totCobrado + totPendiente) / totQq) : 0;
+
+    // KPIs
+    const elKpiQq = document.getElementById('kpi-cereza-total-vendido-qq');
+    if (elKpiQq) elKpiQq.innerText = `${totQq.toFixed(2)} qq`;
+
+    const elKpiLbs = document.getElementById('kpi-cereza-total-vendido-lbs');
+    if (elKpiLbs) elKpiLbs.innerText = `${totLbs.toFixed(0)} lbs de café cereza`;
+
+    const elKpiCobrado = document.getElementById('kpi-cereza-total-cobrado');
+    if (elKpiCobrado) elKpiCobrado.innerText = `Q ${totCobrado.toFixed(2)}`;
+
+    const elKpiSubCob = document.getElementById('kpi-cereza-sub-cobrado');
+    if (elKpiSubCob) elKpiSubCob.innerText = `${todasLasVentasCereza.filter(v=>v.data.estado!=='pendiente').length} entrega(s) liquidadas`;
+
+    const elKpiPend = document.getElementById('kpi-cereza-total-pendiente');
+    if (elKpiPend) elKpiPend.innerText = `Q ${totPendiente.toFixed(2)}`;
+
+    const elKpiSubPend = document.getElementById('kpi-cereza-sub-pendiente');
+    if (elKpiSubPend) elKpiSubPend.innerText = `${todasLasVentasCereza.filter(v=>v.data.estado==='pendiente').length} por liquidar`;
+
+    const elKpiProm = document.getElementById('kpi-cereza-precio-promedio');
+    if (elKpiProm) elKpiProm.innerText = `Q ${precioPromedio.toFixed(2)}`;
+
+    if (todasLasVentasCereza.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align:center; padding:2rem; color:#888;">
+                    No hay ventas de café maduro a beneficios registradas. Llena el formulario arriba para agregar la primera venta.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = todasLasVentasCereza.map(v => {
+        const d = v.data;
+        const qq = parseFloat(d.quintales) || 0;
+        const lbs = parseFloat(d.libras) || (qq * 100);
+        const precio = parseFloat(d.precioPorQq) || 0;
+        const total = parseFloat(d.total) || (qq * precio);
+        const esCobrado = d.estado !== 'pendiente';
+
+        const badge = esCobrado
+            ? `<span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:10px; font-weight:bold; font-size:0.75rem;">🟢 Cobrado</span>`
+            : `<span style="background:#fef3c7; color:#b45309; padding:2px 8px; border-radius:10px; font-weight:bold; font-size:0.75rem;">🟡 Pendiente</span>`;
+
+        return `
+            <tr>
+                <td style="font-weight:600;">${d.fecha}</td>
+                <td style="font-weight:bold; color:#b91c1c;">${d.beneficio}</td>
+                <td style="font-family:monospace; font-size:0.85rem;">${d.boleta || '-'}</td>
+                <td style="text-align:right; font-weight:bold;">${qq.toFixed(2)} qq</td>
+                <td style="text-align:right; color:#64748b;">${lbs.toFixed(0)} lbs</td>
+                <td style="text-align:right;">Q ${precio.toFixed(2)}</td>
+                <td style="text-align:right; font-weight:bold; font-size:1.05rem; color:#047857;">Q ${total.toFixed(2)}</td>
+                <td style="text-align:center;">${badge}</td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <button type="button" class="btn btn-xs" style="background:#0284c7; color:white;" onclick="abrirModalEditarVentaCereza('${v.id}')" title="Editar">✏️</button>
+                    <button type="button" class="btn btn-xs ${esCobrado ? 'btn-secondary' : 'btn-success'}" onclick="cambiarEstadoVentaCereza('${v.id}', '${esCobrado ? 'pendiente' : 'cobrado'}')" title="${esCobrado ? 'Marcar pendiente' : 'Marcar cobrado'}">
+                        ${esCobrado ? '⏳' : '💵'}
+                    </button>
+                    <button type="button" class="btn btn-xs btn-danger" onclick="eliminarVentaCereza('${v.id}')" title="Eliminar">🗑️</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.cambiarEstadoVentaCereza = async (id, nuevoEstado) => {
+    try {
+        await updateDoc(doc(db, "cereza_ventas", id), { estado: nuevoEstado });
+        await window.cargarVentasCereza();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+window.eliminarVentaCereza = async (id) => {
+    if (!confirm("¿Eliminar este registro de venta de café cereza a beneficio?")) return;
+    try {
+        await deleteDoc(doc(db, "cereza_ventas", id));
+        await window.cargarVentasCereza();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+window.abrirModalEditarVentaCereza = (id) => {
+    const v = todasLasVentasCereza.find(item => item.id === id);
+    if (!v) return;
+    const d = v.data;
+
+    document.getElementById('edit-vta-id').value = id;
+    document.getElementById('edit-vta-fecha').value = d.fecha || '';
+    document.getElementById('edit-vta-beneficio').value = d.beneficio || '';
+    document.getElementById('edit-vta-quintales').value = d.quintales || '';
+    document.getElementById('edit-vta-libras').value = d.libras || '';
+    document.getElementById('edit-vta-precio-qq').value = d.precioPorQq || '';
+    document.getElementById('edit-vta-total').value = (d.total || 0).toFixed(2);
+    document.getElementById('edit-vta-boleta').value = d.boleta || '';
+    document.getElementById('edit-vta-estado').value = d.estado || 'cobrado';
+    document.getElementById('edit-vta-notas').value = d.notas || '';
+
+    const modal = document.getElementById('modal-editar-venta-cereza');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.actualizarEdicionCalculoVenta = (origen) => {
+    const qqInp = document.getElementById('edit-vta-quintales');
+    const lbsInp = document.getElementById('edit-vta-libras');
+    const precioInp = document.getElementById('edit-vta-precio-qq');
+    const totalInp = document.getElementById('edit-vta-total');
+
+    let qq = parseFloat(qqInp?.value) || 0;
+    let lbs = parseFloat(lbsInp?.value) || 0;
+    const precio = parseFloat(precioInp?.value) || 0;
+
+    if (origen === 'qq') {
+        lbs = qq * 100;
+        if (lbsInp) lbsInp.value = lbs.toFixed(0);
+    } else if (origen === 'lbs') {
+        qq = lbs / 100;
+        if (qqInp) qqInp.value = qq.toFixed(2);
+    }
+
+    const total = qq * precio;
+    if (totalInp) totalInp.value = total.toFixed(2);
+};
+
+window.guardarEdicionVentaCereza = async () => {
+    const id = document.getElementById('edit-vta-id')?.value;
+    if (!id) return;
+
+    const fecha = document.getElementById('edit-vta-fecha')?.value;
+    const beneficio = document.getElementById('edit-vta-beneficio')?.value.trim();
+    const qq = parseFloat(document.getElementById('edit-vta-quintales')?.value) || 0;
+    const lbs = parseFloat(document.getElementById('edit-vta-libras')?.value) || (qq * 100);
+    const precioQq = parseFloat(document.getElementById('edit-vta-precio-qq')?.value) || 0;
+    const boleta = document.getElementById('edit-vta-boleta')?.value.trim();
+    const estado = document.getElementById('edit-vta-estado')?.value;
+    const notas = document.getElementById('edit-vta-notas')?.value.trim();
+
+    try {
+        await updateDoc(doc(db, "cereza_ventas", id), {
+            fecha,
+            beneficio,
+            quintales: qq,
+            libras: lbs,
+            precioPorQq: precioQq,
+            total: qq * precioQq,
+            boleta,
+            estado,
+            notas
+        });
+        cerrarModal('modal-editar-venta-cereza');
+        await window.cargarVentasCereza();
+        alert("✅ Venta actualizada.");
+    } catch (e) {
+        alert("Error al actualizar: " + e.message);
+    }
+};
+
+// --- SUBMÓDULO: PROCESAMIENTO PROPIO EN FINCA ---
+
+window.cargarProcesosCereza = async () => {
+    try {
+        const snap = await getDocs(collection(db, "cereza_procesos"));
+        todosLosProcesosCereza = [];
+        snap.forEach(d => {
+            todosLosProcesosCereza.push({ id: d.id, data: d.data() });
+        });
+        todosLosProcesosCereza.sort((a, b) => (b.data.fecha || '').localeCompare(a.data.fecha || ''));
+        window.renderTablaProcesosCereza();
+    } catch (e) {
+        console.warn("Aviso al cargar procesos de cereza:", e.message);
+    }
+};
+
+window.actualizarCalculoProcesoCereza = () => {
+    const lbs = parseFloat(document.getElementById('cereza-proc-libras')?.value) || 0;
+    const qqInp = document.getElementById('cereza-proc-quintales');
+    if (qqInp) qqInp.value = (lbs / 100).toFixed(2);
+};
+
+window.guardarProcesoCereza = async () => {
+    const fecha = document.getElementById('cereza-proc-fecha')?.value;
+    const lbs = parseFloat(document.getElementById('cereza-proc-libras')?.value) || 0;
+    const qq = lbs / 100;
+    const tipo = document.getElementById('cereza-proc-tipo')?.value || 'Lavado';
+    const variedad = document.getElementById('cereza-proc-variedad')?.value.trim() || '';
+    const lote = document.getElementById('cereza-proc-lote')?.value.trim() || '';
+    const notas = document.getElementById('cereza-proc-notas')?.value.trim() || '';
+
+    if (!fecha) return alert("⚠️ Selecciona la fecha de ingreso.");
+    if (lbs <= 0) return alert("⚠️ Las libras de café cereza deben ser mayores a 0.");
+
+    try {
+        const procDoc = {
+            fecha,
+            libras: lbs,
+            quintales: qq,
+            tipo,
+            variedad,
+            lote,
+            notas,
+            creado: serverTimestamp()
+        };
+
+        await addDoc(collection(db, "cereza_procesos"), procDoc);
+
+        // Limpiar campos
+        document.getElementById('cereza-proc-libras').value = '';
+        document.getElementById('cereza-proc-quintales').value = '';
+        document.getElementById('cereza-proc-variedad').value = '';
+        document.getElementById('cereza-proc-notas').value = '';
+
+        // Actualizar código lote sugerido
+        const proxLote = `CER-${new Date().getFullYear()}-${String(todosLosProcesosCereza.length + 2).padStart(3, '0')}`;
+        document.getElementById('cereza-proc-lote').value = proxLote;
+
+        await window.cargarProcesosCereza();
+        alert(`✅ ${lbs} lbs de café cereza ingresadas a proceso (${tipo}).`);
+    } catch (e) {
+        alert("Error al guardar proceso: " + e.message);
+    }
+};
+
+window.renderTablaProcesosCereza = () => {
+    const tbody = document.getElementById('tbody-procesos-cereza');
+    if (!tbody) return;
+
+    let totLbs = 0;
+    let totQq = 0;
+    const tiposCount = {};
+
+    todosLosProcesosCereza.forEach(p => {
+        const d = p.data;
+        const lbs = parseFloat(d.libras) || 0;
+        const qq = parseFloat(d.quintales) || (lbs / 100);
+        totLbs += lbs;
+        totQq += qq;
+        tiposCount[d.tipo] = (tiposCount[d.tipo] || 0) + 1;
+    });
+
+    // Rendimiento estimado a pergamino seco (~20% del peso en cereza)
+    const estPergaminoLbs = totLbs * 0.20;
+    const estPergaminoQq = estPergaminoLbs / 100;
+
+    // Actualizar KPIs
+    const elKpiLbs = document.getElementById('kpi-proc-total-libras');
+    if (elKpiLbs) elKpiLbs.innerText = `${totLbs.toFixed(0)} lbs`;
+
+    const elKpiQq = document.getElementById('kpi-proc-total-qq');
+    if (elKpiQq) elKpiQq.innerText = `${totQq.toFixed(2)} quintales cereza`;
+
+    const elKpiEstPerg = document.getElementById('kpi-proc-est-pergamino');
+    if (elKpiEstPerg) elKpiEstPerg.innerText = `${estPergaminoLbs.toFixed(0)} lbs pergamino`;
+
+    const elKpiEstPergQq = document.getElementById('kpi-proc-est-pergamino-qq');
+    if (elKpiEstPergQq) elKpiEstPergQq.innerText = `${estPergaminoQq.toFixed(2)} qq pergamino est.`;
+
+    const elKpiLotes = document.getElementById('kpi-proc-total-lotes');
+    if (elKpiLotes) elKpiLotes.innerText = `${todosLosProcesosCereza.length} lotes`;
+
+    const elKpiDist = document.getElementById('kpi-proc-distribucion-tipos');
+    if (elKpiDist) {
+        const strTipos = Object.keys(tiposCount).map(k => `${k}: ${tiposCount[k]}`).join(' | ');
+        elKpiDist.innerText = strTipos || 'Sin lotes en proceso';
+    }
+
+    if (todosLosProcesosCereza.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align:center; padding:2rem; color:#888;">
+                    No hay ingresos de café cereza a proceso propio en la finca. Ingresa los datos arriba para llevar el control.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = todosLosProcesosCereza.map(p => {
+        const d = p.data;
+        const lbs = parseFloat(d.libras) || 0;
+        const qq = parseFloat(d.quintales) || (lbs / 100);
+        const perg = (lbs * 0.20).toFixed(0);
+
+        let iconTipo = '💧';
+        if (d.tipo === 'Honey') iconTipo = '🍯';
+        else if (d.tipo === 'Natural') iconTipo = '☀️';
+        else if (d.tipo === 'Anaerobico') iconTipo = '🧪';
+
+        return `
+            <tr>
+                <td style="font-weight:600;">${d.fecha}</td>
+                <td style="font-family:monospace; font-weight:bold; color:#0f766e;">${d.lote || '-'}</td>
+                <td><span style="font-weight:600;">${iconTipo} ${d.tipo}</span></td>
+                <td>${d.variedad || '-'}</td>
+                <td style="text-align:right; font-weight:bold; color:#0f766e;">${lbs.toFixed(0)} lbs</td>
+                <td style="text-align:right;">${qq.toFixed(2)} qq</td>
+                <td style="text-align:right; font-weight:bold; color:#0369a1;">~${perg} lbs</td>
+                <td style="font-size:0.85rem; color:#64748b;">${d.notas || '-'}</td>
+                <td style="text-align:center; white-space:nowrap;">
+                    <button type="button" class="btn btn-xs" style="background:#0284c7; color:white;" onclick="abrirModalEditarProcesoCereza('${p.id}')" title="Editar">✏️</button>
+                    <button type="button" class="btn btn-xs btn-danger" onclick="eliminarProcesoCereza('${p.id}')" title="Eliminar">🗑️</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.eliminarProcesoCereza = async (id) => {
+    if (!confirm("¿Eliminar este lote de café en proceso?")) return;
+    try {
+        await deleteDoc(doc(db, "cereza_procesos", id));
+        await window.cargarProcesosCereza();
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+window.abrirModalEditarProcesoCereza = (id) => {
+    const p = todosLosProcesosCereza.find(item => item.id === id);
+    if (!p) return;
+    const d = p.data;
+
+    document.getElementById('edit-proc-id').value = id;
+    document.getElementById('edit-proc-fecha').value = d.fecha || '';
+    document.getElementById('edit-proc-libras').value = d.libras || '';
+    document.getElementById('edit-proc-tipo').value = d.tipo || 'Lavado';
+    document.getElementById('edit-proc-variedad').value = d.variedad || '';
+    document.getElementById('edit-proc-lote').value = d.lote || '';
+    document.getElementById('edit-proc-notas').value = d.notas || '';
+
+    const modal = document.getElementById('modal-editar-proceso-cereza');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.guardarEdicionProcesoCereza = async () => {
+    const id = document.getElementById('edit-proc-id')?.value;
+    if (!id) return;
+
+    const fecha = document.getElementById('edit-proc-fecha')?.value;
+    const lbs = parseFloat(document.getElementById('edit-proc-libras')?.value) || 0;
+    const tipo = document.getElementById('edit-proc-tipo')?.value;
+    const variedad = document.getElementById('edit-proc-variedad')?.value.trim();
+    const lote = document.getElementById('edit-proc-lote')?.value.trim();
+    const notas = document.getElementById('edit-proc-notas')?.value.trim();
+
+    try {
+        await updateDoc(doc(db, "cereza_procesos", id), {
+            fecha,
+            libras: lbs,
+            quintales: lbs / 100,
+            tipo,
+            variedad,
+            lote,
+            notas
+        });
+        cerrarModal('modal-editar-proceso-cereza');
+        await window.cargarProcesosCereza();
+        alert("✅ Lote en proceso actualizado.");
+    } catch (e) {
+        alert("Error: " + e.message);
+    }
+};
+
+// --- SUBMÓDULO: BALANCE Y CUADRE GLOBAL DE COSECHA ---
+
+window.recalcularBalanceCosecha = () => {
+    // 1. Total cortado en campo
+    const totalCortadoLbs = todosLosPesajesCortes.reduce((acc, p) => acc + (parseFloat(p.data.libras) || 0), 0);
+    const totalCortadoQq = totalCortadoLbs / 100;
+
+    // 2. Total vendido a beneficios
+    const totalVendidoLbs = todasLasVentasCereza.reduce((acc, v) => acc + (parseFloat(v.data.libras) || ((parseFloat(v.data.quintales) || 0) * 100)), 0);
+    const totalVendidoQq = totalVendidoLbs / 100;
+
+    // 3. Total procesado en finca
+    const totalProcesadoLbs = todosLosProcesosCereza.reduce((acc, p) => acc + (parseFloat(p.data.libras) || 0), 0);
+    const totalProcesadoQq = totalProcesadoLbs / 100;
+
+    // 4. Saldo y diferencia
+    const totalDestinadoLbs = totalVendidoLbs + totalProcesadoLbs;
+    const diferenciaLbs = totalCortadoLbs - totalDestinadoLbs;
+    const diferenciaQq = diferenciaLbs / 100;
+    const pctDestinado = totalCortadoLbs > 0 ? ((totalDestinadoLbs / totalCortadoLbs) * 100) : 0;
+    const pctDiferencia = totalCortadoLbs > 0 ? ((diferenciaLbs / totalCortadoLbs) * 100) : 0;
+
+    // Actualizar elementos
+    const elCortado = document.getElementById('bal-total-cortado');
+    if (elCortado) elCortado.innerText = `${totalCortadoLbs.toFixed(1)} lbs`;
+    const elCortadoQq = document.getElementById('bal-total-cortado-qq');
+    if (elCortadoQq) elCortadoQq.innerText = `${totalCortadoQq.toFixed(2)} qq cereza cosechados`;
+
+    const elVendido = document.getElementById('bal-total-vendido');
+    if (elVendido) elVendido.innerText = `${totalVendidoLbs.toFixed(1)} lbs`;
+    const elVendidoQq = document.getElementById('bal-total-vendido-qq');
+    if (elVendidoQq) elVendidoQq.innerText = `${totalVendidoQq.toFixed(2)} qq maduro vendidos`;
+
+    const elProc = document.getElementById('bal-total-procesado');
+    if (elProc) elProc.innerText = `${totalProcesadoLbs.toFixed(1)} lbs`;
+    const elProcQq = document.getElementById('bal-total-procesado-qq');
+    if (elProcQq) elProcQq.innerText = `${totalProcesadoQq.toFixed(2)} qq a proceso propio`;
+
+    const elDiff = document.getElementById('bal-total-diferencia');
+    if (elDiff) {
+        const signo = diferenciaLbs > 0 ? '+' : '';
+        elDiff.innerText = `${signo}${diferenciaLbs.toFixed(1)} lbs`;
+    }
+    const elDiffPct = document.getElementById('bal-total-diferencia-pct');
+    if (elDiffPct) {
+        elDiffPct.innerText = `${Math.abs(pctDiferencia).toFixed(1)}% de saldo / merma (${diferenciaQq.toFixed(2)} qq)`;
+    }
+
+    const cardDiff = document.getElementById('card-bal-diferencia');
+    if (cardDiff) {
+        if (Math.abs(diferenciaLbs) < 1) {
+            cardDiff.style.background = '#f0fdf4';
+            cardDiff.style.borderColor = '#86efac';
+        } else if (diferenciaLbs > 0) {
+            cardDiff.style.background = '#fefce8';
+            cardDiff.style.borderColor = '#fde047';
+        } else {
+            cardDiff.style.background = '#fef2f2';
+            cardDiff.style.borderColor = '#fca5a5';
+        }
+    }
+
+    const mensajeEl = document.getElementById('bal-mensaje-cuadre');
+    if (mensajeEl) {
+        if (totalCortadoLbs === 0) {
+            mensajeEl.innerHTML = `ℹ️ Aún no hay pesajes de cortes registrados para calcular el balance de cosecha.`;
+        } else if (Math.abs(diferenciaLbs) < 5) {
+            mensajeEl.innerHTML = `
+                <strong style="color:#166534;">✅ Cuadre de Cosecha Perfecto (100% Destinado):</strong><br>
+                Todo el café cortado por el personal (${totalCortadoLbs.toFixed(1)} lbs) ha sido distribuido con precisión entre entregas a beneficios (${totalVendidoLbs.toFixed(1)} lbs) y beneficio húmedo de la finca (${totalProcesadoLbs.toFixed(1)} lbs).
+            `;
+        } else if (diferenciaLbs > 0) {
+            mensajeEl.innerHTML = `
+                <strong style="color:#854d0e;">⚠️ Saldo de Café Cereza Pendiente de Destinar (${diferenciaLbs.toFixed(1)} lbs / ${diferenciaQq.toFixed(2)} qq):</strong><br>
+                Se ha cosechado más café del registrado en salidas. Este saldo puede corresponder a café en patio pendiente de entrega a beneficio, en tolva de despulpado o merma natural por pérdida de humedad.
+            `;
+        } else {
+            mensajeEl.innerHTML = `
+                <strong style="color:#991b1b;">⚠️ Alerta de Diferencia Negativa:</strong><br>
+                La suma de café vendido y procesado (${totalDestinadoLbs.toFixed(1)} lbs) excede el total registrado en cortes (${totalCortadoLbs.toFixed(1)} lbs) por ${Math.abs(diferenciaLbs).toFixed(1)} lbs. Revisa si hay pesajes diarios pendientes de anotar.
+            `;
+        }
+    }
+};
+
+window.generarPDFReporteCereza = () => {
+    const jsPDF = getJsPDF();
+    if (!jsPDF) return alert("Librería jsPDF no disponible.");
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+
+    // Encabezado
+    doc.setFillColor(185, 28, 28);
+    doc.rect(0, 0, 216, 26, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("FINCA LOS ROBLES", 108, 11, { align: "center" });
+
+    doc.setFontSize(11);
+    doc.text("INFORME DE DESTINO Y VENTA DE CAFÉ CEREZA / MADURO", 108, 18, { align: "center" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Liquidaciones de Entrega a Beneficios vs. Ingreso a Beneficio Húmedo Propio", 108, 23, { align: "center" });
+
+    let y = 34;
+
+    // Resumen en cajas
+    const totVendidoQq = todasLasVentasCereza.reduce((a, v) => a + (parseFloat(v.data.quintales) || 0), 0);
+    const totCobrado = todasLasVentasCereza.reduce((a, v) => a + (parseFloat(v.data.total) || 0), 0);
+    const totProcLbs = todosLosProcesosCereza.reduce((a, p) => a + (parseFloat(p.data.libras) || 0), 0);
+    const totProcQq = totProcLbs / 100;
+
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(14, y, 188, 22, 'FD');
+
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "bold");
+    doc.text("CONSOLIDADO DE DESTINO DE CAFÉ CEREZA", 18, y + 6);
+
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Total Vendido a Beneficios: ${totVendidoQq.toFixed(2)} quintales maduro`, 18, y + 13);
+    doc.text(`Ingresos por Venta Cereza: Q ${totCobrado.toFixed(2)}`, 18, y + 18);
+
+    doc.text(`Total a Beneficio Húmedo (Casa): ${totProcQq.toFixed(2)} quintales (${totProcLbs.toFixed(0)} lbs)`, 110, y + 13);
+    doc.text(`Lotes en Proceso Propio: ${todosLosProcesosCereza.length} lotes`, 110, y + 18);
+
+    y += 28;
+
+    // Tabla 1: Ventas a beneficios
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(185, 28, 28);
+    doc.text("1. DETALLE DE ENTREGAS Y VENTAS A BENEFICIOS EXTERNOS", 14, y);
+    y += 4;
+
+    doc.setFillColor(185, 28, 28);
+    doc.rect(14, y, 188, 6.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7.5);
+    doc.text("FECHA", 17, y + 4.5);
+    doc.text("BENEFICIO / COMPRADOR", 40, y + 4.5);
+    doc.text("BOLETA", 95, y + 4.5);
+    doc.text("QUINTALES", 125, y + 4.5, { align: "right" });
+    doc.text("PRECIO/QQ", 155, y + 4.5, { align: "right" });
+    doc.text("TOTAL (Q)", 185, y + 4.5, { align: "right" });
+    doc.text("ESTADO", 192, y + 4.5);
+
+    y += 6.5;
+
+    if (todasLasVentasCereza.length === 0) {
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(8);
+        doc.text("Sin registros de venta a beneficios.", 108, y + 6, { align: "center" });
+        y += 12;
+    } else {
+        todasLasVentasCereza.forEach((v, idx) => {
+            const d = v.data;
+            if (y > 250) {
+                doc.addPage();
+                y = 20;
+            }
+
+            if (idx % 2 === 1) {
+                doc.setFillColor(254, 242, 242);
+                doc.rect(14, y, 188, 5.5, 'F');
+            }
+
+            doc.setDrawColor(240, 240, 240);
+            doc.line(14, y + 5.5, 202, y + 5.5);
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(7.5);
+            doc.setFont("helvetica", "normal");
+            doc.text(d.fecha || '-', 17, y + 4);
+            doc.setFont("helvetica", "bold");
+            doc.text(d.beneficio || '-', 40, y + 4);
+            doc.setFont("helvetica", "normal");
+            doc.text(d.boleta || '-', 95, y + 4);
+            doc.text(`${(d.quintales || 0).toFixed(2)} qq`, 125, y + 4, { align: "right" });
+            doc.text(`Q ${(d.precioPorQq || 0).toFixed(2)}`, 155, y + 4, { align: "right" });
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(20, 83, 45);
+            doc.text(`Q ${(d.total || 0).toFixed(2)}`, 185, y + 4, { align: "right" });
+            doc.setFontSize(7);
+            doc.setTextColor(d.estado === 'pendiente' ? 180 : 20, d.estado === 'pendiente' ? 83 : 100, 20);
+            doc.text(d.estado === 'pendiente' ? 'Pend.' : 'Cobrado', 192, y + 4);
+
+            y += 5.5;
+        });
+    }
+
+    y += 8;
+    if (y > 210) {
+        doc.addPage();
+        y = 20;
+    }
+
+    // Tabla 2: Procesamiento propio
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 118, 110);
+    doc.text("2. DETALLE DE LOTES EN BENEFICIO HÚMEDO PROPIO (FINCA)", 14, y);
+    y += 4;
+
+    doc.setFillColor(15, 118, 110);
+    doc.rect(14, y, 188, 6.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7.5);
+    doc.text("FECHA", 17, y + 4.5);
+    doc.text("CÓDIGO LOTE", 40, y + 4.5);
+    doc.text("PROCESO", 80, y + 4.5);
+    doc.text("VARIEDAD", 115, y + 4.5);
+    doc.text("CEREZA (LBS)", 160, y + 4.5, { align: "right" });
+    doc.text("EST. PERGAMINO", 198, y + 4.5, { align: "right" });
+
+    y += 6.5;
+
+    if (todosLosProcesosCereza.length === 0) {
+        doc.setTextColor(148, 163, 184);
+        doc.setFontSize(8);
+        doc.text("Sin registros de procesamiento propio.", 108, y + 6, { align: "center" });
+        y += 12;
+    } else {
+        todosLosProcesosCereza.forEach((p, idx) => {
+            const d = p.data;
+            if (y > 250) {
+                doc.addPage();
+                y = 20;
+            }
+
+            if (idx % 2 === 1) {
+                doc.setFillColor(240, 253, 250);
+                doc.rect(14, y, 188, 5.5, 'F');
+            }
+
+            doc.setDrawColor(240, 240, 240);
+            doc.line(14, y + 5.5, 202, y + 5.5);
+
+            doc.setTextColor(30, 41, 59);
+            doc.setFontSize(7.5);
+            doc.setFont("helvetica", "normal");
+            doc.text(d.fecha || '-', 17, y + 4);
+            doc.setFont("helvetica", "bold");
+            doc.text(d.lote || '-', 40, y + 4);
+            doc.setFont("helvetica", "normal");
+            doc.text(d.tipo || '-', 80, y + 4);
+            doc.text(d.variedad || '-', 115, y + 4);
+            doc.setFont("helvetica", "bold");
+            doc.text(`${(d.libras || 0).toFixed(0)} lbs`, 160, y + 4, { align: "right" });
+            doc.setTextColor(3, 105, 161);
+            doc.text(`~${((d.libras || 0) * 0.20).toFixed(0)} lbs`, 198, y + 4, { align: "right" });
+
+            y += 5.5;
+        });
+    }
+
+    doc.save(`Reporte_Cafe_Cereza_${new Date().toISOString().split('T')[0]}.pdf`);
+    alert("✅ Reporte de Café Cereza PDF descargado con éxito.");
+};
+
 
