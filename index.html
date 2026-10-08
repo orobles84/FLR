@@ -2712,6 +2712,528 @@
                 </table>
             </div>
         </div>
+
+        <!-- MÓDULO: CONTROL DE CORTES DE CAFÉ Y PLANILLA DE COSECHA -->
+        <div id="cortes" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
+                <div>
+                    <h2 style="margin:0; border:none; padding:0; color:var(--primary);">🧺 Control de Cortes de Café y Planilla</h2>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#666;">
+                        Pesadas diarias de café cortado por trabajador, cálculo de jornales (Lunes a Sábado) y liquidación semanal.
+                    </p>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-small btn-success" style="font-weight:bold;" onclick="mostrarSubtabCortes('pesadas'); enfocarInputPesada();">
+                        ➕ Registrar Pesada
+                    </button>
+                    <button class="btn btn-small btn-pdf" onclick="generarPDFPlanillaCortes()">
+                        📄 Planilla PDF
+                    </button>
+                    <button class="btn btn-small" style="background:#25D366; color:white;" onclick="compartirWhatsAppPlanillaCortes()">
+                        💬 Resumen WhatsApp
+                    </button>
+                </div>
+            </div>
+
+            <!-- SUBTABS DE CORTES -->
+            <div class="madera-subtabs">
+                <button type="button" class="madera-tab-btn active" id="tab-btn-cortes-planilla" onclick="mostrarSubtabCortes('planilla')">
+                    📋 Planilla y Resumen Semanal
+                </button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-cortes-pesadas" onclick="mostrarSubtabCortes('pesadas')">
+                    ⚖️ Ingreso de Pesadas Diarias
+                </button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-cortes-cortadores" onclick="mostrarSubtabCortes('cortadores')">
+                    👥 Directorio de Cortadores (<span id="cortes-count-cortadores">0</span>)
+                </button>
+            </div>
+
+            <!-- SUBTAB 1: PLANILLA Y RESUMEN SEMANAL -->
+            <div id="cortes-subtab-planilla">
+                <!-- BARRA DE FILTRO POR PERÍODO Y TARIFA POR LIBRA -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:12px;">
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Fecha Inicio (Lunes):</label>
+                            <input type="date" id="cortes-filtro-inicio" style="padding:7px 10px; font-weight:600;" onchange="recalcularPlanillaCortes()">
+                        </div>
+                        <div>
+                            <label style="font-size:0.75rem; font-weight:bold; color:#475569;">Fecha Fin (Sábado):</label>
+                            <input type="date" id="cortes-filtro-fin" style="padding:7px 10px; font-weight:600;" onchange="recalcularPlanillaCortes()">
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-xs" style="background:#0284c7; color:white; padding:7px 12px; font-weight:bold;" onclick="establecerSemanaActualCortes()">
+                                📅 Esta Semana (Lun-Sáb)
+                            </button>
+                            <button type="button" class="btn btn-xs" style="background:#64748b; color:white; padding:7px 10px;" onclick="establecerSemanaAnteriorCortes()" title="Semana anterior">
+                                ⏪ Anterior
+                            </button>
+                            <button type="button" class="btn btn-xs" style="background:#334155; color:white; padding:7px 10px;" onclick="establecerMesActualCortes()" title="Mes actual">
+                                🗓️ Mes
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CASILLA DE PRECIO POR LIBRA DE CORTE -->
+                    <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:8px 14px; display:flex; align-items:center; gap:8px;">
+                        <div>
+                            <span style="font-size:0.72rem; font-weight:bold; color:#065f46; display:block;">💵 PRECIO POR LIBRA CORTADA:</span>
+                            <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
+                                <span style="font-weight:bold; color:#047857; font-size:1.15rem;">Q</span>
+                                <input type="number" id="cortes-precio-libra" value="0.60" step="0.05" min="0.05" style="width:85px; padding:5px 8px; font-weight:bold; font-size:1.1rem; color:#047857; text-align:right; border:1px solid #6ee7b7; border-radius:6px;" oninput="guardarTarifaCortes(); recalcularPlanillaCortes();">
+                                <span style="font-size:0.8rem; color:#065f46; font-weight:600;">/ lb</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPIS GENERALES DE LA SEMANA -->
+                <div class="dash-kpi-grid" style="margin-bottom:1.25rem;">
+                    <div class="card" style="background:linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); color:white; margin:0; border-left:4px solid #60a5fa;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">⚖️ CAFÉ CORTADO TOTAL</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-cortes-total-libras">0 lbs</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-cortes-total-quintales">0.00 quintales cereza</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #065f46 0%, #059669 100%); color:white; margin:0; border-left:4px solid #34d399;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">💰 PLANILLA TOTAL A PAGAR</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-cortes-total-monto">Q 0.00</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-cortes-sub-monto">0 cortadores en período</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #78350f 0%, #d97706 100%); color:white; margin:0; border-left:4px solid #fde68a;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">👥 CORTADORES ACTIVOS</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-cortes-cortadores-activos">0</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-cortes-promedio-persona">0 lbs / cortador prom.</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #374151 0%, #4b5563 100%); color:white; margin:0; border-left:4px solid #9ca3af;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">💵 ESTADO DE LIQUIDACIÓN</span>
+                        <div style="font-size:1.4rem; font-weight:bold; margin:6px 0;" id="kpi-cortes-estado-pago">Q 0.00 Pagado</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-cortes-estado-pendiente">Q 0.00 pendiente</span>
+                    </div>
+                </div>
+
+                <!-- TABLA DE PLANILLA SEMANAL -->
+                <div class="table-wrapper">
+                    <table id="tabla-planilla-cortes">
+                        <thead>
+                            <tr>
+                                <th style="width:36px; text-align:center;">#</th>
+                                <th>Cortador / Trabajador</th>
+                                <th style="text-align:right;">Lun</th>
+                                <th style="text-align:right;">Mar</th>
+                                <th style="text-align:right;">Mié</th>
+                                <th style="text-align:right;">Jue</th>
+                                <th style="text-align:right;">Vie</th>
+                                <th style="text-align:right;">Sáb</th>
+                                <th style="text-align:right; background:#f0fdf4;">Total Lbs</th>
+                                <th style="text-align:right;">Tarifa</th>
+                                <th style="text-align:right; background:#ecfdf5; color:#047857;">A Pagar</th>
+                                <th style="text-align:center;">Estado</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-planilla-cortes">
+                            <tr>
+                                <td colspan="13" style="text-align:center; padding:2rem; color:#888;">Cargando planilla de cortes...</td>
+                            </tr>
+                        </tbody>
+                        <tfoot id="tfoot-planilla-cortes" style="background:#f8fafc; font-weight:bold;">
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SUBTAB 2: INGRESO DIARIO DE PESADAS -->
+            <div id="cortes-subtab-pesadas" style="display:none;">
+                <div style="background:linear-gradient(135deg, #fdfbf7 0%, #fff 100%); border:2px solid var(--accent); border-radius:12px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                    <h3 style="margin:0 0 0.75rem; color:var(--primary); font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                        ⚖️ Registro de Pesada Diaria de Café
+                    </h3>
+                    <form id="form-nuevo-pesaje-corte" onsubmit="event.preventDefault(); guardarPesajeCorte();">
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; align-items:end;">
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Fecha de Corte:</label>
+                                <input type="date" id="corte-in-fecha" required style="padding:9px; font-weight:bold; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Nombre del Cortador:</label>
+                                <input type="text" id="corte-in-cortador" list="lista-cortadores-datalist" placeholder="Escribe o selecciona nombre" required style="padding:9px; font-weight:bold; width:100%;" autocomplete="off">
+                                <datalist id="lista-cortadores-datalist"></datalist>
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Peso Cortado (Libras):</label>
+                                <input type="number" id="corte-in-libras" placeholder="Ej: 85" step="0.5" min="0.5" required class="yellow-input" style="padding:9px; font-size:1.15rem; font-weight:bold; text-align:right; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Lote / Tablón (Opcional):</label>
+                                <input type="text" id="corte-in-tablon" placeholder="Ej: Tablón El Mirador" style="padding:9px; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Observaciones:</label>
+                                <input type="text" id="corte-in-notas" placeholder="Ej: Café maduro parejo" style="padding:9px; width:100%;">
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-success" style="width:100%; padding:11px; font-weight:bold; margin:0;">
+                                    💾 Guardar Pesaje
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- TABLA DE HISTORIAL DE PESAJES INDIVIDUALES -->
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
+                    <h3 style="margin:0; font-size:1rem; color:#334155;">📋 Historial de Pesajes Registrados</h3>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="corte-filtro-busqueda-pesajes" placeholder="Buscar por cortador..." style="padding:6px 10px; font-size:0.85rem;" oninput="renderTablaPesajesCortes()">
+                        <input type="date" id="corte-filtro-fecha-pesajes" style="padding:6px 10px; font-size:0.85rem;" onchange="renderTablaPesajesCortes()">
+                        <button type="button" class="btn btn-xs btn-secondary" onclick="limpiarFiltrosPesajesCortes()">Ver Todos</button>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table id="tabla-pesajes-cortes">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cortador</th>
+                                <th style="text-align:right;">Peso (Lbs)</th>
+                                <th>Tablón / Lote</th>
+                                <th>Notas</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-pesajes-cortes">
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding:2rem; color:#888;">Cargando pesajes...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SUBTAB 3: DIRECTORIO DE CORTADORES -->
+            <div id="cortes-subtab-cortadores" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0; color:var(--primary);">👥 Directorio de Cortadores de Café</h3>
+                        <p style="margin:2px 0 0; font-size:0.85rem; color:#64748b;">Administra las personas que cortan café en la finca.</p>
+                    </div>
+                    <button class="btn btn-small btn-success" onclick="abrirModalNuevoCortador()">➕ Agregar Cortador</button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table id="tabla-directorio-cortadores">
+                        <thead>
+                            <tr>
+                                <th>Nombre Completo</th>
+                                <th>Teléfono / Contacto</th>
+                                <th style="text-align:right;">Total Histórico Cortado</th>
+                                <th style="text-align:center;">Último Corte</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-directorio-cortadores">
+                            <tr>
+                                <td colspan="5" style="text-align:center; padding:2rem; color:#888;">Cargando cortadores...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- MÓDULO: VENTA Y PROCESAMIENTO DE CAFÉ CEREZA / MADURO -->
+        <div id="cereza" class="section">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
+                <div>
+                    <h2 style="margin:0; border:none; padding:0; color:#b91c1c;">🍒 Destino de Café Cereza: Venta y Proceso</h2>
+                    <p style="margin:4px 0 0; font-size:0.85rem; color:#666;">
+                        Control separado de café cereza recién cosechado: venta directa a beneficios vs. ingreso a beneficio húmedo propio.
+                    </p>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-small btn-success" style="font-weight:bold;" onclick="mostrarSubtabCereza('ventas'); enfocarFormVentaCereza();">
+                        ➕ Venta a Beneficio
+                    </button>
+                    <button class="btn btn-small" style="background:#0f766e; color:white; font-weight:bold;" onclick="mostrarSubtabCereza('procesos'); enfocarFormProcesoCereza();">
+                        💧 Ingreso a Proceso
+                    </button>
+                    <button class="btn btn-small btn-pdf" onclick="generarPDFReporteCereza()">
+                        📄 Reporte Cereza PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- SUBTABS DE CEREZA -->
+            <div class="madera-subtabs">
+                <button type="button" class="madera-tab-btn active" id="tab-btn-cereza-ventas" onclick="mostrarSubtabCereza('ventas')">
+                    🏭 Venta de Café Maduro a Beneficios
+                </button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-cereza-procesos" onclick="mostrarSubtabCereza('procesos')">
+                    💧 Procesamiento Propio en Finca
+                </button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-cereza-balance" onclick="mostrarSubtabCereza('balance')">
+                    ⚖️ Balance y Cuadre de Cosecha
+                </button>
+            </div>
+
+            <!-- SUBTAB 1: VENTAS DE CAFÉ MADURO A BENEFICIOS -->
+            <div id="cereza-subtab-ventas">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                    <h3 style="margin:0 0 0.75rem; color:#b91c1c; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                        🏭 Registrar Venta / Entrega de Café Maduro a Beneficio
+                    </h3>
+                    <form id="form-venta-cereza" onsubmit="event.preventDefault(); guardarVentaCereza();">
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; align-items:end;">
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Fecha de Venta / Entrega:</label>
+                                <input type="date" id="cereza-vta-fecha" required style="padding:8px; font-weight:bold; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Beneficio / Comprador:</label>
+                                <input type="text" id="cereza-vta-beneficio" placeholder="Ej: Beneficio San Rafael" required style="padding:8px; font-weight:bold; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Cantidad en Quintales (qq):</label>
+                                <input type="number" id="cereza-vta-quintales" placeholder="Ej: 15.5" step="0.01" min="0.01" required style="padding:8px; font-weight:bold; text-align:right; width:100%;" oninput="actualizarCalculoVentaCereza('qq')">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Equivalente en Libras (lbs):</label>
+                                <input type="number" id="cereza-vta-libras" placeholder="Ej: 1550" step="1" min="1" style="padding:8px; text-align:right; width:100%;" oninput="actualizarCalculoVentaCereza('lbs')">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Precio Venta (Q por qq):</label>
+                                <input type="number" id="cereza-vta-precio-qq" placeholder="Ej: 180.00" step="0.5" min="0" required class="yellow-input" style="padding:8px; font-weight:bold; text-align:right; width:100%;" oninput="actualizarCalculoVentaCereza('precio')">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Total a Cobrar / Ingreso:</label>
+                                <div id="cereza-vta-total-preview" style="background:#ecfdf5; color:#047857; font-weight:bold; font-size:1.15rem; padding:7px 10px; border-radius:6px; border:1px solid #6ee7b7; text-align:right;">
+                                    Q 0.00
+                                </div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">N° Boleta / Comprobante:</label>
+                                <input type="text" id="cereza-vta-boleta" placeholder="Ej: BOL-8924" style="padding:8px; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Estado de Pago:</label>
+                                <select id="cereza-vta-estado" style="padding:8px; font-weight:bold; width:100%;">
+                                    <option value="cobrado">🟢 Cobrado / Pagado</option>
+                                    <option value="pendiente">🟡 Pendiente de Liquidación</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Observaciones:</label>
+                                <input type="text" id="cereza-vta-notas" placeholder="Ej: Calidad primera, maduro parejo" style="padding:8px; width:100%;">
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-success" style="width:100%; padding:10px; font-weight:bold; margin:0;">
+                                    💾 Guardar Venta
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- KPIS DE VENTA A BENEFICIOS -->
+                <div class="dash-kpi-grid" style="margin-bottom:1.25rem;">
+                    <div class="card" style="background:linear-gradient(135deg, #991b1b 0%, #dc2626 100%); color:white; margin:0; border-left:4px solid #fca5a5;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">🚚 TOTAL MADURO VENDIDO</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-cereza-total-vendido-qq">0.00 qq</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-cereza-total-vendido-lbs">0 lbs de café cereza</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #065f46 0%, #059669 100%); color:white; margin:0; border-left:4px solid #34d399;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">💰 INGRESOS COBRADOS</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-cereza-total-cobrado">Q 0.00</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-cereza-sub-cobrado">0 entregas liquidadas</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #78350f 0%, #d97706 100%); color:white; margin:0; border-left:4px solid #fde68a;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">⏳ PENDIENTE DE COBRO</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-cereza-total-pendiente">Q 0.00</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-cereza-sub-pendiente">Por liquidar con beneficio</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #1e293b 0%, #334155 100%); color:white; margin:0; border-left:4px solid #94a3b8;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">📊 PRECIO PROMEDIO / QQ</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-cereza-precio-promedio">Q 0.00</div>
+                        <span style="font-size:0.8rem; opacity:0.85;">Tarifa promedio beneficio</span>
+                    </div>
+                </div>
+
+                <!-- TABLA DE HISTORIAL DE VENTAS -->
+                <div class="table-wrapper">
+                    <table id="tabla-ventas-cereza">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Beneficio / Comprador</th>
+                                <th>Boleta</th>
+                                <th style="text-align:right;">Quintales (qq)</th>
+                                <th style="text-align:right;">Libras (lbs)</th>
+                                <th style="text-align:right;">Precio / qq</th>
+                                <th style="text-align:right; color:#047857;">Total Cobrado</th>
+                                <th style="text-align:center;">Estado</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-ventas-cereza">
+                            <tr>
+                                <td colspan="9" style="text-align:center; padding:2rem; color:#888;">Cargando ventas de café maduro...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SUBTAB 2: PROCESAMIENTO PROPIO EN FINCA -->
+            <div id="cereza-subtab-procesos" style="display:none;">
+                <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 2px 6px rgba(0,0,0,0.05);">
+                    <h3 style="margin:0 0 0.75rem; color:#0f766e; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                        💧 Registrar Ingreso de Café Cereza a Beneficio Húmedo de la Finca
+                    </h3>
+                    <form id="form-proceso-cereza" onsubmit="event.preventDefault(); guardarProcesoCereza();">
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; align-items:end;">
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Fecha de Ingreso:</label>
+                                <input type="date" id="cereza-proc-fecha" required style="padding:8px; font-weight:bold; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Cantidad Cereza (Libras):</label>
+                                <input type="number" id="cereza-proc-libras" placeholder="Ej: 1200" step="1" min="1" required class="yellow-input" style="padding:8px; font-weight:bold; text-align:right; width:100%;" oninput="actualizarCalculoProcesoCereza()">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Equivalente Quintales (qq):</label>
+                                <input type="number" id="cereza-proc-quintales" placeholder="12.00" step="0.01" style="padding:8px; text-align:right; width:100%; background:#f8fafc;" readonly>
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Tipo de Proceso:</label>
+                                <select id="cereza-proc-tipo" style="padding:8px; font-weight:bold; width:100%;">
+                                    <option value="Lavado">💧 Lavado Tradicional</option>
+                                    <option value="Honey">🍯 Honey (Miel / Semi-lavado)</option>
+                                    <option value="Natural">☀️ Natural / Seco</option>
+                                    <option value="Anaerobico">🧪 Anaeróbico / Fermentación Especial</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Variedad / Tablón:</label>
+                                <input type="text" id="cereza-proc-variedad" placeholder="Ej: Catimor - Tablón 2" style="padding:8px; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Código de Lote Asignado:</label>
+                                <input type="text" id="cereza-proc-lote" placeholder="Ej: CER-2026-001" style="padding:8px; font-weight:bold; font-family:monospace; width:100%;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Observaciones:</label>
+                                <input type="text" id="cereza-proc-notas" placeholder="Ej: Fermentación 24 hrs en tanque" style="padding:8px; width:100%;">
+                            </div>
+                            <div>
+                                <button type="submit" class="btn btn-success" style="width:100%; padding:10px; font-weight:bold; margin:0; background:#0f766e;">
+                                    💾 Guardar en Proceso
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- KPIS DE PROCESO PROPIO -->
+                <div class="dash-kpi-grid" style="margin-bottom:1.25rem;">
+                    <div class="card" style="background:linear-gradient(135deg, #0f766e 0%, #0d9488 100%); color:white; margin:0; border-left:4px solid #5eead4;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">💧 CEREZA EN PROCESO PROPIO</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-proc-total-libras">0 lbs</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-proc-total-qq">0.00 quintales cereza</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #0369a1 0%, #0284c7 100%); color:white; margin:0; border-left:4px solid #7dd3fc;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">☕ EST. PERGAMINO SECO (~20%)</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-proc-est-pergamino">0 lbs pergamino</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-proc-est-pergamino-qq">0.00 qq pergamino</span>
+                    </div>
+
+                    <div class="card" style="background:linear-gradient(135deg, #334155 0%, #475569 100%); color:white; margin:0; border-left:4px solid #cbd5e1;">
+                        <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">🧪 LOTES INGRESADOS</span>
+                        <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-proc-total-lotes">0 lotes</div>
+                        <span style="font-size:0.8rem; opacity:0.85;" id="kpi-proc-distribucion-tipos">Lavado / Honey / Natural</span>
+                    </div>
+                </div>
+
+                <!-- TABLA HISTORIAL DE PROCESOS PROPIOS -->
+                <div class="table-wrapper">
+                    <table id="tabla-procesos-cereza">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Código Lote</th>
+                                <th>Tipo de Proceso</th>
+                                <th>Variedad / Tablón</th>
+                                <th style="text-align:right;">Cereza (Lbs)</th>
+                                <th style="text-align:right;">Cereza (qq)</th>
+                                <th style="text-align:right;">Est. Pergamino</th>
+                                <th>Notas</th>
+                                <th style="text-align:center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-procesos-cereza">
+                            <tr>
+                                <td colspan="9" style="text-align:center; padding:2rem; color:#888;">Cargando lotes en proceso...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- SUBTAB 3: BALANCE Y CUADRE DE COSECHA -->
+            <div id="cereza-subtab-balance" style="display:none;">
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:12px; padding:1.25rem; margin-bottom:1.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:1rem;">
+                        <div>
+                            <h3 style="margin:0; color:var(--primary);">⚖️ Balance General: Café Cortado vs. Destino Final</h3>
+                            <p style="margin:2px 0 0; font-size:0.85rem; color:#64748b;">
+                                Compara todo el café cosechado por los cortadores contra lo que se vendió a beneficios y lo que ingresó a beneficio húmedo.
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:8px; align-items:center;">
+                            <button type="button" class="btn btn-xs btn-primary" onclick="recalcularBalanceCosecha()">🔄 Actualizar Cuadre</button>
+                        </div>
+                    </div>
+
+                    <!-- TARJETAS DE COMPARATIVA -->
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:1.25rem;">
+                        <div style="background:#eff6ff; border:2px solid #93c5fd; border-radius:10px; padding:1rem;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#1d4ed8; text-transform:uppercase;">1. COSECHADO EN CAMPO (CORTES)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#1e40af; margin:6px 0;" id="bal-total-cortado">0 lbs</div>
+                            <span style="font-size:0.8rem; color:#3b82f6;" id="bal-total-cortado-qq">0.00 quintales pagados</span>
+                        </div>
+
+                        <div style="background:#fef2f2; border:2px solid #fca5a5; border-radius:10px; padding:1rem;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#b91c1c; text-transform:uppercase;">2. VENDIDO A BENEFICIOS (MADURO)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#991b1b; margin:6px 0;" id="bal-total-vendido">0 lbs</div>
+                            <span style="font-size:0.8rem; color:#ef4444;" id="bal-total-vendido-qq">0.00 quintales vendidos</span>
+                        </div>
+
+                        <div style="background:#f0fdf4; border:2px solid #86efac; border-radius:10px; padding:1rem;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#15803d; text-transform:uppercase;">3. PROCESADO EN CASA (FINCA)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#166534; margin:6px 0;" id="bal-total-procesado">0 lbs</div>
+                            <span style="font-size:0.8rem; color:#22c55e;" id="bal-total-procesado-qq">0.00 quintales a beneficio húmedo</span>
+                        </div>
+
+                        <div style="background:#fefce8; border:2px solid #fde047; border-radius:10px; padding:1rem;" id="card-bal-diferencia">
+                            <span style="font-size:0.75rem; font-weight:bold; color:#854d0e; text-transform:uppercase;">DIFERENCIA / SALDO POR DESTINAR</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#a16207; margin:6px 0;" id="bal-total-diferencia">0 lbs</div>
+                            <span style="font-size:0.8rem; color:#ca8a04;" id="bal-total-diferencia-pct">0% de merma / saldo</span>
+                        </div>
+                    </div>
+
+                    <!-- EXPLICACIÓN Y ESTADO DE CUADRE -->
+                    <div id="bal-mensaje-cuadre" style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:12px; font-size:0.9rem; line-height:1.45;">
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -3287,6 +3809,14 @@
                     <span>🔬 Muestreo Lab</span>
                 </label>
                 <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="cortes" class="check-modulo-permiso">
+                    <span>🧺 Cortes y Cosecha</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="cereza" class="check-modulo-permiso">
+                    <span>🍒 Café Cereza (Venta/Proceso)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
                     <input type="checkbox" value="dashboard" class="check-modulo-permiso">
                     <span>📊 Dashboard</span>
                 </label>
@@ -3397,6 +3927,181 @@
                 <button type="button" onclick="enviarEnlaceResetEmail()" style="color:#0284c7; background:none; border:none; cursor:pointer; text-decoration:underline; font-size:0.82rem;">
                     📧 ¿Prefieres recibir un enlace en tu correo para restablecer?
                 </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR PESAJE DE CORTE -->
+<div class="modal-overlay" id="modal-editar-pesaje-corte">
+    <div class="modal-content" style="max-width:480px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0; color:var(--primary);">✏️ Modificar Pesaje de Corte</h3>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-editar-pesaje-corte')" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <form onsubmit="event.preventDefault(); guardarEdicionPesajeCorte();">
+            <input type="hidden" id="edit-pesaje-id">
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Fecha de Corte:</label>
+                <input type="date" id="edit-pesaje-fecha" required style="width:100%; padding:8px;">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Cortador:</label>
+                <input type="text" id="edit-pesaje-cortador" required style="width:100%; padding:8px;">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Peso en Libras (lbs):</label>
+                <input type="number" id="edit-pesaje-libras" step="0.5" min="0.5" required class="yellow-input" style="width:100%; padding:8px; font-size:1.1rem; font-weight:bold;">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Lote / Tablón:</label>
+                <input type="text" id="edit-pesaje-tablon" style="width:100%; padding:8px;">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Observaciones:</label>
+                <input type="text" id="edit-pesaje-notas" style="width:100%; padding:8px;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:1.25rem;">
+                <button type="submit" class="btn btn-success" style="flex:1;">✔️ Guardar Cambios</button>
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modal-editar-pesaje-corte')" style="flex:1;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: AGREGAR / EDITAR CORTADOR -->
+<div class="modal-overlay" id="modal-nuevo-cortador">
+    <div class="modal-content" style="max-width:420px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0; color:var(--primary);">👤 Agregar Cortador al Directorio</h3>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-nuevo-cortador')" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <form onsubmit="event.preventDefault(); guardarNuevoCortador();">
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Nombre Completo del Cortador:</label>
+                <input type="text" id="in-nuevo-cortador-nombre" required placeholder="Ej: Pedro Morales" style="width:100%; padding:9px; font-weight:bold;">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Teléfono / Celular (Opcional):</label>
+                <input type="tel" id="in-nuevo-cortador-tel" placeholder="Ej: 5555-1234" style="width:100%; padding:9px;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:1.25rem;">
+                <button type="submit" class="btn btn-success" style="flex:1;">💾 Guardar Cortador</button>
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modal-nuevo-cortador')" style="flex:1;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR VENTA DE MADURO A BENEFICIO -->
+<div class="modal-overlay" id="modal-editar-venta-cereza">
+    <div class="modal-content" style="max-width:520px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0; color:#b91c1c;">✏️ Modificar Venta a Beneficio</h3>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-editar-venta-cereza')" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <form onsubmit="event.preventDefault(); guardarEdicionVentaCereza();">
+            <input type="hidden" id="edit-vta-id">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Fecha:</label>
+                    <input type="date" id="edit-vta-fecha" required style="width:100%; padding:8px;">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Beneficio / Comprador:</label>
+                    <input type="text" id="edit-vta-beneficio" required style="width:100%; padding:8px;">
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Quintales (qq):</label>
+                    <input type="number" id="edit-vta-quintales" step="0.01" min="0.01" required style="width:100%; padding:8px; font-weight:bold;" oninput="actualizarEdicionCalculoVenta('qq')">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Libras (lbs):</label>
+                    <input type="number" id="edit-vta-libras" step="1" min="1" style="width:100%; padding:8px;" oninput="actualizarEdicionCalculoVenta('lbs')">
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Precio / qq (Q):</label>
+                    <input type="number" id="edit-vta-precio-qq" step="0.5" min="0" required class="yellow-input" style="width:100%; padding:8px; font-weight:bold;" oninput="actualizarEdicionCalculoVenta('precio')">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Total Q:</label>
+                    <input type="number" id="edit-vta-total" step="0.01" min="0" style="width:100%; padding:8px; font-weight:bold; color:#047857;" readonly>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">N° Boleta:</label>
+                    <input type="text" id="edit-vta-boleta" style="width:100%; padding:8px;">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Estado Pago:</label>
+                    <select id="edit-vta-estado" style="width:100%; padding:8px; font-weight:bold;">
+                        <option value="cobrado">🟢 Cobrado / Pagado</option>
+                        <option value="pendiente">🟡 Pendiente</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Observaciones:</label>
+                <input type="text" id="edit-vta-notas" style="width:100%; padding:8px;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:1.25rem;">
+                <button type="submit" class="btn btn-success" style="flex:1;">✔️ Actualizar Venta</button>
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modal-editar-venta-cereza')" style="flex:1;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDITAR PROCESO DE CEREZA -->
+<div class="modal-overlay" id="modal-editar-proceso-cereza">
+    <div class="modal-content" style="max-width:500px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+            <h3 style="margin:0; color:#0f766e;">✏️ Modificar Ingreso a Beneficio Húmedo</h3>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-editar-proceso-cereza')" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">✕</button>
+        </div>
+        <form onsubmit="event.preventDefault(); guardarEdicionProcesoCereza();">
+            <input type="hidden" id="edit-proc-id">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Fecha:</label>
+                    <input type="date" id="edit-proc-fecha" required style="width:100%; padding:8px;">
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Libras Cereza:</label>
+                    <input type="number" id="edit-proc-libras" step="1" min="1" required class="yellow-input" style="width:100%; padding:8px; font-weight:bold;">
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Tipo de Proceso:</label>
+                    <select id="edit-proc-tipo" style="width:100%; padding:8px; font-weight:bold;">
+                        <option value="Lavado">💧 Lavado</option>
+                        <option value="Honey">🍯 Honey</option>
+                        <option value="Natural">☀️ Natural</option>
+                        <option value="Anaerobico">🧪 Anaeróbico</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; font-weight:bold;">Variedad / Tablón:</label>
+                    <input type="text" id="edit-proc-variedad" style="width:100%; padding:8px;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Código de Lote:</label>
+                <input type="text" id="edit-proc-lote" style="width:100%; padding:8px; font-weight:bold;">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Notas:</label>
+                <input type="text" id="edit-proc-notas" style="width:100%; padding:8px;">
+            </div>
+            <div style="display:flex; gap:10px; margin-top:1.25rem;">
+                <button type="submit" class="btn btn-success" style="flex:1;">✔️ Actualizar Proceso</button>
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modal-editar-proceso-cereza')" style="flex:1;">Cancelar</button>
             </div>
         </form>
     </div>
