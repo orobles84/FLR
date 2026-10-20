@@ -1763,6 +1763,20 @@
             <h2>🔥 Control de Perfiles de Tostado</h2>
             <div class="info-box"><strong>📋 Instrucciones:</strong> Registra los datos de cada prueba de tueste. La tabla de temperaturas permite capturar minuto a minuto la temperatura de salida (Out) y de entrada (In), graficándolas simultáneamente en el mismo cuadro y en el reporte PDF.</div>
             
+            <!-- BANNER DE MODO DE EDICIÓN DE TOSTADO -->
+            <div id="banner-edicion-tostado" style="display:none; background:#fef3c7; border:2px solid #f59e0b; border-radius:10px; padding:12px 16px; margin-bottom:1.25rem; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; box-shadow:0 2px 8px rgba(245,158,11,0.15);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:1.4rem;">✏️</span>
+                    <div>
+                        <strong style="color:#92400e; font-size:1rem;">Modo de Edición de Perfil de Tueste</strong>
+                        <div style="color:#b45309; font-size:0.82rem;" id="banner-edicion-tostado-sub">Modificando perfil guardado</div>
+                    </div>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="btn btn-xs" style="background:#dc2626; color:white; font-weight:bold; padding:6px 12px;" onclick="cancelarEdicionTostado()">✕ Cancelar Edición</button>
+                </div>
+            </div>
+
             <h3>📝 Datos Generales del Tostado</h3>
             <div class="form-grid">
                 <div class="form-group"><label>Fecha</label><input type="date" id="t-fecha" class="yellow-input"></div>
@@ -1907,7 +1921,10 @@
                 <textarea id="t-notas" class="yellow-input" rows="3" placeholder="Ej: Cítrico, chocolate, naranja, caramelo, sedoso, posgusto prolongado..."></textarea>
             </div>
 
-            <button class="btn btn-save" onclick="guardarTostado()">💾 Guardar Perfil de Tostado</button>
+            <div style="display:flex; gap:10px; margin-top:0.5rem; flex-wrap:wrap;">
+                <button class="btn btn-save" id="btn-guardar-tostado" style="flex:2; min-width:200px; margin:0;" onclick="guardarTostado()">💾 Guardar Perfil de Tostado</button>
+                <button type="button" class="btn btn-secondary" id="btn-cancelar-edicion-tostado" style="display:none; flex:1; min-width:140px; margin:0; background:#64748b; color:white;" onclick="cancelarEdicionTostado()">✕ Cancelar Edición</button>
+            </div>
 
             <h3>📊 Historial de Tostados</h3>
             <div class="table-wrapper">
@@ -3434,6 +3451,7 @@
         <h3 id="modal-tostado-titulo">Detalle de Tostado</h3>
         <div id="modal-tostado-contenido"></div>
         <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
+            <button class="btn" style="flex:1; min-width:150px; background:#d97706; color:white; font-weight:bold;" onclick="editarTostadoDesdeModal()">✏️ Modificar / Editar</button>
             <button class="btn btn-pdf" style="flex:1; min-width:150px;" onclick="generarPDFTostado()">📄 Descargar PDF</button>
             <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-ver-tostado')">Cerrar</button>
         </div>
