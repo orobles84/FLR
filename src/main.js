@@ -36,6 +36,7 @@ let todasLasCataciones = [];
 let chartTostadoInstance = null;
 let chartTostadoLiveInstance = null;
 let totalMinutosTostadoTabla = 15;
+let tostadoEditandoId = null;
 let carritoVenta = [];
 let chartVentasMesesInstance = null;
 let chartTopProductosInstance = null;
@@ -2288,14 +2289,15 @@ window.inicializarModuloTostado = () => {
     }, 150);
 };
 
-// 🔥 GUARDAR TOSTADO
+// 🔥 GUARDAR / MODIFICAR TOSTADO
 window.guardarTostado = async () => {
     const nombre = document.getElementById('t-nombre')?.value.trim();
     if (!nombre) return alert("⚠️ Ingresa un nombre o código para la prueba de tueste.");
     
-    const btn = event.target;
+    const btn = document.getElementById('btn-guardar-tostado') || event.target;
     btn.disabled = true;
-    btn.innerText = "Guardando...";
+    const txtOriginal = btn.innerText;
+    btn.innerText = tostadoEditandoId ? "Actualizando perfil..." : "Guardando perfil...";
 
     try {
         const temperaturas = [];
@@ -2335,34 +2337,190 @@ window.guardarTostado = async () => {
             salida: valSalida,
             maillard: secMaillard > 0 ? formatearSegundosATiempo(secMaillard) : '',
             notas: document.getElementById('t-notas')?.value || '',
-            temperaturas: temperaturas,
-            fechaRegistro: serverTimestamp()
+            temperaturas: temperaturas
         };
 
-        await addDoc(collection(db, "tostados"), datos);
-        alert("✅ Perfil de tueste guardado correctamente.");
-        
-        // Limpiar campos para nueva prueba
-        document.getElementById('t-nombre').value = '';
-        document.getElementById('t-peso-carga').value = '';
-        document.getElementById('t-peso-final').value = '';
-        document.getElementById('t-deshidratacion').value = '';
-        document.getElementById('t-crack').value = '';
-        document.getElementById('t-des').value = '';
-        document.getElementById('t-dtr').value = '';
-        document.getElementById('t-salida').value = '';
-        document.getElementById('t-notas').value = '';
-        
-        generarTablaTostado(15);
-        window.calcularFasesYTiempoDesarrollo();
-        window.actualizarGraficaTostadoEnVivo();
+        if (tostadoEditandoId) {
+            await updateDoc(doc(db, "tostados", tostadoEditandoId), {
+                ...datos,
+                actualizado: serverTimestamp()
+            });
+            alert(`✅ Perfil de tueste "${nombre}" modificado correctamente.`);
+            window.cancelarEdicionTostado();
+        } else {
+            await addDoc(collection(db, "tostados"), {
+                ...datos,
+                fechaRegistro: serverTimestamp()
+            });
+            alert("✅ Perfil de tueste guardado correctamente.");
+            
+            // Limpiar campos para nueva prueba
+            document.getElementById('t-nombre').value = '';
+            document.getElementById('t-peso-carga').value = '';
+            document.getElementById('t-peso-final').value = '';
+            document.getElementById('t-deshidratacion').value = '';
+            document.getElementById('t-crack').value = '';
+            document.getElementById('t-des').value = '';
+            document.getElementById('t-dtr').value = '';
+            document.getElementById('t-salida').value = '';
+            document.getElementById('t-notas').value = '';
+            
+            generarTablaTostado(15);
+            window.calcularFasesYTiempoDesarrollo();
+            window.actualizarGraficaTostadoEnVivo();
+        }
         
         cargarTostados();
     } catch (e) {
-        alert("Error al guardar: " + e.message);
+        alert("Error al procesar perfil de tostado: " + e.message);
     } finally {
         btn.disabled = false;
-        btn.innerText = "💾 Guardar Perfil de Tostado";
+        btn.innerText = tostadoEditandoId ? "✔️ Guardar Cambios del Perfil" : "💾 Guardar Perfil de Tostado";
+    }
+};
+
+window.editarTostado = async (id) => {
+    try {
+        const snap = await getDoc(doc(db, "tostados", id));
+        if (!snap.exists()) return alert("⚠️ No se encontró el registro de tostado.");
+        const t = snap.data();
+
+        tostadoEditandoId = id;
+
+        // Mostrar banner de edición
+        const banner = document.getElementById('banner-edicion-tostado');
+        const bannerSub = document.getElementById('banner-edicion-tostado-sub');
+        if (banner) banner.style.display = 'flex';
+        if (bannerSub) bannerSub.innerText = `Modificando perfil: ${t.nombre || 'Sin código'} (${t.cafe || 'Café'})`;
+
+        // Cambiar texto y estilo del botón de guardar
+        const btnGuardar = document.getElementById('btn-guardar-tostado');
+        if (btnGuardar) {
+            btnGuardar.innerText = '✔️ Guardar Cambios del Perfil';
+            btnGuardar.style.background = '#d97706';
+        }
+        const btnCancel = document.getElementById('btn-cancelar-edicion-tostado');
+        if (btnCancel) btnCancel.style.display = 'inline-block';
+
+        // Llenar datos generales
+        const elFecha = document.getElementById('t-fecha');
+        if (elFecha) elFecha.value = t.fecha || '';
+        const elNombre = document.getElementById('t-nombre');
+        if (elNombre) elNombre.value = t.nombre || '';
+        const elTostador = document.getElementById('t-tostador');
+        if (elTostador) elTostador.value = t.tostador || 'BEHMOR';
+        const elCafe = document.getElementById('t-cafe');
+        if (elCafe) elCafe.value = t.cafe || '';
+        const elCarga = document.getElementById('t-peso-carga');
+        if (elCarga) elCarga.value = t.pesoCarga || '';
+        const elFinal = document.getElementById('t-peso-final');
+        if (elFinal) elFinal.value = t.pesoFinal || '';
+        const elPot = document.getElementById('t-potencia-ini');
+        if (elPot) elPot.value = t.potenciaIni || '';
+        const elNotas = document.getElementById('t-notas');
+        if (elNotas) elNotas.value = t.notas || '';
+
+        // Tiempos clave
+        const elDeshid = document.getElementById('t-deshidratacion');
+        if (elDeshid) elDeshid.value = t.deshidratacion || '';
+        const elCrack = document.getElementById('t-crack');
+        if (elCrack) elCrack.value = t.crack || '';
+        const elSalida = document.getElementById('t-salida');
+        if (elSalida) elSalida.value = t.salida || '';
+
+        // Determinar cuántos minutos de temperaturas tiene este tueste
+        const temps = Array.isArray(t.temperaturas) ? t.temperaturas : [];
+        let maxMinRegistrado = 15;
+        temps.forEach(tp => {
+            if (tp.min !== undefined && tp.min > maxMinRegistrado) {
+                maxMinRegistrado = tp.min;
+            }
+        });
+
+        // Regenerar la tabla con la cantidad de filas necesarias
+        generarTablaTostado(maxMinRegistrado);
+
+        // Llenar las filas de temperaturas
+        temps.forEach(tp => {
+            const elOut = document.getElementById(`t-out-${tp.min}`);
+            const elIn = document.getElementById(`t-in-${tp.min}`);
+            const elPotMin = document.getElementById(`t-pot-${tp.min}`);
+            if (elOut && tp.out !== undefined && tp.out !== null) elOut.value = tp.out;
+            if (elIn && tp.in !== undefined && tp.in !== null) elIn.value = tp.in;
+            if (elPotMin && tp.pot !== undefined && tp.pot !== null) elPotMin.value = tp.pot;
+        });
+
+        // Calcular fases y DTR automáticamente
+        window.calcularFasesYTiempoDesarrollo();
+
+        // Actualizar la gráfica en tiempo real con las temperaturas cargadas
+        window.actualizarGraficaTostadoEnVivo();
+
+        // Si el modal de detalle estaba abierto, cerrarlo
+        cerrarModal('modal-ver-tostado');
+
+        // Scroll suave al formulario de tostado
+        const secTostado = document.getElementById('tostado');
+        if (secTostado) {
+            secTostado.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    } catch (e) {
+        alert("Error al cargar perfil para editar: " + e.message);
+    }
+};
+
+window.editarTostadoDesdeModal = () => {
+    if (!tostadoActualEnModal || !tostadoActualEnModal.id) return alert("No hay perfil seleccionado.");
+    window.editarTostado(tostadoActualEnModal.id);
+};
+
+window.cancelarEdicionTostado = () => {
+    tostadoEditandoId = null;
+
+    const banner = document.getElementById('banner-edicion-tostado');
+    if (banner) banner.style.display = 'none';
+
+    const btnGuardar = document.getElementById('btn-guardar-tostado');
+    if (btnGuardar) {
+        btnGuardar.innerText = '💾 Guardar Perfil de Tostado';
+        btnGuardar.style.background = '';
+    }
+    const btnCancel = document.getElementById('btn-cancelar-edicion-tostado');
+    if (btnCancel) btnCancel.style.display = 'none';
+
+    // Limpiar formulario y regenerar código sugerido
+    document.getElementById('t-nombre').value = '';
+    document.getElementById('t-peso-carga').value = '';
+    document.getElementById('t-peso-final').value = '';
+    document.getElementById('t-deshidratacion').value = '';
+    document.getElementById('t-crack').value = '';
+    document.getElementById('t-des').value = '';
+    document.getElementById('t-dtr').value = '';
+    document.getElementById('t-salida').value = '';
+    document.getElementById('t-notas').value = '';
+
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const codigoSugerido = `TR-${d.getFullYear().toString().slice(2)}${pad(d.getMonth()+1)}${pad(d.getDate())}-01`;
+    document.getElementById('t-nombre').value = codigoSugerido;
+
+    generarTablaTostado(15);
+    window.calcularFasesYTiempoDesarrollo();
+    window.actualizarGraficaTostadoEnVivo();
+};
+
+window.eliminarTostado = async (id) => {
+    const item = (todasLasCataciones || []).find(x => x.id === id);
+    if (!confirm("¿Estás seguro de eliminar este perfil de tostado? Esta acción no se puede deshacer.")) return;
+    try {
+        await deleteDoc(doc(db, "tostados", id));
+        if (tostadoEditandoId === id) {
+            window.cancelarEdicionTostado();
+        }
+        alert("🗑️ Perfil de tueste eliminado.");
+        await cargarTostados();
+    } catch (e) {
+        alert("Error al eliminar: " + e.message);
     }
 };
 
@@ -2373,19 +2531,26 @@ async function cargarTostados() {
         if (!tbody) return;
         tbody.innerHTML = '';
         
+        if (snap.empty) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:1.5rem; color:#888;">No hay perfiles de tostado registrados aún.</td></tr>`;
+            return;
+        }
+
         snap.forEach(d => {
             const t = d.data();
             const f = t.fecha || (t.fechaRegistro ? new Date(t.fechaRegistro.seconds*1000).toLocaleDateString() : 'N/A');
             tbody.innerHTML += `
                 <tr>
                     <td>${f}</td>
-                    <td><strong>${t.nombre}</strong></td>
+                    <td><strong style="color:var(--primary);">${t.nombre}</strong></td>
                     <td>${t.cafe || 'N/A'}</td>
                     <td>${t.pesoCarga} g</td>
                     <td>${t.pesoFinal} g</td>
                     <td class="actions-cell">
-                        <button class="btn btn-xs btn-view" onclick="verTostadoDetalle('${d.id}')">👁️ Ver</button>
-                        <button class="btn btn-xs btn-pdf" onclick="verTostadoDetalle('${d.id}', true)">📄 PDF</button>
+                        <button class="btn btn-xs btn-view" onclick="verTostadoDetalle('${d.id}')" title="Ver detalle y gráfica">👁️ Ver</button>
+                        <button class="btn btn-xs" style="background:#d97706; color:white;" onclick="editarTostado('${d.id}')" title="Modificar perfil">✏️ Editar</button>
+                        <button class="btn btn-xs btn-pdf" onclick="verTostadoDetalle('${d.id}', true)" title="Descargar PDF">📄 PDF</button>
+                        <button class="btn btn-xs btn-danger" onclick="eliminarTostado('${d.id}')" title="Eliminar perfil">🗑️</button>
                     </td>
                 </tr>
             `;
