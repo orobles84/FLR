@@ -171,10 +171,37 @@
         /* TABLA DE TOSTADO ESPECÍFICA */
         .tostado-table input { width: 100%; padding: 4px; border: 1px solid #ddd; border-radius: 4px; text-align: center; }
         .tostado-table th { background: var(--secondary); font-size: 0.8rem; }
-        .tostado-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem; background: #fff9c4; padding: 1rem; border-radius: 8px; border: 1px solid #fbc02d; }
+        .tostado-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; background: #fffbeb; padding: 1rem; border-radius: 8px; border: 1px solid #fde68a; }
         .tostado-summary-item { text-align: center; }
-        .tostado-summary-item .label { font-size: 0.8rem; font-weight: bold; color: var(--secondary); }
-        .tostado-summary-item .value { font-size: 1.2rem; font-weight: bold; color: var(--primary); }
+        .tostado-summary-item .label { font-size: 0.78rem; font-weight: bold; color: var(--secondary); margin-bottom: 4px; }
+        .tostado-summary-item .value { font-size: 1.15rem; font-weight: bold; color: var(--primary); }
+
+        .fases-tostado-bar {
+            display: flex;
+            height: 24px;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 10px 0 6px 0;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.12);
+            background: #e2e8f0;
+            border: 1px solid #cbd5e1;
+        }
+        .fase-bar-secado { background: #84cc16; color: #14532d; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: width 0.3s ease; white-space: nowrap; overflow: hidden; }
+        .fase-bar-maillard { background: #f59e0b; color: #78350f; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: width 0.3s ease; white-space: nowrap; overflow: hidden; }
+        .fase-bar-desarrollo { background: #78350f; color: #ffffff; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; justify-content: center; transition: width 0.3s ease; white-space: nowrap; overflow: hidden; }
+
+        .tostado-layout-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.25rem;
+            align-items: start;
+            margin: 1rem 0;
+        }
+        @media (min-width: 960px) {
+            .tostado-layout-grid {
+                grid-template-columns: 1fr 1.35fr;
+            }
+        }
 
         .chart-container-box { background: #ffffff; border: 2px solid var(--accent); border-radius: 10px; padding: 1rem; margin: 1rem 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); position: relative; }
         .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem; }
@@ -1747,36 +1774,131 @@
                 <div class="form-group"><label>Potencia Inicial</label><input type="text" id="t-potencia-ini" class="yellow-input" placeholder="Ej: P3"></div>
             </div>
 
-            <h3>🌡️ Registro de Temperaturas (Minuto a Minuto)</h3>
-            <div class="table-wrapper">
-                <table class="tostado-table" id="tabla-temp-tostado">
-                    <thead>
-                        <tr>
-                            <th>Tiempo (min)</th>
-                            <th>Temp Out (°F)</th>
-                            <th>Temp In (°F)</th>
-                            <th>Potencia</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tbody-temp-tostado">
-                        <!-- Generado con JS -->
-                    </tbody>
-                </table>
+            <h3>🌡️ Curva y Registro de Temperaturas en Tiempo Real</h3>
+            <div class="tostado-layout-grid">
+                <!-- Columna 1: Registro Minuto a Minuto -->
+                <div>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <span style="font-weight:bold; font-size:0.9rem; color:var(--primary);">📋 Captura Minuto a Minuto</span>
+                        <button type="button" class="btn btn-xs" style="background:#475569; color:white; padding:4px 8px;" onclick="agregarMinutosTablaTostado(5)" title="Añadir 5 minutos más de tueste">
+                            ➕ Extender (+5 min)
+                        </button>
+                    </div>
+                    <div class="table-wrapper" style="max-height:420px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                        <table class="tostado-table" id="tabla-temp-tostado">
+                            <thead style="position:sticky; top:0; z-index:2;">
+                                <tr>
+                                    <th style="width:50px;">Min</th>
+                                    <th>Temp Out (°F)</th>
+                                    <th>Temp In (°F)</th>
+                                    <th style="width:70px;">Potencia</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbody-temp-tostado">
+                                <!-- Generado con JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <small style="color:#64748b; font-size:0.75rem; display:block; margin-top:4px;">
+                        ⚡ La gráfica de la derecha se actualiza al instante conforme vas ingresando o corrigiendo temperaturas.
+                    </small>
+                </div>
+
+                <!-- Columna 2: Gráfica de Curva de Tostado en Tiempo Real -->
+                <div class="chart-container-box" style="margin:0; display:flex; flex-direction:column; justify-content:space-between;">
+                    <div>
+                        <div class="chart-header">
+                            <div>
+                                <span style="font-weight:bold; color:var(--primary); font-size:0.95rem;">📈 Curva de Tostado en Vivo</span>
+                                <div style="font-size:0.75rem; color:#64748b;">Monitoreo simultáneo de salida y entrada</div>
+                            </div>
+                            <div style="display:flex; gap:10px;">
+                                <span class="chart-legend-badge"><span class="chart-legend-color" style="background:#d32f2f;"></span> Salida (Out)</span>
+                                <span class="chart-legend-badge"><span class="chart-legend-color" style="background:#2C5E2E;"></span> Entrada (In)</span>
+                            </div>
+                        </div>
+                        <div style="position:relative; height:300px; width:100%;">
+                            <canvas id="tostadoLiveChartCanvas"></canvas>
+                        </div>
+                    </div>
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; margin-top:10px; display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:8px; font-size:0.8rem; text-align:center;">
+                        <div>
+                            <span style="color:#64748b; font-size:0.72rem; display:block;">🔥 Máx Temp Out</span>
+                            <strong style="color:#d32f2f; font-size:0.95rem;" id="live-tostado-max-out">-- °F</strong>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:0.72rem; display:block;">💨 Máx Temp In</span>
+                            <strong style="color:#2C5E2E; font-size:0.95rem;" id="live-tostado-max-in">-- °F</strong>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:0.72rem; display:block;">📈 RoR (Últ. min)</span>
+                            <strong style="color:#0369a1; font-size:0.95rem;" id="live-tostado-ror">-- °F/min</strong>
+                        </div>
+                        <div>
+                            <span style="color:#64748b; font-size:0.72rem; display:block;">🎯 DTR Calculado</span>
+                            <strong style="color:#78350f; font-size:0.95rem;" id="live-tostado-dtr-badge">0.0%</strong>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <h3>⏱️ Tiempos Clave</h3>
-            <div class="tostado-summary">
-                <div class="tostado-summary-item">
-                    <div class="label">Primer Crack</div>
-                    <input type="text" id="t-crack" class="yellow-input" placeholder="Ej: 7:00" style="text-align:center; font-weight:bold;">
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:1.25rem; margin:1.25rem 0;">
+                <h3 style="margin:0 0 0.5rem; color:#78350f; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
+                    ⏱️ Tiempos Clave y Fases del Tostado (Deshidratación, Maillard y Desarrollo)
+                </h3>
+                <div style="font-size:0.8rem; color:#92400e; margin-bottom:1rem; line-height:1.4;">
+                    Coloca el <strong>Tiempo de Deshidratación</strong> (cambio a amarillo / dry end) para marcar el inicio de la Fase de Maillard. Al ingresar el <strong>Tiempo de Crack</strong> y <strong>Tiempo de Salida</strong>, el <strong>Tiempo de Desarrollo y el porcentaje (DTR)</strong> se calculan de manera 100% automática.
                 </div>
-                <div class="tostado-summary-item">
-                    <div class="label">Tiempo Desarrollo</div>
-                    <input type="text" id="t-des" class="yellow-input" placeholder="Ej: 1:30" style="text-align:center; font-weight:bold;">
+
+                <div class="tostado-summary">
+                    <div class="tostado-summary-item">
+                        <div class="label">🌿 Fin Deshidratación</div>
+                        <input type="text" id="t-deshidratacion" class="yellow-input" placeholder="Ej: 4:30" oninput="calcularFasesYTiempoDesarrollo()" style="text-align:center; font-weight:bold; font-size:1.1rem; width:100%;">
+                        <div style="font-size:0.74rem; color:#65a30d; font-weight:bold; margin-top:4px;" id="info-fase-secado">Secado: -- (0%)</div>
+                    </div>
+                    <div class="tostado-summary-item">
+                        <div class="label">🌾 Fase Maillard</div>
+                        <div id="t-maillard-duracion" style="font-weight:bold; font-size:1.1rem; color:#b45309; padding:5px 8px; background:white; border:1px solid #fcd34d; border-radius:6px; min-height:36px; display:flex; align-items:center; justify-content:center;">
+                            --
+                        </div>
+                        <div style="font-size:0.74rem; color:#b45309; font-weight:bold; margin-top:4px;" id="info-fase-maillard">Maillard: -- (0%)</div>
+                    </div>
+                    <div class="tostado-summary-item">
+                        <div class="label">💥 Primer Crack</div>
+                        <input type="text" id="t-crack" class="yellow-input" placeholder="Ej: 8:00" oninput="calcularFasesYTiempoDesarrollo()" style="text-align:center; font-weight:bold; font-size:1.1rem; width:100%;">
+                        <div style="font-size:0.74rem; color:#64748b; font-weight:bold; margin-top:4px;">Inicio Desarrollo</div>
+                    </div>
+                    <div class="tostado-summary-item">
+                        <div class="label">☕ Desarrollo Automático</div>
+                        <div style="display:flex; gap:6px; justify-content:center;">
+                            <input type="text" id="t-des" class="yellow-input" placeholder="0:00" readonly style="text-align:center; font-weight:bold; background:#ecfdf5; color:#047857; width:55%; font-size:1.05rem;" title="Tiempo de desarrollo (Salida - Crack)">
+                            <input type="text" id="t-dtr" class="yellow-input" placeholder="0.0%" readonly style="text-align:center; font-weight:bold; background:#dcfce7; color:#14532d; width:45%; font-size:1.05rem;" title="Porcentaje de Desarrollo (DTR %)">
+                        </div>
+                        <div style="font-size:0.74rem; color:#047857; font-weight:bold; margin-top:4px;" id="info-fase-desarrollo">DTR: 0.0%</div>
+                    </div>
+                    <div class="tostado-summary-item">
+                        <div class="label">🔥 Salida / Drop</div>
+                        <input type="text" id="t-salida" class="yellow-input" placeholder="Ej: 10:00" oninput="calcularFasesYTiempoDesarrollo()" style="text-align:center; font-weight:bold; font-size:1.1rem; width:100%;">
+                        <div style="font-size:0.74rem; color:#0369a1; font-weight:bold; margin-top:4px;" id="info-tiempo-total">Tiempo Total (100%)</div>
+                    </div>
                 </div>
-                <div class="tostado-summary-item">
-                    <div class="label">Salida / Drop</div>
-                    <input type="text" id="t-salida" class="yellow-input" placeholder="Ej: 8:30" style="text-align:center; font-weight:bold;">
+
+                <!-- Barra Visual de Distribución de Fases -->
+                <div style="margin-top:14px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; font-weight:bold; margin-bottom:4px; color:#475569;">
+                        <span>Distribución Porcentual del Tueste:</span>
+                        <span id="fases-suma-check">100% Total</span>
+                    </div>
+                    <div class="fases-tostado-bar" id="fases-bar-container">
+                        <div class="fase-bar-secado" id="bar-fase-secado" style="width: 45%;">Secado 45%</div>
+                        <div class="fase-bar-maillard" id="bar-fase-maillard" style="width: 35%;">Maillard 35%</div>
+                        <div class="fase-bar-desarrollo" id="bar-fase-desarrollo" style="width: 20%;">DTR 20%</div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#64748b; margin-top:5px; flex-wrap:wrap; gap:6px;">
+                        <span>🟢 <strong>Fase Deshidratación:</strong> 0:00 hasta punto amarillo</span>
+                        <span>🟡 <strong>Fase Maillard:</strong> Deshidratación hasta 1er Crack</span>
+                        <span>🟤 <strong>Fase Desarrollo (DTR):</strong> 1er Crack hasta Salida</span>
+                    </div>
                 </div>
             </div>
 
@@ -2328,7 +2450,7 @@
                             🪵 Ingreso Dinámico de Tronco a la Camionada
                         </h4>
                         <span style="font-size:0.8rem; color:#64748b;">
-                            Fórmula: <code>(Largo en pies × D1 × D2) ÷ 12</code> • <em>Redondeo: &gt;0.75 aproxima, ≤0.75 trunca</em>
+                            Fórmula: <code>(Largo en pies × D1 × D2) ÷ 12</code> • <em>Redondeo: &ge;0.75 aproxima, &le;0.74 trunca (solo enteros)</em>
                         </span>
                     </div>
 
@@ -2775,14 +2897,17 @@
                     </div>
 
                     <!-- CASILLA DE PRECIO POR LIBRA DE CORTE -->
-                    <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:8px 14px; display:flex; align-items:center; gap:8px;">
+                    <div style="background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:8px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                         <div>
-                            <span style="font-size:0.72rem; font-weight:bold; color:#065f46; display:block;">💵 PRECIO POR LIBRA CORTADA:</span>
+                            <span style="font-size:0.72rem; font-weight:bold; color:#065f46; display:block;">💵 TARIFA ACTIVA (NUEVOS PESAJES):</span>
                             <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">
                                 <span style="font-weight:bold; color:#047857; font-size:1.15rem;">Q</span>
-                                <input type="number" id="cortes-precio-libra" value="0.60" step="0.05" min="0.05" style="width:85px; padding:5px 8px; font-weight:bold; font-size:1.1rem; color:#047857; text-align:right; border:1px solid #6ee7b7; border-radius:6px;" oninput="guardarTarifaCortes(); recalcularPlanillaCortes();">
+                                <input type="number" id="cortes-precio-libra" value="0.60" step="0.05" min="0.05" style="width:85px; padding:5px 8px; font-weight:bold; font-size:1.1rem; color:#047857; text-align:right; border:1px solid #6ee7b7; border-radius:6px;" oninput="guardarTarifaCortes();">
                                 <span style="font-size:0.8rem; color:#065f46; font-weight:600;">/ lb</span>
                             </div>
+                        </div>
+                        <div style="font-size:0.75rem; color:#065f46; max-width:240px; line-height:1.35;">
+                            🔒 <strong>Tarifas históricas protegidas:</strong> Cada corte guarda su propio precio. Cambiar la tarifa aquí <em>no modifica</em> lo ya ingresado en fechas o semanas anteriores.
                         </div>
                     </div>
                 </div>
@@ -2847,15 +2972,41 @@
 
             <!-- SUBTAB 2: INGRESO DIARIO DE PESADAS -->
             <div id="cortes-subtab-pesadas" style="display:none;">
+                <!-- TARJETA DESTACADA: PRECIO PACTADO PARA EL CORTE DE HOY -->
+                <div style="background:linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%); border:2px solid #34d399; border-radius:12px; padding:1rem 1.25rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; box-shadow:0 2px 6px rgba(16,185,129,0.1);">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:44px; height:44px; border-radius:10px; background:#059669; color:white; display:flex; align-items:center; justify-content:center; font-size:1.4rem; box-shadow:0 2px 5px rgba(5,150,105,0.3); flex-shrink:0;">
+                            💵
+                        </div>
+                        <div>
+                            <div style="font-weight:800; color:#065f46; font-size:1.05rem; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <span>Precio Pactado para el Corte de Hoy / Este Día</span>
+                                <span id="corte-dia-badge-fecha" style="background:#a7f3d0; color:#065f46; font-size:0.75rem; padding:2px 8px; border-radius:20px; font-weight:bold;">Fecha de Hoy</span>
+                            </div>
+                            <div style="font-size:0.8rem; color:#047857; margin-top:2px;">
+                                Tarifa por libra acordada para esta jornada. Si el precio cambia durante el avance del corte, cámbialo aquí y se aplicará automáticamente a todas las pesadas que ingreses hoy.
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px; background:white; padding:8px 14px; border-radius:10px; border:2px solid #10b981; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                        <span style="font-size:0.85rem; font-weight:bold; color:#065f46;">Tarifa Pactada:</span>
+                        <span style="font-weight:800; color:#047857; font-size:1.3rem;">Q</span>
+                        <input type="number" id="corte-precio-pactado-dia" value="0.60" step="0.05" min="0.05" 
+                            style="width:95px; padding:6px 8px; font-weight:800; font-size:1.25rem; color:#047857; text-align:right; border:1.5px solid #6ee7b7; border-radius:6px;" 
+                            oninput="actualizarPrecioPactadoDelDia(this.value)">
+                        <span style="font-size:0.9rem; color:#065f46; font-weight:bold;">/ lb</span>
+                    </div>
+                </div>
+
                 <div style="background:linear-gradient(135deg, #fdfbf7 0%, #fff 100%); border:2px solid var(--accent); border-radius:12px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
                     <h3 style="margin:0 0 0.75rem; color:var(--primary); font-size:1.1rem; display:flex; align-items:center; gap:8px;">
                         ⚖️ Registro de Pesada Diaria de Café
                     </h3>
                     <form id="form-nuevo-pesaje-corte" onsubmit="event.preventDefault(); guardarPesajeCorte();">
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; align-items:end;">
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:12px; align-items:end;">
                             <div>
                                 <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Fecha de Corte:</label>
-                                <input type="date" id="corte-in-fecha" required style="padding:9px; font-weight:bold; width:100%;">
+                                <input type="date" id="corte-in-fecha" required style="padding:9px; font-weight:bold; width:100%;" onchange="alCambiarFechaPesaje(this.value)">
                             </div>
                             <div>
                                 <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Nombre del Cortador:</label>
@@ -2864,7 +3015,17 @@
                             </div>
                             <div>
                                 <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Peso Cortado (Libras):</label>
-                                <input type="number" id="corte-in-libras" placeholder="Ej: 85" step="0.5" min="0.5" required class="yellow-input" style="padding:9px; font-size:1.15rem; font-weight:bold; text-align:right; width:100%;">
+                                <input type="number" id="corte-in-libras" placeholder="Ej: 85" step="0.5" min="0.5" required class="yellow-input" style="padding:9px; font-size:1.15rem; font-weight:bold; text-align:right; width:100%;" oninput="actualizarSubtotalNuevoPesaje()">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#065f46;">Tarifa Pactada (Q/lb):</label>
+                                <input type="number" id="corte-in-tarifa" value="0.60" step="0.05" min="0.05" required style="padding:9px; font-size:1.05rem; font-weight:bold; color:#047857; text-align:right; width:100%;" oninput="actualizarSubtotalNuevoPesaje()">
+                            </div>
+                            <div>
+                                <label style="font-size:0.78rem; font-weight:bold; color:#065f46;">Total a Pagar:</label>
+                                <div id="corte-in-subtotal-preview" style="background:#ecfdf5; border:1px solid #6ee7b7; border-radius:6px; padding:7px 10px; font-weight:bold; color:#047857; font-size:1.15rem; text-align:right;">
+                                    Q 0.00
+                                </div>
                             </div>
                             <div>
                                 <label style="font-size:0.78rem; font-weight:bold; color:#475569;">Lote / Tablón (Opcional):</label>
@@ -2885,7 +3046,10 @@
 
                 <!-- TABLA DE HISTORIAL DE PESAJES INDIVIDUALES -->
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; flex-wrap:wrap; gap:8px;">
-                    <h3 style="margin:0; font-size:1rem; color:#334155;">📋 Historial de Pesajes Registrados</h3>
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <h3 style="margin:0; font-size:1rem; color:#334155;">📋 Historial de Pesajes Registrados</h3>
+                        <span id="corte-filtro-tarifa-indicador" style="display:none; background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; font-size:0.78rem; font-weight:bold; padding:3px 8px; border-radius:6px;"></span>
+                    </div>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                         <input type="text" id="corte-filtro-busqueda-pesajes" placeholder="Buscar por cortador..." style="padding:6px 10px; font-size:0.85rem;" oninput="renderTablaPesajesCortes()">
                         <input type="date" id="corte-filtro-fecha-pesajes" style="padding:6px 10px; font-size:0.85rem;" onchange="renderTablaPesajesCortes()">
@@ -2900,6 +3064,8 @@
                                 <th>Fecha</th>
                                 <th>Cortador</th>
                                 <th style="text-align:right;">Peso (Lbs)</th>
+                                <th style="text-align:right;">Tarifa</th>
+                                <th style="text-align:right; color:#047857;">Total a Pagar</th>
                                 <th>Tablón / Lote</th>
                                 <th>Notas</th>
                                 <th style="text-align:center;">Acciones</th>
@@ -3952,6 +4118,11 @@
             <div class="form-group">
                 <label style="font-size:0.8rem; font-weight:bold;">Peso en Libras (lbs):</label>
                 <input type="number" id="edit-pesaje-libras" step="0.5" min="0.5" required class="yellow-input" style="width:100%; padding:8px; font-size:1.1rem; font-weight:bold;">
+            </div>
+            <div class="form-group">
+                <label style="font-size:0.8rem; font-weight:bold;">Tarifa Pagada por Libra (Q):</label>
+                <input type="number" id="edit-pesaje-tarifa" step="0.05" min="0.05" required style="width:100%; padding:8px; font-size:1.05rem; font-weight:bold; color:#047857;">
+                <small style="color:#64748b; font-size:0.75rem;">Cada pesada guarda su precio específico y no se sobreescribe al cambiar la tarifa general.</small>
             </div>
             <div class="form-group">
                 <label style="font-size:0.8rem; font-weight:bold;">Lote / Tablón:</label>
