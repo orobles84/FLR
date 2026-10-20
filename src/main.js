@@ -34,6 +34,8 @@ let filtroCatacionesActual = 'todas';
 let todasLasVentas = [];
 let todasLasCataciones = [];
 let chartTostadoInstance = null;
+let chartTostadoLiveInstance = null;
+let totalMinutosTostadoTabla = 15;
 let carritoVenta = [];
 let chartVentasMesesInstance = null;
 let chartTopProductosInstance = null;
@@ -216,21 +218,42 @@ function construirCategoriasSCA() {
     if (defInput) defInput.addEventListener('input', window.calcularCatacion);
 }
 
-function generarTablaTostado() {
+function generarTablaTostado(minutos = 15) {
     const tbody = document.getElementById('tbody-temp-tostado');
     if (!tbody) return;
     tbody.innerHTML = '';
-    for (let i = 0; i <= 15; i++) {
+    totalMinutosTostadoTabla = Math.max(minutos, 15);
+    for (let i = 0; i <= totalMinutosTostadoTabla; i++) {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td style="font-weight:bold; text-align:center;">${i}</td>
-            <td><input type="number" id="t-out-${i}" placeholder="°F" step="1"></td>
-            <td><input type="number" id="t-in-${i}" placeholder="°F" step="1"></td>
-            <td><input type="text" id="t-pot-${i}" placeholder="P"></td>
+            <td style="font-weight:bold; text-align:center; color:#475569;">${i}</td>
+            <td><input type="number" id="t-out-${i}" placeholder="°F" step="1" oninput="actualizarGraficaTostadoEnVivo()"></td>
+            <td><input type="number" id="t-in-${i}" placeholder="°F" step="1" oninput="actualizarGraficaTostadoEnVivo()"></td>
+            <td><input type="text" id="t-pot-${i}" placeholder="P" oninput="actualizarGraficaTostadoEnVivo()"></td>
         `;
         tbody.appendChild(row);
     }
 }
+
+window.generarTablaTostado = generarTablaTostado;
+
+window.agregarMinutosTablaTostado = (delta = 5) => {
+    const tbody = document.getElementById('tbody-temp-tostado');
+    if (!tbody) return;
+    const inicio = totalMinutosTostadoTabla + 1;
+    totalMinutosTostadoTabla += delta;
+    for (let i = inicio; i <= totalMinutosTostadoTabla; i++) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td style="font-weight:bold; text-align:center; color:#475569;">${i}</td>
+            <td><input type="number" id="t-out-${i}" placeholder="°F" step="1" oninput="actualizarGraficaTostadoEnVivo()"></td>
+            <td><input type="number" id="t-in-${i}" placeholder="°F" step="1" oninput="actualizarGraficaTostadoEnVivo()"></td>
+            <td><input type="text" id="t-pot-${i}" placeholder="P" oninput="actualizarGraficaTostadoEnVivo()"></td>
+        `;
+        tbody.appendChild(row);
+    }
+    window.actualizarGraficaTostadoEnVivo();
+};
 
 function construirMenu() {
     const container = document.getElementById('menu-container');
@@ -775,6 +798,8 @@ window.showSection = (id, el) => {
         inicializarModuloCortes();
     } else if (id === 'cereza') {
         inicializarModuloCereza();
+    } else if (id === 'tostado') {
+        inicializarModuloTostado();
     } else if (id === 'usuarios') {
         cargarUsuariosPermisos();
     }
@@ -1955,10 +1980,318 @@ window.calcularCotizador = () => {
     document.getElementById('seguro-total').innerText='US$ '+segT.toFixed(2);
 };
 
+// =========================================================================
+// --- CONTROL DE TOSTADO: FASES AUTOMÁTICAS Y GRÁFICA EN TIEMPO REAL ---
+// =========================================================================
+
+// Parser de tiempo: admite "M:SS", "MM:SS", "8.5" (minutos decimales), "8.30" (8m 30s) o segundos
+function parseTiempoASegundos(val) {
+    if (val === undefined || val === null) return 0;
+    const s = String(val).trim();
+    if (!s) return 0;
+
+    if (s.includes(':')) {
+        const partes = s.split(':');
+        const min = parseInt(partes[0], 10) || 0;
+        const seg = parseInt(partes[1], 10) || 0;
+        return (min * 60) + seg;
+    }
+
+    const num = parseFloat(s.replace(',', '.'));
+    if (isNaN(num)) return 0;
+
+    if (num < 35) {
+        const min = Math.floor(num);
+        const decStr = s.includes('.') ? s.split('.')[1] : '';
+        if (decStr.length === 2 && parseInt(decStr, 10) < 60) {
+            return (min * 60) + parseInt(decStr, 10);
+        } else {
+            return Math.round(num * 60);
+        }
+    }
+    return Math.round(num);
+}
+
+function formatearSegundosATiempo(totalSegundos) {
+    if (!totalSegundos || totalSegundos <= 0 || isNaN(totalSegundos)) return '0:00';
+    const m = Math.floor(totalSegundos / 60);
+    const s = Math.round(totalSegundos % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+window.calcularFasesYTiempoDesarrollo = () => {
+    const valDeshid = document.getElementById('t-deshidratacion')?.value || '';
+    const valCrack = document.getElementById('t-crack')?.value || '';
+    const valSalida = document.getElementById('t-salida')?.value || '';
+
+    const secDeshid = parseTiempoASegundos(valDeshid);
+    const secCrack = parseTiempoASegundos(valCrack);
+    const secSalida = parseTiempoASegundos(valSalida);
+
+    let secDesarrollo = 0;
+    let dtrPct = 0;
+    let secMaillard = 0;
+    let maillardPct = 0;
+    let secSecado = secDeshid;
+    let secadoPct = 0;
+
+    // 1. Cálculo de Desarrollo y DTR (%)
+    if (secSalida > 0 && secCrack > 0) {
+        if (secSalida >= secCrack) {
+            secDesarrollo = secSalida - secCrack;
+            dtrPct = ((secDesarrollo / secSalida) * 100);
+        }
+    }
+
+    const elDes = document.getElementById('t-des');
+    const elDtr = document.getElementById('t-dtr');
+    const elInfoDes = document.getElementById('info-fase-desarrollo');
+    const elLiveDtr = document.getElementById('live-tostado-dtr-badge');
+
+    if (secDesarrollo > 0) {
+        const tiempoDesStr = formatearSegundosATiempo(secDesarrollo);
+        const dtrStr = dtrPct.toFixed(1) + '%';
+        if (elDes) elDes.value = tiempoDesStr;
+        if (elDtr) elDtr.value = dtrStr;
+        if (elInfoDes) elInfoDes.innerText = `DTR: ${dtrStr} (${tiempoDesStr})`;
+        if (elLiveDtr) elLiveDtr.innerText = dtrStr;
+    } else {
+        if (elDes) elDes.value = '';
+        if (elDtr) elDtr.value = '';
+        if (elInfoDes) elInfoDes.innerText = 'DTR: --';
+        if (elLiveDtr) elLiveDtr.innerText = '0.0%';
+    }
+
+    // 2. Cálculo de Fase de Deshidratación (Secado)
+    const elInfoSecado = document.getElementById('info-fase-secado');
+    if (secDeshid > 0) {
+        secadoPct = secSalida > 0 ? ((secDeshid / secSalida) * 100) : 0;
+        const pctStr = secadoPct > 0 ? ` (${secadoPct.toFixed(1)}%)` : '';
+        if (elInfoSecado) elInfoSecado.innerText = `Secado: ${formatearSegundosATiempo(secDeshid)}${pctStr}`;
+    } else {
+        if (elInfoSecado) elInfoSecado.innerText = 'Secado: -- (0%)';
+    }
+
+    // 3. Cálculo de Fase de Maillard (desde Deshidratación hasta 1er Crack)
+    const elMaillardDur = document.getElementById('t-maillard-duracion');
+    const elInfoMaillard = document.getElementById('info-fase-maillard');
+    if (secCrack > 0 && secDeshid > 0 && secCrack >= secDeshid) {
+        secMaillard = secCrack - secDeshid;
+        maillardPct = secSalida > 0 ? ((secMaillard / secSalida) * 100) : 0;
+        const durStr = formatearSegundosATiempo(secMaillard);
+        const pctStr = maillardPct > 0 ? ` (${maillardPct.toFixed(1)}%)` : '';
+        if (elMaillardDur) elMaillardDur.innerText = durStr;
+        if (elInfoMaillard) elInfoMaillard.innerText = `Maillard: ${durStr}${pctStr}`;
+    } else {
+        if (elMaillardDur) elMaillardDur.innerText = '--';
+        if (elInfoMaillard) elInfoMaillard.innerText = 'Maillard: -- (0%)';
+    }
+
+    // 4. Actualizar barra visual de fases
+    const barSecado = document.getElementById('bar-fase-secado');
+    const barMaillard = document.getElementById('bar-fase-maillard');
+    const barDesarrollo = document.getElementById('bar-fase-desarrollo');
+    const sumaCheck = document.getElementById('fases-suma-check');
+
+    if (secSalida > 0 && (secadoPct > 0 || maillardPct > 0 || dtrPct > 0)) {
+        if (barSecado) {
+            barSecado.style.width = `${Math.max(secadoPct, 0).toFixed(1)}%`;
+            barSecado.innerText = secadoPct > 8 ? `Secado ${secadoPct.toFixed(1)}%` : `${secadoPct.toFixed(0)}%`;
+        }
+        if (barMaillard) {
+            barMaillard.style.width = `${Math.max(maillardPct, 0).toFixed(1)}%`;
+            barMaillard.innerText = maillardPct > 8 ? `Maillard ${maillardPct.toFixed(1)}%` : `${maillardPct.toFixed(0)}%`;
+        }
+        if (barDesarrollo) {
+            barDesarrollo.style.width = `${Math.max(dtrPct, 0).toFixed(1)}%`;
+            barDesarrollo.innerText = dtrPct > 8 ? `DTR ${dtrPct.toFixed(1)}%` : `${dtrPct.toFixed(0)}%`;
+        }
+        if (sumaCheck) {
+            const suma = (secadoPct + maillardPct + dtrPct).toFixed(1);
+            sumaCheck.innerText = `${suma}% Total del Tueste`;
+        }
+    }
+
+    // Actualizar gráfica en vivo
+    if (typeof window.actualizarGraficaTostadoEnVivo === 'function') {
+        window.actualizarGraficaTostadoEnVivo();
+    }
+};
+
+window.actualizarGraficaTostadoEnVivo = () => {
+    const canvas = document.getElementById('tostadoLiveChartCanvas');
+    if (!canvas) return;
+
+    const ChartClass = getChart();
+    if (!ChartClass) return;
+
+    // Recopilar temperaturas desde la tabla en vivo
+    const temperaturas = [];
+    let maxOut = -1;
+    let maxIn = -1;
+    let ultimoMinConDato = -1;
+    let penultimoOut = null;
+    let ultimoOut = null;
+
+    for (let i = 0; i <= totalMinutosTostadoTabla; i++) {
+        const valOut = document.getElementById(`t-out-${i}`)?.value;
+        const valIn = document.getElementById(`t-in-${i}`)?.value;
+        const valPot = document.getElementById(`t-pot-${i}`)?.value;
+
+        const numOut = (valOut !== '' && valOut !== undefined && !isNaN(Number(valOut))) ? parseFloat(valOut) : null;
+        const numIn = (valIn !== '' && valIn !== undefined && !isNaN(Number(valIn))) ? parseFloat(valIn) : null;
+
+        if (numOut !== null) {
+            if (numOut > maxOut) maxOut = numOut;
+            penultimoOut = ultimoOut;
+            ultimoOut = numOut;
+            ultimoMinConDato = i;
+        }
+        if (numIn !== null && numIn > maxIn) maxIn = numIn;
+
+        temperaturas.push({ min: i, out: numOut, in: numIn, pot: valPot });
+    }
+
+    // Actualizar indicadores numéricos en vivo
+    const elMaxOut = document.getElementById('live-tostado-max-out');
+    if (elMaxOut) elMaxOut.innerText = maxOut >= 0 ? `${maxOut.toFixed(0)} °F` : '-- °F';
+
+    const elMaxIn = document.getElementById('live-tostado-max-in');
+    if (elMaxIn) elMaxIn.innerText = maxIn >= 0 ? `${maxIn.toFixed(0)} °F` : '-- °F';
+
+    const elRor = document.getElementById('live-tostado-ror');
+    if (elRor) {
+        if (penultimoOut !== null && ultimoOut !== null) {
+            const ror = ultimoOut - penultimoOut;
+            const signo = ror > 0 ? '+' : '';
+            elRor.innerText = `${signo}${ror.toFixed(0)} °F/min`;
+            elRor.style.color = ror >= 0 ? '#0369a1' : '#b91c1c';
+        } else {
+            elRor.innerText = '-- °F/min';
+            elRor.style.color = '#0369a1';
+        }
+    }
+
+    // Preparar series de datos para Chart.js
+    const labels = [];
+    const dataOut = [];
+    const dataIn = [];
+    const maxPlotMin = Math.max(ultimoMinConDato, 12, totalMinutosTostadoTabla);
+
+    for (let m = 0; m <= maxPlotMin; m++) {
+        labels.push(`${m} min`);
+        const item = temperaturas.find(t => t.min === m);
+        dataOut.push(item ? item.out : null);
+        dataIn.push(item ? item.in : null);
+    }
+
+    if (chartTostadoLiveInstance) {
+        chartTostadoLiveInstance.data.labels = labels;
+        chartTostadoLiveInstance.data.datasets[0].data = dataOut;
+        chartTostadoLiveInstance.data.datasets[1].data = dataIn;
+        chartTostadoLiveInstance.update('none'); // Actualización fluida sin lag
+    } else {
+        const ctx = canvas.getContext('2d');
+        chartTostadoLiveInstance = new ChartClass(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '🔥 Temp Salida (Out °F)',
+                        data: dataOut,
+                        borderColor: '#d32f2f',
+                        backgroundColor: 'rgba(211, 47, 47, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#d32f2f',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        tension: 0.35,
+                        spanGaps: true
+                    },
+                    {
+                        label: '💨 Temp Entrada (In °F)',
+                        data: dataIn,
+                        borderColor: '#2C5E2E',
+                        backgroundColor: 'rgba(44, 94, 46, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#2C5E2E',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 7,
+                        tension: 0.35,
+                        spanGaps: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: { size: 12, weight: 'bold' },
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(30, 40, 30, 0.92)',
+                        titleFont: { size: 12, weight: 'bold' },
+                        bodyFont: { size: 12 }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Tiempo (Minutos)', font: { size: 11, weight: 'bold' } },
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    y: {
+                        title: { display: true, text: 'Temperatura (°F)', font: { size: 11, weight: 'bold' } },
+                        grid: { color: 'rgba(0,0,0,0.06)' },
+                        suggestedMin: 150,
+                        suggestedMax: 460
+                    }
+                }
+            }
+        });
+    }
+};
+
+window.inicializarModuloTostado = () => {
+    const fInp = document.getElementById('t-fecha');
+    if (fInp && !fInp.value) fInp.value = new Date().toISOString().split('T')[0];
+
+    const cInp = document.getElementById('t-nombre');
+    if (cInp && !cInp.value) {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const codigoSugerido = `TR-${d.getFullYear().toString().slice(2)}${pad(d.getMonth()+1)}${pad(d.getDate())}-01`;
+        cInp.value = codigoSugerido;
+    }
+
+    generarTablaTostado(15);
+    cargarTostados();
+
+    setTimeout(() => {
+        window.actualizarGraficaTostadoEnVivo();
+        window.calcularFasesYTiempoDesarrollo();
+    }, 150);
+};
+
 // 🔥 GUARDAR TOSTADO
 window.guardarTostado = async () => {
-    const nombre = document.getElementById('t-nombre').value.trim();
-    if (!nombre) return alert("Ingresa un nombre/código para la prueba.");
+    const nombre = document.getElementById('t-nombre')?.value.trim();
+    if (!nombre) return alert("⚠️ Ingresa un nombre o código para la prueba de tueste.");
     
     const btn = event.target;
     btn.disabled = true;
@@ -1966,7 +2299,7 @@ window.guardarTostado = async () => {
 
     try {
         const temperaturas = [];
-        for (let i = 0; i <= 15; i++) {
+        for (let i = 0; i <= totalMinutosTostadoTabla; i++) {
             const out = document.getElementById(`t-out-${i}`) ? document.getElementById(`t-out-${i}`).value : '';
             const inp = document.getElementById(`t-in-${i}`) ? document.getElementById(`t-in-${i}`).value : '';
             const pot = document.getElementById(`t-pot-${i}`) ? document.getElementById(`t-pot-${i}`).value : '';
@@ -1975,18 +2308,33 @@ window.guardarTostado = async () => {
             }
         }
 
+        const valDeshid = document.getElementById('t-deshidratacion')?.value || '';
+        const valCrack = document.getElementById('t-crack')?.value || '';
+        const valSalida = document.getElementById('t-salida')?.value || '';
+        const valDes = document.getElementById('t-des')?.value || '';
+        const valDtr = document.getElementById('t-dtr')?.value || '';
+
+        const secDeshid = parseTiempoASegundos(valDeshid);
+        const secCrack = parseTiempoASegundos(valCrack);
+        const secSalida = parseTiempoASegundos(valSalida);
+        const secDes = parseTiempoASegundos(valDes);
+        const secMaillard = (secCrack > secDeshid && secDeshid > 0) ? (secCrack - secDeshid) : 0;
+
         const datos = {
-            fecha: document.getElementById('t-fecha').value,
+            fecha: document.getElementById('t-fecha')?.value || '',
             nombre: nombre,
-            tostador: document.getElementById('t-tostador').value,
-            cafe: document.getElementById('t-cafe').value,
-            pesoCarga: parseFloat(document.getElementById('t-peso-carga').value) || 0,
-            pesoFinal: parseFloat(document.getElementById('t-peso-final').value) || 0,
-            potenciaIni: document.getElementById('t-potencia-ini').value,
-            crack: document.getElementById('t-crack').value,
-            des: document.getElementById('t-des').value,
-            salida: document.getElementById('t-salida').value,
-            notas: document.getElementById('t-notas').value,
+            tostador: document.getElementById('t-tostador')?.value || '',
+            cafe: document.getElementById('t-cafe')?.value || '',
+            pesoCarga: parseFloat(document.getElementById('t-peso-carga')?.value) || 0,
+            pesoFinal: parseFloat(document.getElementById('t-peso-final')?.value) || 0,
+            potenciaIni: document.getElementById('t-potencia-ini')?.value || '',
+            deshidratacion: valDeshid,
+            crack: valCrack,
+            des: valDes,
+            dtr: valDtr,
+            salida: valSalida,
+            maillard: secMaillard > 0 ? formatearSegundosATiempo(secMaillard) : '',
+            notas: document.getElementById('t-notas')?.value || '',
             temperaturas: temperaturas,
             fechaRegistro: serverTimestamp()
         };
@@ -1994,21 +2342,20 @@ window.guardarTostado = async () => {
         await addDoc(collection(db, "tostados"), datos);
         alert("✅ Perfil de tueste guardado correctamente.");
         
+        // Limpiar campos para nueva prueba
         document.getElementById('t-nombre').value = '';
         document.getElementById('t-peso-carga').value = '';
         document.getElementById('t-peso-final').value = '';
+        document.getElementById('t-deshidratacion').value = '';
         document.getElementById('t-crack').value = '';
         document.getElementById('t-des').value = '';
+        document.getElementById('t-dtr').value = '';
         document.getElementById('t-salida').value = '';
         document.getElementById('t-notas').value = '';
-        for (let i = 0; i <= 15; i++) {
-            const elOut = document.getElementById(`t-out-${i}`);
-            const elIn = document.getElementById(`t-in-${i}`);
-            const elPot = document.getElementById(`t-pot-${i}`);
-            if (elOut) elOut.value = '';
-            if (elIn) elIn.value = '';
-            if (elPot) elPot.value = '';
-        }
+        
+        generarTablaTostado(15);
+        window.calcularFasesYTiempoDesarrollo();
+        window.actualizarGraficaTostadoEnVivo();
         
         cargarTostados();
     } catch (e) {
@@ -2063,7 +2410,6 @@ function renderizarGraficaTostado(temperaturas) {
     const dataOut = [];
     const dataIn = [];
     
-    // Determinar rango de minutos (al menos hasta el máximo registrado o 12-15)
     const maxMin = sortedTemps.length > 0 ? Math.max(...sortedTemps.map(item => item.min), 10) : 12;
     
     for (let m = 0; m <= maxMin; m++) {
@@ -2188,6 +2534,15 @@ window.verTostadoDetalle = async (id, autoPDF = false) => {
             </tr>
         `).join('');
 
+        const secDeshid = parseTiempoASegundos(t.deshidratacion);
+        const secCrack = parseTiempoASegundos(t.crack);
+        const secSalida = parseTiempoASegundos(t.salida);
+        const secDes = (secSalida >= secCrack && secCrack > 0) ? (secSalida - secCrack) : parseTiempoASegundos(t.des);
+        const dtrPct = secSalida > 0 ? ((secDes / secSalida) * 100).toFixed(1) : (t.dtr ? t.dtr.replace('%','') : '0');
+        const secMaillard = (secCrack > secDeshid && secDeshid > 0) ? (secCrack - secDeshid) : parseTiempoASegundos(t.maillard);
+        const maillardPct = secSalida > 0 ? ((secMaillard / secSalida) * 100).toFixed(1) : '0';
+        const secadoPct = secSalida > 0 ? ((secDeshid / secSalida) * 100).toFixed(1) : '0';
+
         document.getElementById('modal-tostado-contenido').innerHTML = `
             <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">📋 Datos Generales</h4>
             <div class="detail-grid">
@@ -2199,11 +2554,19 @@ window.verTostadoDetalle = async (id, autoPDF = false) => {
                 <div class="detail-item"><div class="label">Peso Final</div><div class="value">${t.pesoFinal} g</div></div>
             </div>
             
-            <h4 style="color:var(--secondary); margin:1rem 0 0.5rem;">⏱️ Tiempos Clave</h4>
+            <h4 style="color:var(--secondary); margin:1.25rem 0 0.5rem;">⏱️ Tiempos Clave y Fases del Tostado</h4>
             <div class="tostado-summary">
-                <div class="tostado-summary-item"><div class="label">Crack</div><div class="value">${t.crack || '-'}</div></div>
-                <div class="tostado-summary-item"><div class="label">Desarrollo</div><div class="value">${t.des || '-'}</div></div>
-                <div class="tostado-summary-item"><div class="label">Salida</div><div class="value">${t.salida || '-'}</div></div>
+                <div class="tostado-summary-item"><div class="label">🌿 Fin Deshidratación</div><div class="value">${t.deshidratacion || '-'}</div><small style="color:#65a30d; font-weight:bold;">${secadoPct}%</small></div>
+                <div class="tostado-summary-item"><div class="label">🌾 Fase Maillard</div><div class="value">${secMaillard > 0 ? formatearSegundosATiempo(secMaillard) : '-'}</div><small style="color:#b45309; font-weight:bold;">${maillardPct}%</small></div>
+                <div class="tostado-summary-item"><div class="label">💥 1er Crack</div><div class="value">${t.crack || '-'}</div><small style="color:#64748b;">Inicio DTR</small></div>
+                <div class="tostado-summary-item"><div class="label">☕ Desarrollo (DTR)</div><div class="value">${formatearSegundosATiempo(secDes)}</div><small style="color:#047857; font-weight:bold;">${dtrPct}%</small></div>
+                <div class="tostado-summary-item"><div class="label">🔥 Salida / Drop</div><div class="value">${t.salida || '-'}</div><small style="color:#0369a1; font-weight:bold;">100%</small></div>
+            </div>
+
+            <div class="fases-tostado-bar" style="margin: 12px 0 16px;">
+                <div class="fase-bar-secado" style="width: ${secadoPct}%;">Secado ${secadoPct}%</div>
+                <div class="fase-bar-maillard" style="width: ${maillardPct}%;">Maillard ${maillardPct}%</div>
+                <div class="fase-bar-desarrollo" style="width: ${dtrPct}%;">DTR ${dtrPct}%</div>
             </div>
 
             <h4 style="color:var(--primary); margin:1.5rem 0 0.5rem; display:flex; align-items:center; gap:8px;">
@@ -2211,7 +2574,7 @@ window.verTostadoDetalle = async (id, autoPDF = false) => {
             </h4>
             <div class="chart-container-box">
                 <div class="chart-header">
-                    <span style="font-weight:bold; color:var(--primary); font-size:0.95rem;">Curva de Tostado en Tiempo Real</span>
+                    <span style="font-weight:bold; color:var(--primary); font-size:0.95rem;">Curva de Tostado</span>
                     <div style="display:flex; gap:12px;">
                         <span class="chart-legend-badge"><span class="chart-legend-color" style="background:#d32f2f;"></span> Salida (Out)</span>
                         <span class="chart-legend-badge"><span class="chart-legend-color" style="background:#2C5E2E;"></span> Entrada (In)</span>
@@ -2265,13 +2628,13 @@ window.generarPDFTostado = () => {
     
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
-    let y = 40;
+    let y = 38;
     
     // Cuadrícula datos generales
     doc.setFillColor(245, 245, 220);
-    doc.rect(14, y - 2, 182, 34, 'F');
+    doc.rect(14, y - 2, 182, 42, 'F');
     doc.setDrawColor(212, 175, 55);
-    doc.rect(14, y - 2, 182, 34, 'S');
+    doc.rect(14, y - 2, 182, 42, 'S');
 
     doc.setFont("helvetica", "bold");
     doc.setTextColor(44, 94, 46);
@@ -2280,20 +2643,34 @@ window.generarPDFTostado = () => {
 
     doc.setFont("helvetica", "normal");
     doc.setTextColor(0, 0, 0);
-    doc.text("Tostador: " + (t.tostador || "N/A"), 18, y + 12);
-    doc.text("Café: " + (t.cafe || "N/A"), 110, y + 12);
-    doc.text("Peso Carga: " + (t.pesoCarga || 0) + " g", 18, y + 20);
-    doc.text("Peso Final: " + (t.pesoFinal || 0) + " g", 70, y + 20);
-    doc.text("Potencia Inicial: " + (t.potenciaIni || "N/A"), 135, y + 20);
+    doc.text("Tostador: " + (t.tostador || "N/A"), 18, y + 11);
+    doc.text("Café: " + (t.cafe || "N/A"), 110, y + 11);
+    doc.text("Peso Carga: " + (t.pesoCarga || 0) + " g", 18, y + 18);
+    doc.text("Peso Final: " + (t.pesoFinal || 0) + " g", 70, y + 18);
+    doc.text("Potencia Inicial: " + (t.potenciaIni || "N/A"), 135, y + 18);
 
     const perdidaPeso = t.pesoCarga > 0 && t.pesoFinal > 0 
         ? (((t.pesoCarga - t.pesoFinal) / t.pesoCarga) * 100).toFixed(1) + "%" 
         : "N/A";
-    doc.setFont("helvetica", "bold");
-    doc.text("Merma / Pérdida: " + perdidaPeso, 18, y + 27);
-    doc.text(`Tiempos Clave:  Crack: ${t.crack || '-'}   |   Desarrollo: ${t.des || '-'}   |   Salida: ${t.salida || '-'}`, 70, y + 27);
 
-    y += 40;
+    const secDeshid = parseTiempoASegundos(t.deshidratacion);
+    const secCrack = parseTiempoASegundos(t.crack);
+    const secSalida = parseTiempoASegundos(t.salida);
+    const secDes = (secSalida >= secCrack && secCrack > 0) ? (secSalida - secCrack) : parseTiempoASegundos(t.des);
+    const dtrPct = secSalida > 0 ? ((secDes / secSalida) * 100).toFixed(1) : (t.dtr ? t.dtr.replace('%','') : '0');
+    const secMaillard = (secCrack > secDeshid && secDeshid > 0) ? (secCrack - secDeshid) : parseTiempoASegundos(t.maillard);
+    const maillardPct = secSalida > 0 ? ((secMaillard / secSalida) * 100).toFixed(1) : '0';
+    const secadoPct = secSalida > 0 ? ((secDeshid / secSalida) * 100).toFixed(1) : '0';
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Merma / Pérdida: " + perdidaPeso, 18, y + 25);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Fases: Secado: ${t.deshidratacion || '-'} (${secadoPct}%) | Maillard: ${secMaillard > 0 ? formatearSegundosATiempo(secMaillard) : '-'} (${maillardPct}%)`, 18, y + 31);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(44, 94, 46);
+    doc.text(`1er Crack: ${t.crack || '-'} | Desarrollo: ${formatearSegundosATiempo(secDes)} (${dtrPct}% DTR) | Salida: ${t.salida || '-'}`, 18, y + 37);
+
+    y += 48;
 
     // INSERCIÓN DE LA GRÁFICA EN EL PDF
     const canvas = document.getElementById('tostadoChartCanvas');
@@ -7985,15 +8362,15 @@ window.mostrarSubtabMadera = (subtab) => {
 };
 
 // Regla técnica de redondeo para cubicación forestal en Finca Los Robles:
-// Los decimales no son necesarios.
-// Si el decimal es mayor a 0.75 aproxima al siguiente entero; si está debajo (<= 0.75) trunca el decimal.
-// Ejemplos: 180.83 -> 181, 175.65 -> 175, 100.75 -> 100, 100.76 -> 101.
+// Los decimales no son necesarios (siempre enteros).
+// Si el decimal es 0.75 o mayor (>= 0.75) aproxima al siguiente entero; si es 0.74 o menor (< 0.75) trunca el decimal.
+// Ejemplos: 180.75 -> 181, 180.83 -> 181, 175.74 -> 175, 175.65 -> 175.
 window.redondearCubicacionRegla = (valor) => {
     const num = parseFloat(valor) || 0;
     if (num <= 0) return 0;
     const entero = Math.floor(num);
     const dec = Math.round((num - entero) * 10000) / 10000;
-    if (dec > 0.75) {
+    if (dec >= 0.75) {
         return entero + 1;
     } else {
         return entero;
@@ -9182,7 +9559,7 @@ window.descargarPDFCamionada = (c) => {
     doc.setTextColor(100, 116, 139);
     doc.setFontSize(7);
     doc.setFont("helvetica", "normal");
-    doc.text("Fórmula forestal: (Largo en pies × Diám. 1 en pulg × Diám. 2 en pulg) ÷ 12. Regla de aproximación: decimales > 0.75 aproximan al siguiente entero; decimales ≤ 0.75 se truncan.", 14, y + 2);
+    doc.text("Fórmula forestal: (Largo en pies × Diám. 1 en pulg × Diám. 2 en pulg) ÷ 12. Regla de aproximación: decimales ≥ 0.75 aproximan al siguiente entero; decimales ≤ 0.74 se truncan (solo enteros).", 14, y + 2);
     doc.text(`Finca Los Robles • Documento de control de cubicación emitido para cotejo con el cliente/aserradero • ${new Date().toLocaleDateString('es-GT')}`, 14, y + 6);
 
     doc.save(`Cubicacion_${c.numero || 'Camionada'}.pdf`);
@@ -9248,7 +9625,7 @@ window.compartirCamionadaWhatsApp = (cam) => {
             `📏 *TOTAL PIES TABLARES (FINCA):* ${totalPt} pt\n` +
             `• Troza: ${ptTrozas} pt\n` +
             `• Trocillo: ${ptTrocillos} pt\n\n` +
-            `_Cálculo con regla técnica de campo (decimales >0.75 aproximan al siguiente entero). Boleta para cotejo contra medición de aserradero._`;
+            `_Cálculo con regla técnica de campo (decimales ≥0.75 aproximan al siguiente entero, ≤0.74 truncan). Boleta para cotejo contra medición de aserradero._`;
     }
 
     const url = "https://wa.me/?text=" + encodeURIComponent(texto);
@@ -9292,7 +9669,7 @@ window.ejecutarCalculadoraRapidaMadera = () => {
     const formulaEl = document.getElementById('madera-calc-res-formula');
     if (formulaEl) {
         const crudo = ((largo * d1 * d2) / 12).toFixed(2);
-        formulaEl.innerText = `Fórmula: (${largo} ft × ${d1}" × ${d2}") ÷ 12 = ${crudo} → ${pt} pt (regla >0.75)`;
+        formulaEl.innerText = `Fórmula: (${largo} ft × ${d1}" × ${d2}") ÷ 12 = ${crudo} → ${pt} pt (regla ≥0.75)`;
     }
 
     const resVenta = document.getElementById('madera-calc-res-venta');
@@ -9527,6 +9904,13 @@ window.inicializarModuloCortes = async () => {
     const inpTarifa = document.getElementById('cortes-precio-libra');
     if (inpTarifa) inpTarifa.value = tarifaLibraCortes.toFixed(2);
 
+    // Sincronizar en el formulario de pesaje y en el banner de precio pactado
+    const formTarifa = document.getElementById('corte-in-tarifa');
+    if (formTarifa) formTarifa.value = tarifaLibraCortes.toFixed(2);
+
+    const bannerPactado = document.getElementById('corte-precio-pactado-dia');
+    if (bannerPactado) bannerPactado.value = tarifaLibraCortes.toFixed(2);
+
     // 2. Establecer fechas por defecto si están vacías (Lunes a Sábado de la semana en curso)
     const fIniInp = document.getElementById('cortes-filtro-inicio');
     const fFinInp = document.getElementById('cortes-filtro-fin');
@@ -9539,13 +9923,61 @@ window.inicializarModuloCortes = async () => {
     // Fecha hoy para el formulario de nuevo pesaje
     const hoy = new Date().toISOString().split('T')[0];
     const fechaInp = document.getElementById('corte-in-fecha');
-    if (fechaInp && !fechaInp.value) fechaInp.value = hoy;
+    if (fechaInp && !fechaInp.value) {
+        fechaInp.value = hoy;
+    }
+    const badgeFecha = document.getElementById('corte-dia-badge-fecha');
+    if (badgeFecha) badgeFecha.innerText = `Hoy (${hoy})`;
 
     // 3. Cargar cortadores y pesajes desde Firestore
     await Promise.all([
         window.cargarCortadores(),
         window.cargarPesajesCortes()
     ]);
+};
+
+window.actualizarPrecioPactadoDelDia = (valor) => {
+    const tarifa = parseFloat(valor) || 0.60;
+    tarifaLibraCortes = tarifa;
+    localStorage.setItem('flr_tarifa_corte_lb', String(tarifa));
+
+    // Sincronizar en input de pesada
+    const inTarifa = document.getElementById('corte-in-tarifa');
+    if (inTarifa) inTarifa.value = tarifa.toFixed(2);
+
+    // Sincronizar en la casilla de la planilla
+    const planillaTarifa = document.getElementById('cortes-precio-libra');
+    if (planillaTarifa) planillaTarifa.value = tarifa.toFixed(2);
+
+    // Sincronizar en el banner
+    const bannerInp = document.getElementById('corte-precio-pactado-dia');
+    if (bannerInp && parseFloat(bannerInp.value) !== tarifa) {
+        bannerInp.value = tarifa.toFixed(2);
+    }
+
+    if (typeof window.actualizarSubtotalNuevoPesaje === 'function') {
+        window.actualizarSubtotalNuevoPesaje();
+    }
+};
+
+window.alCambiarFechaPesaje = (fechaSeleccionada) => {
+    if (!fechaSeleccionada) return;
+    const badgeFecha = document.getElementById('corte-dia-badge-fecha');
+    const hoyStr = new Date().toISOString().split('T')[0];
+
+    // Verificar si ya existen pesajes en esta fecha para detectar la tarifa pactada ese día
+    const pesajesFecha = (todosLosPesajesCortes || []).filter(p => p.data.fecha === fechaSeleccionada);
+    if (pesajesFecha.length > 0) {
+        const primeraTarifa = parseFloat(pesajesFecha[0].data.tarifaPorLibra) || tarifaLibraCortes;
+        window.actualizarPrecioPactadoDelDia(primeraTarifa);
+        if (badgeFecha) {
+            badgeFecha.innerText = `${fechaSeleccionada} (Tarifa pactada: Q ${primeraTarifa.toFixed(2)}/lb)`;
+        }
+    } else {
+        if (badgeFecha) {
+            badgeFecha.innerText = (fechaSeleccionada === hoyStr) ? `Hoy (${hoyStr})` : fechaSeleccionada;
+        }
+    }
 };
 
 window.mostrarSubtabCortes = (tab) => {
@@ -9579,8 +10011,14 @@ window.enfocarInputPesada = () => {
 window.guardarTarifaCortes = () => {
     const inp = document.getElementById('cortes-precio-libra');
     const val = parseFloat(inp?.value) || 0.60;
-    tarifaLibraCortes = val;
-    localStorage.setItem('flr_tarifa_corte_lb', String(val));
+    window.actualizarPrecioPactadoDelDia(val);
+};
+
+window.actualizarSubtotalNuevoPesaje = () => {
+    const lbs = parseFloat(document.getElementById('corte-in-libras')?.value) || 0;
+    const tarifa = parseFloat(document.getElementById('corte-in-tarifa')?.value) || tarifaLibraCortes || 0.60;
+    const prev = document.getElementById('corte-in-subtotal-preview');
+    if (prev) prev.innerText = `Q ${(lbs * tarifa).toFixed(2)}`;
 };
 
 window.establecerSemanaActualCortes = () => {
@@ -9764,18 +10202,24 @@ window.guardarPesajeCorte = async () => {
     const fecha = document.getElementById('corte-in-fecha')?.value;
     const cortador = document.getElementById('corte-in-cortador')?.value.trim();
     const libras = parseFloat(document.getElementById('corte-in-libras')?.value) || 0;
+    const tarifa = parseFloat(document.getElementById('corte-in-tarifa')?.value) || tarifaLibraCortes || 0.60;
     const tablon = document.getElementById('corte-in-tablon')?.value.trim() || '';
     const notas = document.getElementById('corte-in-notas')?.value.trim() || '';
 
     if (!fecha) return alert("⚠️ Selecciona la fecha del corte.");
     if (!cortador) return alert("⚠️ Ingresa el nombre del cortador.");
     if (libras <= 0) return alert("⚠️ El peso cortado debe ser mayor a 0 libras.");
+    if (tarifa < 0) return alert("⚠️ La tarifa no puede ser negativa.");
+
+    const montoAPagar = libras * tarifa;
 
     try {
         const docData = {
             fecha,
             cortador,
             libras,
+            tarifaPorLibra: tarifa,
+            montoAPagar,
             tablon,
             notas,
             creado: serverTimestamp()
@@ -9798,6 +10242,7 @@ window.guardarPesajeCorte = async () => {
         document.getElementById('corte-in-cortador').value = '';
         document.getElementById('corte-in-libras').value = '';
         document.getElementById('corte-in-notas').value = '';
+        document.getElementById('corte-in-subtotal-preview').innerText = 'Q 0.00';
         document.getElementById('corte-in-cortador').focus();
 
         await window.cargarPesajesCortes();
@@ -9821,10 +10266,22 @@ window.renderTablaPesajesCortes = () => {
         lista = lista.filter(p => p.data.fecha === fFiltro);
     }
 
+    const indicador = document.getElementById('corte-filtro-tarifa-indicador');
+    if (indicador) {
+        if (fFiltro && lista.length > 0) {
+            const tarifasDia = [...new Set(lista.map(p => parseFloat(p.data.tarifaPorLibra) || tarifaLibraCortes))];
+            const strTarifas = tarifasDia.map(t => `Q ${t.toFixed(2)}/lb`).join(', ');
+            indicador.style.display = 'inline-block';
+            indicador.innerText = `📅 Fecha ${fFiltro}: Tarifa pactada ${strTarifas} (${lista.length} pesadas)`;
+        } else {
+            indicador.style.display = 'none';
+        }
+    }
+
     if (lista.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align:center; padding:1.5rem; color:#888;">
+                <td colspan="8" style="text-align:center; padding:1.5rem; color:#888;">
                     No se encontraron pesajes con los filtros seleccionados.
                 </td>
             </tr>
@@ -9835,19 +10292,87 @@ window.renderTablaPesajesCortes = () => {
     tbody.innerHTML = lista.map(p => {
         const d = p.data;
         const lbs = parseFloat(d.libras) || 0;
+        const tarifaPesaje = (d.tarifaPorLibra !== undefined && d.tarifaPorLibra !== null && parseFloat(d.tarifaPorLibra) > 0)
+            ? parseFloat(d.tarifaPorLibra)
+            : tarifaLibraCortes;
+        const montoPesaje = (d.montoAPagar !== undefined && d.montoAPagar !== null && parseFloat(d.montoAPagar) > 0)
+            ? parseFloat(d.montoAPagar)
+            : (lbs * tarifaPesaje);
+
         return `
             <tr>
                 <td style="font-weight:600;">${d.fecha}</td>
                 <td style="font-weight:bold; color:var(--primary);">${d.cortador}</td>
                 <td style="text-align:right; font-weight:bold; font-size:1.05rem; color:#0f766e;">${lbs.toFixed(1)} lbs</td>
+                <td style="text-align:right; font-weight:600; color:#475569;">Q ${tarifaPesaje.toFixed(2)}</td>
+                <td style="text-align:right; font-weight:bold; color:#047857;">Q ${montoPesaje.toFixed(2)}</td>
                 <td style="color:#64748b;">${d.tablon || '-'}</td>
                 <td style="font-size:0.85rem; color:#64748b;">${d.notas || '-'}</td>
-                <td style="text-align:center;">
+                <td style="text-align:center; white-space:nowrap;">
+                    <button type="button" class="btn btn-xs btn-primary" onclick="abrirModalEditarPesajeCorte('${p.id}')" title="Editar pesaje / tarifa" style="margin-right:4px;">✏️</button>
                     <button type="button" class="btn btn-xs btn-danger" onclick="eliminarPesajeCorte('${p.id}')" title="Eliminar pesaje">🗑️</button>
                 </td>
             </tr>
         `;
     }).join('');
+};
+
+window.abrirModalEditarPesajeCorte = (id) => {
+    const pesaje = todosLosPesajesCortes.find(p => p.id === id);
+    if (!pesaje) return alert("No se encontró el pesaje.");
+    const d = pesaje.data;
+
+    document.getElementById('edit-pesaje-id').value = id;
+    document.getElementById('edit-pesaje-fecha').value = d.fecha || '';
+    document.getElementById('edit-pesaje-cortador').value = d.cortador || '';
+    document.getElementById('edit-pesaje-libras').value = d.libras || '';
+    const tarifa = (d.tarifaPorLibra !== undefined && d.tarifaPorLibra !== null && parseFloat(d.tarifaPorLibra) > 0)
+        ? parseFloat(d.tarifaPorLibra)
+        : tarifaLibraCortes;
+    document.getElementById('edit-pesaje-tarifa').value = tarifa.toFixed(2);
+    document.getElementById('edit-pesaje-tablon').value = d.tablon || '';
+    document.getElementById('edit-pesaje-notas').value = d.notas || '';
+
+    const modal = document.getElementById('modal-editar-pesaje-corte');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.guardarEdicionPesajeCorte = async () => {
+    const id = document.getElementById('edit-pesaje-id')?.value;
+    if (!id) return;
+
+    const fecha = document.getElementById('edit-pesaje-fecha')?.value;
+    const cortador = document.getElementById('edit-pesaje-cortador')?.value.trim();
+    const libras = parseFloat(document.getElementById('edit-pesaje-libras')?.value) || 0;
+    const tarifa = parseFloat(document.getElementById('edit-pesaje-tarifa')?.value) || 0;
+    const tablon = document.getElementById('edit-pesaje-tablon')?.value.trim() || '';
+    const notas = document.getElementById('edit-pesaje-notas')?.value.trim() || '';
+
+    if (!fecha) return alert("⚠️ Selecciona la fecha del corte.");
+    if (!cortador) return alert("⚠️ Ingresa el nombre del cortador.");
+    if (libras <= 0) return alert("⚠️ El peso cortado debe ser mayor a 0 libras.");
+    if (tarifa < 0) return alert("⚠️ La tarifa no puede ser negativa.");
+
+    const montoAPagar = libras * tarifa;
+
+    try {
+        await updateDoc(doc(db, "cortes_pesajes", id), {
+            fecha,
+            cortador,
+            libras,
+            tarifaPorLibra: tarifa,
+            montoAPagar,
+            tablon,
+            notas,
+            actualizado: serverTimestamp()
+        });
+
+        cerrarModal('modal-editar-pesaje-corte');
+        await window.cargarPesajesCortes();
+        alert("✔️ Pesaje actualizado correctamente.");
+    } catch (e) {
+        alert("Error al actualizar pesaje: " + e.message);
+    }
 };
 
 window.limpiarFiltrosPesajesCortes = () => {
@@ -9873,7 +10398,7 @@ window.eliminarPesajeCorte = async (id) => {
 window.recalcularPlanillaCortes = () => {
     const fInicio = document.getElementById('cortes-filtro-inicio')?.value || '';
     const fFin = document.getElementById('cortes-filtro-fin')?.value || '';
-    const tarifa = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
+    const tarifaDefault = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
 
     // Filtrar pesajes dentro del rango de fechas
     const pesajesEnRango = todosLosPesajesCortes.filter(p => {
@@ -9885,28 +10410,40 @@ window.recalcularPlanillaCortes = () => {
     });
 
     // Mapear por cortador y desglose por día
-    // Días de la semana: 1: Lun, 2: Mar, 3: Mié, 4: Jue, 5: Vie, 6: Sáb
+    // IMPORTANTE: Cada pesaje utiliza su tarifa histórica protegida (d.tarifaPorLibra).
+    // Cambiar la tarifa actual de la casilla no altera retroactivamente las pesadas pasadas.
     const cortadoresMap = {};
-
     let totalLbsGlobal = 0;
+    let totalMontoGlobal = 0;
 
     pesajesEnRango.forEach(p => {
         const d = p.data;
         const nombre = (d.cortador || 'Sin nombre').trim();
         const lbs = parseFloat(d.libras) || 0;
+        const tarifaPesaje = (d.tarifaPorLibra !== undefined && d.tarifaPorLibra !== null && parseFloat(d.tarifaPorLibra) > 0)
+            ? parseFloat(d.tarifaPorLibra)
+            : tarifaDefault;
+        const montoPesaje = (d.montoAPagar !== undefined && d.montoAPagar !== null && parseFloat(d.montoAPagar) > 0)
+            ? parseFloat(d.montoAPagar)
+            : (lbs * tarifaPesaje);
+
         totalLbsGlobal += lbs;
+        totalMontoGlobal += montoPesaje;
 
         if (!cortadoresMap[nombre]) {
             cortadoresMap[nombre] = {
                 nombre,
                 dias: { lun: 0, mar: 0, mie: 0, jue: 0, vie: 0, sab: 0, otros: 0 },
-                totalLbs: 0
+                totalLbs: 0,
+                totalMonto: 0,
+                tarifas: []
             };
         }
 
         cortadoresMap[nombre].totalLbs += lbs;
+        cortadoresMap[nombre].totalMonto += montoPesaje;
+        cortadoresMap[nombre].tarifas.push(tarifaPesaje);
 
-        // Determinar día de la semana
         const fechaObj = new Date(d.fecha + 'T12:00:00');
         const dayIdx = fechaObj.getDay(); // 0 Dom, 1 Lun, 2 Mar, 3 Mié, 4 Jue, 5 Vie, 6 Sáb
         if (dayIdx === 1) cortadoresMap[nombre].dias.lun += lbs;
@@ -9921,7 +10458,6 @@ window.recalcularPlanillaCortes = () => {
     const listaPlanilla = Object.values(cortadoresMap);
     listaPlanilla.sort((a, b) => b.totalLbs - a.totalLbs);
 
-    const totalMontoGlobal = totalLbsGlobal * tarifa;
     const totalQuintales = totalLbsGlobal / 100; // 1 quintal cereza = 100 lbs
     const cortadoresActivosCount = listaPlanilla.length;
     const promPorPersona = cortadoresActivosCount > 0 ? (totalLbsGlobal / cortadoresActivosCount) : 0;
@@ -9934,9 +10470,8 @@ window.recalcularPlanillaCortes = () => {
     listaPlanilla.forEach(item => {
         const pagoKey = `${item.nombre}_${periodoKey}`;
         const estaPagado = pagosCortesRegistrados[pagoKey] === true;
-        const monto = item.totalLbs * tarifa;
-        if (estaPagado) totalPagado += monto;
-        else totalPendiente += monto;
+        if (estaPagado) totalPagado += item.totalMonto;
+        else totalPendiente += item.totalMonto;
     });
 
     // Actualizar KPIs en la interfaz
@@ -9992,7 +10527,7 @@ window.recalcularPlanillaCortes = () => {
         totVie += c.dias.vie;
         totSab += c.dias.sab;
 
-        const montoAPagar = c.totalLbs * tarifa;
+        const montoAPagar = c.totalMonto;
         const pagoKey = `${c.nombre}_${periodoKey}`;
         const estaPagado = pagosCortesRegistrados[pagoKey] === true;
 
@@ -10006,6 +10541,18 @@ window.recalcularPlanillaCortes = () => {
 
         const formatDia = (val) => val > 0 ? `${val.toFixed(1)}` : '<span style="color:#cbd5e1;">-</span>';
 
+        // Manejo de tarifas aplicadas
+        const tarifasUnicas = [...new Set(c.tarifas)];
+        let tarifaTexto = '';
+        if (tarifasUnicas.length === 1) {
+            tarifaTexto = `Q ${tarifasUnicas[0].toFixed(2)}`;
+        } else if (tarifasUnicas.length > 1) {
+            const prom = c.totalLbs > 0 ? (c.totalMonto / c.totalLbs) : 0;
+            tarifaTexto = `<span title="Tarifas aplicadas a este cortador: ${tarifasUnicas.map(t=>'Q'+t.toFixed(2)).join(', ')}" style="border-bottom:1px dotted #94a3b8; cursor:help;">Q ${prom.toFixed(2)}*</span>`;
+        } else {
+            tarifaTexto = `Q ${tarifaDefault.toFixed(2)}`;
+        }
+
         return `
             <tr>
                 <td style="text-align:center; font-weight:bold; color:#64748b;">${idx + 1}</td>
@@ -10017,7 +10564,7 @@ window.recalcularPlanillaCortes = () => {
                 <td style="text-align:right;">${formatDia(c.dias.vie)}</td>
                 <td style="text-align:right;">${formatDia(c.dias.sab)}</td>
                 <td style="text-align:right; font-weight:bold; background:#f0fdf4; font-size:1.05rem; color:#0f766e;">${c.totalLbs.toFixed(1)} lbs</td>
-                <td style="text-align:right; font-size:0.85rem; color:#64748b;">Q ${tarifa.toFixed(2)}</td>
+                <td style="text-align:right; font-size:0.85rem; color:#64748b;">${tarifaTexto}</td>
                 <td style="text-align:right; font-weight:bold; background:#ecfdf5; font-size:1.15rem; color:#047857;">Q ${montoAPagar.toFixed(2)}</td>
                 <td style="text-align:center;">${badgeEstado}</td>
                 <td style="text-align:center;">${btnTogglePago}</td>
@@ -10036,7 +10583,7 @@ window.recalcularPlanillaCortes = () => {
                 <td style="text-align:right; font-weight:bold;">${totVie.toFixed(1)}</td>
                 <td style="text-align:right; font-weight:bold;">${totSab.toFixed(1)}</td>
                 <td style="text-align:right; font-weight:bold; background:#e0f2fe; color:#0369a1; font-size:1.1rem;">${totalLbsGlobal.toFixed(1)} lbs</td>
-                <td style="text-align:right; color:#64748b;">Q ${tarifa.toFixed(2)}/lb</td>
+                <td style="text-align:right; color:#64748b;">Protegida</td>
                 <td style="text-align:right; font-weight:bold; background:#dcfce7; color:#14532d; font-size:1.25rem;">Q ${totalMontoGlobal.toFixed(2)}</td>
                 <td colspan="2" style="text-align:center; font-size:0.85rem; color:#166534;">
                     ${((totalPagado / (totalMontoGlobal || 1)) * 100).toFixed(0)}% Liquidado
@@ -10066,7 +10613,7 @@ window.generarPDFPlanillaCortes = () => {
 
     const fInicio = document.getElementById('cortes-filtro-inicio')?.value || '';
     const fFin = document.getElementById('cortes-filtro-fin')?.value || '';
-    const tarifa = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
+    const tarifaDefault = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
 
     const pesajesEnRango = todosLosPesajesCortes.filter(p => {
         const f = p.data.fecha;
@@ -10078,21 +10625,32 @@ window.generarPDFPlanillaCortes = () => {
 
     const cortadoresMap = {};
     let totalLbsGlobal = 0;
+    let totalMontoGlobal = 0;
 
     pesajesEnRango.forEach(p => {
         const d = p.data;
         const nombre = (d.cortador || 'Sin nombre').trim();
         const lbs = parseFloat(d.libras) || 0;
+        const tarifaPesaje = (d.tarifaPorLibra !== undefined && d.tarifaPorLibra !== null && parseFloat(d.tarifaPorLibra) > 0)
+            ? parseFloat(d.tarifaPorLibra)
+            : tarifaDefault;
+        const montoPesaje = (d.montoAPagar !== undefined && d.montoAPagar !== null && parseFloat(d.montoAPagar) > 0)
+            ? parseFloat(d.montoAPagar)
+            : (lbs * tarifaPesaje);
+
         totalLbsGlobal += lbs;
+        totalMontoGlobal += montoPesaje;
 
         if (!cortadoresMap[nombre]) {
             cortadoresMap[nombre] = {
                 nombre,
                 dias: { lun: 0, mar: 0, mie: 0, jue: 0, vie: 0, sab: 0 },
-                totalLbs: 0
+                totalLbs: 0,
+                totalMonto: 0
             };
         }
         cortadoresMap[nombre].totalLbs += lbs;
+        cortadoresMap[nombre].totalMonto += montoPesaje;
 
         const dayIdx = new Date(d.fecha + 'T12:00:00').getDay();
         if (dayIdx === 1) cortadoresMap[nombre].dias.lun += lbs;
@@ -10106,7 +10664,7 @@ window.generarPDFPlanillaCortes = () => {
     const lista = Object.values(cortadoresMap);
     lista.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
-    const granTotalQ = totalLbsGlobal * tarifa;
+    const granTotalQ = totalMontoGlobal;
 
     // Encabezado Finca Los Robles
     doc.setFillColor(44, 94, 46);
@@ -10131,11 +10689,11 @@ window.generarPDFPlanillaCortes = () => {
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.text(`Período de Corte: Del ${fInicio || 'N/A'} al ${fFin || 'N/A'}`, 18, 36);
-    doc.text(`Tarifa Pagada: Q ${tarifa.toFixed(2)} por libra cortada`, 120, 36);
+    doc.text(`Tarifa Activa Base: Q ${tarifaDefault.toFixed(2)} / lb (con tarifas históricas)`, 115, 36);
 
     doc.setFont("helvetica", "normal");
     doc.text(`Total Cortadores Activos: ${lista.length} personas`, 18, 42);
-    doc.text(`Emisión: ${new Date().toLocaleDateString('es-GT')} • Finca Los Robles`, 120, 42);
+    doc.text(`Emisión: ${new Date().toLocaleDateString('es-GT')} • Finca Los Robles`, 115, 42);
 
     let y = 52;
 
@@ -10210,9 +10768,8 @@ window.generarPDFPlanillaCortes = () => {
             doc.setTextColor(15, 118, 110);
             doc.text(`${c.totalLbs.toFixed(1)}`, 163, y + 4.2, { align: "right" });
 
-            const monto = c.totalLbs * tarifa;
             doc.setTextColor(20, 83, 45);
-            doc.text(`Q ${monto.toFixed(2)}`, 184, y + 4.2, { align: "right" });
+            doc.text(`Q ${c.totalMonto.toFixed(2)}`, 184, y + 4.2, { align: "right" });
 
             // Línea para firma
             doc.setDrawColor(180, 180, 180);
@@ -10242,7 +10799,7 @@ window.generarPDFPlanillaCortes = () => {
     doc.setTextColor(30, 41, 59);
     doc.setFont("helvetica", "normal");
     doc.text(`Total Café Cortado: ${totalLbsGlobal.toFixed(1)} lbs (${(totalLbsGlobal / 100).toFixed(2)} qq cereza)`, 18, y + 14);
-    doc.text(`Tarifa: Q ${tarifa.toFixed(2)} / libra cortada`, 18, y + 19);
+    doc.text(`Liquidado con tarifas históricas individuales registradas en campo`, 18, y + 19);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
@@ -10268,7 +10825,7 @@ window.generarPDFPlanillaCortes = () => {
 window.compartirWhatsAppPlanillaCortes = () => {
     const fInicio = document.getElementById('cortes-filtro-inicio')?.value || '';
     const fFin = document.getElementById('cortes-filtro-fin')?.value || '';
-    const tarifa = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
+    const tarifaDefault = parseFloat(document.getElementById('cortes-precio-libra')?.value) || tarifaLibraCortes || 0.60;
 
     const pesajesEnRango = todosLosPesajesCortes.filter(p => {
         const f = p.data.fecha;
@@ -10280,34 +10837,46 @@ window.compartirWhatsAppPlanillaCortes = () => {
 
     const cortadoresMap = {};
     let totalLbsGlobal = 0;
+    let totalMontoGlobal = 0;
 
     pesajesEnRango.forEach(p => {
         const d = p.data;
         const nombre = (d.cortador || 'Sin nombre').trim();
         const lbs = parseFloat(d.libras) || 0;
+        const tarifaPesaje = (d.tarifaPorLibra !== undefined && d.tarifaPorLibra !== null && parseFloat(d.tarifaPorLibra) > 0)
+            ? parseFloat(d.tarifaPorLibra)
+            : tarifaDefault;
+        const montoPesaje = (d.montoAPagar !== undefined && d.montoAPagar !== null && parseFloat(d.montoAPagar) > 0)
+            ? parseFloat(d.montoAPagar)
+            : (lbs * tarifaPesaje);
+
         totalLbsGlobal += lbs;
-        cortadoresMap[nombre] = (cortadoresMap[nombre] || 0) + lbs;
+        totalMontoGlobal += montoPesaje;
+
+        if (!cortadoresMap[nombre]) {
+            cortadoresMap[nombre] = { nombre, totalLbs: 0, totalMonto: 0 };
+        }
+        cortadoresMap[nombre].totalLbs += lbs;
+        cortadoresMap[nombre].totalMonto += montoPesaje;
     });
 
-    const lista = Object.keys(cortadoresMap).map(k => ({ nombre: k, totalLbs: cortadoresMap[k] }));
+    const lista = Object.values(cortadoresMap);
     lista.sort((a, b) => b.totalLbs - a.totalLbs);
 
-    const granTotalQ = totalLbsGlobal * tarifa;
+    const granTotalQ = totalMontoGlobal;
 
     let texto = `🧺 *FINCA LOS ROBLES - PLANILLA DE CORTE DE CAFÉ*\n` +
         `📅 *Período:* ${fInicio} al ${fFin} (Lun-Sáb)\n` +
-        `💵 *Tarifa:* Q ${tarifa.toFixed(2)} / lb\n` +
         `⚖️ *Total Cosechado:* ${totalLbsGlobal.toFixed(1)} lbs (${(totalLbsGlobal/100).toFixed(2)} qq cereza)\n` +
         `💰 *TOTAL A PAGAR:* Q ${granTotalQ.toFixed(2)}\n` +
         `👥 *Cortadores:* ${lista.length} personas\n\n` +
         `*DESGLOSE DE PAGO:* \n`;
 
     lista.forEach((c, idx) => {
-        const pago = c.totalLbs * tarifa;
-        texto += `${idx + 1}. *${c.nombre}:* ${c.totalLbs.toFixed(1)} lbs → *Q ${pago.toFixed(2)}*\n`;
+        texto += `${idx + 1}. *${c.nombre}:* ${c.totalLbs.toFixed(1)} lbs → *Q ${c.totalMonto.toFixed(2)}*\n`;
     });
 
-    texto += `\n_Liquidación y pago de cosecha de café Finca Los Robles._`;
+    texto += `\n_Liquidación y pago de cosecha de café Finca Los Robles (tarifas históricas de corte aplicadas)._`;
 
     const url = "https://wa.me/?text=" + encodeURIComponent(texto);
     window.open(url, '_blank');
