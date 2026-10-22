@@ -3420,6 +3420,397 @@
     </div>
 </div>
 
+<!-- MÓDULO: ESTACIÓN METEOROLÓGICA Y CLIMA FINCA LOS ROBLES (#138) -->
+<div id="clima" class="section">
+    <!-- ENCABEZADO DE LA ESTACIÓN -->
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
+        <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <h2 style="margin:0; border:none; padding:0; color:#0369a1; display:flex; align-items:center; gap:8px;">
+                    <span>🌤️ Estación Meteorológica #138 "Los Robles"</span>
+                </h2>
+                <span style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:bold; border:1px solid #bae6fd;">
+                    Red Anacafé
+                </span>
+            </div>
+            <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">
+                📍 Coordenadas: 15.41298° N, -90.49599° O • Registros diarios de lluvia, temperatura, humedad y radiación solar para decisiones agronómicas.
+            </p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-small btn-primary" style="background:#0284c7; color:white; font-weight:bold;" onclick="abrirModalCargaCSVClima()">
+                📂 Cargar CSV Anacafé
+            </button>
+            <button class="btn btn-small" style="background:#0f766e; color:white; font-weight:bold;" onclick="exportarCSVClima()">
+                📥 Exportar a CSV
+            </button>
+            <button class="btn btn-small btn-pdf" onclick="generarPDFReporteClima()">
+                📄 Reporte PDF
+            </button>
+            <button class="btn btn-small" style="background:linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color:white; font-weight:bold;" onclick="mostrarSubtabClima('ia')">
+                🤖 Asistente Agronómico IA
+            </button>
+        </div>
+    </div>
+
+    <!-- BARRA DE CONTROL Y FILTROS -->
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div>
+                <label style="font-size:0.75rem; font-weight:bold; color:#475569; display:block; margin-bottom:2px;">Año:</label>
+                <select id="clima-filtro-anio" style="padding:6px 12px; font-weight:bold; border:1px solid #cbd5e1; border-radius:6px; background:white; min-width:110px;" onchange="cambiarAnioClima()">
+                    <option value="2025" selected>2025</option>
+                </select>
+            </div>
+            <div id="clima-selector-mes-wrapper">
+                <label style="font-size:0.75rem; font-weight:bold; color:#475569; display:block; margin-bottom:2px;">Mes:</label>
+                <select id="clima-filtro-mes" style="padding:6px 12px; font-weight:600; border:1px solid #cbd5e1; border-radius:6px; background:white; min-width:140px;" onchange="cambiarMesClima()">
+                    <option value="todos">Todos los Meses</option>
+                    <option value="0">Enero</option>
+                    <option value="1">Febrero</option>
+                    <option value="2">Marzo</option>
+                    <option value="3">Abril</option>
+                    <option value="4">Mayo</option>
+                    <option value="5">Junio</option>
+                    <option value="6">Julio</option>
+                    <option value="7">Agosto</option>
+                    <option value="8">Septiembre</option>
+                    <option value="9">Octubre</option>
+                    <option value="10">Noviembre</option>
+                    <option value="11">Diciembre</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span id="clima-badge-dataset" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; padding:6px 12px; border-radius:20px; font-size:0.78rem; font-weight:bold; display:flex; align-items:center; gap:6px;">
+                🟢 <span>Datos Estación #138 Cargados</span>
+            </span>
+            <button type="button" class="btn btn-xs" style="background:#e2e8f0; color:#334155; padding:6px 10px;" onclick="restaurarDatasetOriginalClima()" title="Restaurar datos predeterminados de 2025">
+                🔄 Recargar 2025
+            </button>
+        </div>
+    </div>
+
+    <!-- SUBTABS DE NAVEGACIÓN -->
+    <div class="madera-subtabs" style="margin-bottom:1.25rem;">
+        <button type="button" class="madera-tab-btn active" id="tab-btn-clima-mensual" onclick="mostrarSubtabClima('mensual')">
+            📊 Resumen Mensual (Anacafé)
+        </button>
+        <button type="button" class="madera-tab-btn" id="tab-btn-clima-diario" onclick="mostrarSubtabClima('diario')">
+            📅 Detalle Diario
+        </button>
+        <button type="button" class="madera-tab-btn" id="tab-btn-clima-graficas" onclick="mostrarSubtabClima('graficas')">
+            📈 Gráficas Climáticas
+        </button>
+        <button type="button" class="madera-tab-btn" id="tab-btn-clima-ia" onclick="mostrarSubtabClima('ia')" style="color:#7c3aed; font-weight:bold;">
+            ✨ Asistente Agronómico IA
+        </button>
+    </div>
+
+    <!-- SUBTAB 1: RESUMEN MENSUAL (ESTILO ANACAFE MEJORADO) -->
+    <div id="clima-subtab-mensual">
+        <!-- TARJETAS KPIS GENERALES DEL AÑO -->
+        <div class="dash-kpi-grid" style="margin-bottom:1.25rem;">
+            <div class="card" style="background:linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color:white; margin:0; border-left:4px solid #38bdf8;">
+                <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">🌧️ LLUVIA ACUMULADA ANUAL</span>
+                <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-clima-lluvia-anual">0 mm</div>
+                <span style="font-size:0.8rem; opacity:0.85;" id="kpi-clima-dias-lluvia">0 días con lluvia</span>
+            </div>
+
+            <div class="card" style="background:linear-gradient(135deg, #059669 0%, #047857 100%); color:white; margin:0; border-left:4px solid #34d399;">
+                <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">🌡️ TEMPERATURA MEDIA ANUAL</span>
+                <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-clima-temp-media">0 °C</div>
+                <span style="font-size:0.8rem; opacity:0.85;" id="kpi-clima-rango-temp">Mín: 0 °C | Máx: 0 °C</span>
+            </div>
+
+            <div class="card" style="background:linear-gradient(135deg, #0d9488 0%, #0f766e 100%); color:white; margin:0; border-left:4px solid #5eead4;">
+                <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">💧 HUMEDAD RELATIVA MEDIA</span>
+                <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-clima-humedad-media">0 %</div>
+                <span style="font-size:0.8rem; opacity:0.85;" id="kpi-clima-rocio-medio">Rocío prom: 0 °C</span>
+            </div>
+
+            <div class="card" style="background:linear-gradient(135deg, #d97706 0%, #b45309 100%); color:white; margin:0; border-left:4px solid #fbbf24;">
+                <span style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.5px; opacity:0.9;">☀️ INSOLACIÓN Y RADIACIÓN</span>
+                <div style="font-size:1.8rem; font-weight:bold; margin:4px 0;" id="kpi-clima-horas-sol">0 hrs</div>
+                <span style="font-size:0.8rem; opacity:0.85;" id="kpi-clima-rad-max">Rad Máx: 0 W/m²</span>
+            </div>
+        </div>
+
+        <!-- TABLA DE RESUMEN MENSUAL EXACTA A ANACAFE -->
+        <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                <h3 style="margin:0; color:#0369a1; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                    <span>📊 Tabla de Resumen Mensual - Estación 138 Los Robles</span>
+                </h3>
+                <span style="font-size:0.8rem; color:#64748b;">
+                    Fuente: Portal Meteorológico Anacafé (Cálculo consolidado automático)
+                </span>
+            </div>
+
+            <div class="table-wrapper">
+                <table id="tabla-resumen-mensual-clima">
+                    <thead>
+                        <tr style="background:#0284c7; color:white; text-align:right;">
+                            <th style="text-align:left; min-width:100px;">Mes</th>
+                            <th style="text-align:right;">Lluvia mm</th>
+                            <th style="text-align:right;">Hum %</th>
+                            <th style="text-align:right;">Vto kph</th>
+                            <th style="text-align:right;">T°C Media</th>
+                            <th style="text-align:right;">T°C Máx</th>
+                            <th style="text-align:right;">T°C Mín</th>
+                            <th style="text-align:right;">T°C Rocío</th>
+                            <th style="text-align:right;">Rad. Máx</th>
+                            <th style="text-align:right;">Hrs. Sol</th>
+                            <th style="text-align:right;">Días sin Lluvia</th>
+                            <th style="text-align:right;">Días con Lluvia</th>
+                            <th style="text-align:center; min-width:80px;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-resumen-mensual-clima">
+                        <tr>
+                            <td colspan="13" style="text-align:center; padding:2rem; color:#888;">Cargando resumen mensual...</td>
+                        </tr>
+                    </tbody>
+                    <tfoot id="tfoot-resumen-mensual-clima" style="background:#f1f5f9; font-weight:bold; border-top:2px solid #0284c7;">
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBTAB 2: DETALLE DIARIO -->
+    <div id="clima-subtab-diario" style="display:none;">
+        <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:12px;">
+                <div>
+                    <h3 style="margin:0; color:#0369a1; font-size:1.1rem;" id="clima-titulo-detalle-diario">
+                        📅 Registros Diarios de Estación Meteorológica
+                    </h3>
+                    <p style="margin:4px 0 0; font-size:0.82rem; color:#64748b;" id="clima-subtitulo-detalle-diario">
+                        Detalle de observaciones estación 138 día por día
+                    </p>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                    <input type="text" id="clima-buscar-dia" placeholder="🔍 Buscar fecha (ej: 2025-05-10)..." style="padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.85rem;" oninput="filtrarDiasClima()">
+                    <button class="btn btn-xs btn-primary" onclick="filtrarDiasSoloConLluvia()" id="btn-filtro-solo-lluvia" style="background:#0284c7; padding:6px 12px;">
+                        🌧️ Solo días con lluvia
+                    </button>
+                </div>
+            </div>
+
+            <!-- RESUMEN CORTO DEL MES SELECCIONADO EN DIARIO -->
+            <div id="clima-resumen-rapido-diario" style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:10px 14px; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; font-size:0.85rem;">
+            </div>
+
+            <div class="table-wrapper">
+                <table id="tabla-detalle-diario-clima">
+                    <thead>
+                        <tr style="background:#0f766e; color:white;">
+                            <th style="min-width:105px;">Fecha / Día</th>
+                            <th style="text-align:right;">Lluvia (mm)</th>
+                            <th style="text-align:right;">Humedad (%)</th>
+                            <th style="text-align:right;">T° Media</th>
+                            <th style="text-align:right;">T° Máx</th>
+                            <th style="text-align:right;">T° Mín</th>
+                            <th style="text-align:right;">T° Rocío</th>
+                            <th style="text-align:right;">Rad. Máx (W/m²)</th>
+                            <th style="text-align:right;">Horas Sol</th>
+                            <th style="text-align:right;">Viento (kph)</th>
+                            <th style="text-align:center;">Alerta / Diagnóstico</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbody-detalle-diario-clima">
+                        <tr>
+                            <td colspan="11" style="text-align:center; padding:2rem; color:#888;">Cargando detalle diario...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBTAB 3: GRÁFICAS CLIMÁTICAS -->
+    <div id="clima-subtab-graficas" style="display:none;">
+        <div style="display:grid; grid-template-columns:1fr; gap:1.25rem;">
+            <!-- GRÁFICA 1: PLUVIOMETRÍA (LLUVIA MENSUAL Y DÍAS CON LLUVIA) -->
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0; color:#0284c7; font-size:1.05rem;">🌧️ Régimen Pluviométrico (Lluvia Mensual mm y Frecuencia de Días Lluviosos)</h3>
+                        <span style="font-size:0.8rem; color:#64748b;">Precipitación acumulada mensual y distribución de eventos de lluvia</span>
+                    </div>
+                    <span style="font-size:0.75rem; background:#e0f2fe; color:#0369a1; padding:4px 8px; border-radius:6px; font-weight:bold;">Pluviometría Estación #138</span>
+                </div>
+                <div style="position:relative; height:320px; width:100%;">
+                    <canvas id="chart-clima-lluvia"></canvas>
+                </div>
+            </div>
+
+            <!-- GRÁFICA 2: COMPORTAMIENTO TÉRMICO (TEMP MÁX, MEDIA, MÍN) -->
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0; color:#d97706; font-size:1.05rem;">🌡️ Curvas Térmicas (Temperaturas Máximas, Medias y Mínimas)</h3>
+                        <span style="font-size:0.8rem; color:#64748b;">Oscilación térmica mensual y estrés por calor o bajas temperaturas</span>
+                    </div>
+                    <span style="font-size:0.75rem; background:#fef3c7; color:#92400e; padding:4px 8px; border-radius:6px; font-weight:bold;">Gradiente Térmico °C</span>
+                </div>
+                <div style="position:relative; height:320px; width:100%;">
+                    <canvas id="chart-clima-temperatura"></canvas>
+                </div>
+            </div>
+
+            <!-- GRÁFICA 3: HUMEDAD RELATIVA Y HORAS DE SOL -->
+            <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3 style="margin:0; color:#0f766e; font-size:1.05rem;">💧 Humedad Relativa Media vs. Insolación (Horas Sol Acumuladas)</h3>
+                        <span style="font-size:0.8rem; color:#64748b;">Correlación clave para riesgo de Roya y desarrollo vegetativo</span>
+                    </div>
+                    <span style="font-size:0.75rem; background:#ccfbf1; color:#0f766e; padding:4px 8px; border-radius:6px; font-weight:bold;">HR% vs Sol</span>
+                </div>
+                <div style="position:relative; height:320px; width:100%;">
+                    <canvas id="chart-clima-humedad"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUBTAB 4: ASISTENTE AGRONÓMICO CON INTELIGENCIA ARTIFICIAL -->
+    <div id="clima-subtab-ia" style="display:none;">
+        <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:1.5rem;">
+            <!-- BANNER DEL MOTOR IA -->
+            <div style="background:linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%); color:white; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                <div style="max-width:700px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                        <span style="font-size:1.4rem;">🤖</span>
+                        <h3 style="margin:0; color:white; font-size:1.2rem;">Asesor Agronómico Inteligente (Finca Los Robles)</h3>
+                        <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">Gemini 3.8 Flash</span>
+                    </div>
+                    <p style="margin:0; font-size:0.85rem; opacity:0.9; line-height:1.4;">
+                        Interpreta los registros reales de la estación meteorológica (#138) y provee diagnósticos fitopatológicos (Roya, Ojo de Gallo), ventanas ideales de fertilización y recomendaciones de manejo de sombra y tejido para tus cafetales.
+                    </p>
+                </div>
+                <div>
+                    <button class="btn btn-save" style="background:#fbbf24; color:#3b0764; font-weight:800; padding:10px 18px; margin:0;" onclick="ejecutarAnalisisIAClima('general')">
+                        ✨ Analizar Datos del Ciclo
+                    </button>
+                </div>
+            </div>
+
+            <!-- BOTONES DE ACCIÓN RÁPIDA -->
+            <div style="margin-bottom:1.25rem;">
+                <label style="font-size:0.78rem; font-weight:bold; color:#475569; display:block; margin-bottom:6px;">CONSULTAS RÁPIDAS FRECUENTES DEL PRODUCTOR:</label>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button type="button" class="btn btn-xs" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('fitosanitario')">
+                        🍄 Alerta de Roya y Ojo de Gallo
+                    </button>
+                    <button type="button" class="btn btn-xs" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('fertilizacion')">
+                        🌱 Ventana Óptima de Fertilización
+                    </button>
+                    <button type="button" class="btn btn-xs" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('floracion')">
+                        🌸 Estrés Hídrico y Cuajado Floral
+                    </button>
+                    <button type="button" class="btn btn-xs" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('sombra')">
+                        🌳 Manejo de Tejido y Regulación de Sombra
+                    </button>
+                </div>
+            </div>
+
+            <!-- ÁREA DE CONSULTA PERSONALIZADA -->
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
+                <label style="font-size:0.8rem; font-weight:bold; color:#334155; display:block; margin-bottom:6px;">
+                    💬 Pregunta o Situación Específica del Cafetal:
+                </label>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <input type="text" id="clima-ia-pregunta-custom" placeholder="Ej: ¿Qué riesgo de Roya tenemos con las lluvias de junio y qué fungicida conviene aplicar?" style="flex:1; min-width:280px; padding:10px 14px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                    <button type="button" class="btn btn-primary" id="btn-consultar-ia-clima" style="background:#7c3aed; color:white; font-weight:bold; padding:10px 18px; margin:0;" onclick="ejecutarAnalisisIAClima('custom')">
+                        🤖 Consultar a la IA
+                    </button>
+                </div>
+            </div>
+
+            <!-- CONTENEDOR DE RESULTADO DEL ANÁLISIS IA -->
+            <div id="clima-ia-contenedor-resultado" style="display:none; margin-top:1.5rem;">
+                <!-- SPINNER DE CARGA -->
+                <div id="clima-ia-loading" style="display:none; text-align:center; padding:3rem 1rem;">
+                    <div style="display:inline-block; width:44px; height:44px; border:4px solid #e2e8f0; border-top-color:#7c3aed; border-radius:50%; animation:spin 1s linear infinite;"></div>
+                    <div style="font-weight:bold; color:#4c1d95; font-size:1rem; margin-top:12px;" id="clima-ia-loading-text">
+                        Analizando registros pluviométricos y térmicos de la Estación #138...
+                    </div>
+                    <div style="font-size:0.8rem; color:#64748b; margin-top:4px;">
+                        Cruzando humedad relativa, temperaturas y ciclos de patógenos del café.
+                    </div>
+                </div>
+
+                <!-- CONTENIDO DEL INFORME IA -->
+                <div id="clima-ia-contenido-informe" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                        <div>
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#7c3aed; font-weight:bold;">INFORME TÉCNICO GENERADO</span>
+                            <h4 style="margin:2px 0 0; color:#1e293b; font-size:1.1rem;" id="clima-ia-informe-titulo">Diagnóstico y Recomendaciones Agronómicas</h4>
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn btn-xs btn-pdf" onclick="descargarPDFAnalisisIAClima()">
+                                📄 Exportar PDF
+                            </button>
+                            <button class="btn btn-xs" style="background:#25D366; color:white;" onclick="compartirWhatsAppAnalisisIAClima()">
+                                💬 WhatsApp
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="clima-ia-texto-renderizado" style="line-height:1.65; color:#1e293b; font-size:0.92rem; background:#fafafa; border:1px solid #e5e7eb; border-radius:8px; padding:1.25rem;">
+                        <!-- Se inyecta el análisis de Gemini -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CARGAR CSV DE ESTACIÓN ANACAFÉ -->
+<div class="modal-overlay" id="modal-cargar-csv-clima">
+    <div class="modal-content-large" style="max-width:620px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.5rem; margin-bottom:1rem;">
+            <div>
+                <h3 style="margin:0; color:#0284c7;">📂 Cargar Archivo CSV de Anacafé</h3>
+                <span style="font-size:0.8rem; color:#64748b;">Estación #138 "Los Robles" o estaciones complementarias</span>
+            </div>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-cargar-csv-clima')" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+
+        <div class="info-box" style="margin-top:0; font-size:0.83rem; background:#f0f9ff; border-left-color:#0284c7; color:#0369a1;">
+            💡 <strong>¿Cómo descargar el archivo?</strong> En el portal de Anacafé (<code>https://meteorologia.anacafe.org/resumen_dia_dt.html?id=138&y=2025</code>), haz clic en el botón <strong>"Exportar a CSV"</strong> y selecciona el archivo descargado aquí. Puedes cargar datos de años anteriores (2024, 2023...) o de nuevos meses del 2025/2026.
+        </div>
+
+        <!-- DROP ZONE -->
+        <div id="clima-csv-dropzone" style="border:2px dashed #0284c7; border-radius:12px; padding:2rem 1rem; text-align:center; background:#f8fafc; cursor:pointer; transition:0.3s; margin-bottom:1rem;" onclick="document.getElementById('input-archivo-csv-clima').click()">
+            <div style="font-size:2.5rem; margin-bottom:8px;">📄</div>
+            <div style="font-weight:bold; color:#0369a1; font-size:1rem; margin-bottom:4px;">
+                Haz clic o arrastra aquí tu archivo CSV
+            </div>
+            <div style="font-size:0.8rem; color:#64748b;">
+                Soporta formato oficial de Anacafé (delimitado por coma o punto y coma)
+            </div>
+            <input type="file" id="input-archivo-csv-clima" accept=".csv,text/csv" style="display:none;" onchange="procesarArchivoCSVClima(this.files[0])">
+        </div>
+
+        <div id="clima-csv-status" style="display:none; padding:10px 14px; border-radius:8px; font-size:0.85rem; margin-bottom:1rem;"></div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <button type="button" class="btn btn-xs" style="background:#e2e8f0; color:#334155; padding:6px 12px;" onclick="restaurarDatasetOriginalClima(); cerrarModal('modal-cargar-csv-clima');">
+                🔄 Restaurar Archivo 2025 Pre-cargado
+            </button>
+            <button type="button" class="btn btn-secondary btn-small" onclick="cerrarModal('modal-cargar-csv-clima')">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+
 <!-- MODAL SNIPPET / CÓDIGO WEB -->
 <div class="modal-overlay" id="modal-snippet-web">
     <div class="modal-content-large" style="max-width:860px;">
@@ -4039,6 +4430,10 @@
                 <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
                     <input type="checkbox" value="tostado" class="check-modulo-permiso">
                     <span>🔥 Control Tostado</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" value="clima" class="check-modulo-permiso">
+                    <span>🌤️ Clima y Estación</span>
                 </label>
             </div>
         </div>
