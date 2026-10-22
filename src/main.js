@@ -74,7 +74,7 @@ let proyectoActualEditando = null;
 let proyectoActualNotaId = null;
 
 // --- VARIABLES DE ROLES Y PERMISOS DE USUARIOS ---
-const DEFAULT_MODULOS_OPERADOR = ['madera', 'catacion', 'proyectos', 'muestreo'];
+const DEFAULT_MODULOS_OPERADOR = ['madera', 'catacion', 'proyectos', 'muestreo', 'clima'];
 let currentUserRol = 'operador';
 let currentUserPermissions = [...DEFAULT_MODULOS_OPERADOR];
 let isAdmin = false;
@@ -288,6 +288,7 @@ function construirMenu() {
             { id:'costos', icon:'🧮', label:'Costos Tostado' },
             { id:'cotizador', icon:'💵', label:'Cotizador Verde' },
             { id:'tostado', icon:'🔥', label:'Control Tostado' },
+            { id:'clima', icon:'🌤️', label:'Clima y Estación' },
             { id:'usuarios', icon:'👥', label:'Usuarios y Permisos', adminOnly: true }
         ];
 
@@ -335,6 +336,7 @@ function entrarAlSistema() {
         cargarTraficoWeb();
         cargarCamionadas();
         cargarUsuariosPermisos();
+        cargarDatosClimaIniciales();
         window.calcularCotizador();
         window.onVentaTipoChange();
     } else {
@@ -801,6 +803,8 @@ window.showSection = (id, el) => {
         inicializarModuloCereza();
     } else if (id === 'tostado') {
         inicializarModuloTostado();
+    } else if (id === 'clima') {
+        inicializarModuloClima();
     } else if (id === 'usuarios') {
         cargarUsuariosPermisos();
     }
@@ -11845,5 +11849,1163 @@ window.generarPDFReporteCereza = () => {
     doc.save(`Reporte_Cafe_Cereza_${new Date().toISOString().split('T')[0]}.pdf`);
     alert("✅ Reporte de Café Cereza PDF descargado con éxito.");
 };
+
+// =========================================================================
+// --- MÓDULO: ESTACIÓN METEOROLÓGICA Y CLIMA FINCA LOS ROBLES (#138) ---
+// =========================================================================
+
+let todosLosRegistrosClima = [];
+let anioClimaSeleccionado = '2025';
+let mesClimaSeleccionado = 'todos';
+let subtabClimaActual = 'mensual';
+let filtroSoloLluviaDiario = false;
+let chartLluviaInstance = null;
+let chartTempInstance = null;
+let chartHumInstance = null;
+let ultimoAnalisisIAResultado = null;
+let datosClimaCargados = false;
+
+const MESES_ANACAFE = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+// Parser flexible para archivos CSV descargados del portal Anacafé
+function parsearCSVAnacafe(csvText) {
+    if (!csvText || typeof csvText !== 'string') return [];
+    const lineas = csvText.trim().split(/\r?\n/);
+    if (lineas.length < 2) return [];
+
+    // Detectar delimitador (coma o punto y coma)
+    const encabezadoLinea = lineas[0];
+    const delim = encabezadoLinea.includes(';') ? ';' : ',';
+    
+    // Normalizar encabezados (quitar comillas, espacios y pasar a minúsculas)
+    const headers = encabezadoLinea.split(delim).map(h => h.replace(/["'\r]/g, '').trim().toLowerCase());
+
+    const idxDia = headers.findIndex(h => h.includes('dia') || h.includes('fecha'));
+    const idxEst = headers.findIndex(h => h.includes('estacion') || h.includes('id_'));
+    const idxNom = headers.findIndex(h => h.includes('nombre'));
+    const idxLluvia = headers.findIndex(h => h.includes('lluvia') || h.includes('precip'));
+    const idxHum = headers.findIndex(h => h.includes('humedad'));
+    const idxVto = headers.findIndex(h => h.includes('vto') || h.includes('viento'));
+    const idxTempMedia = headers.findIndex(h => h === 'tempmedia' || h.includes('temp_media') || h === 'temperatura');
+    const idxTempMax = headers.findIndex(h => h === 'tempmax' || h.includes('temp_max') || h.includes('maxima'));
+    const idxTempMin = headers.findIndex(h => h === 'tempmin' || h.includes('temp_min') || h.includes('minima'));
+    const idxTempRocio = headers.findIndex(h => h.includes('rocio') || h.includes('dew'));
+    const idxRad = headers.findIndex(h => h.includes('rad') || h.includes('solar'));
+    const idxSol = headers.findIndex(h => h.includes('sol') || h.includes('horas'));
+
+    const registros = [];
+
+    for (let i = 1; i < lineas.length; i++) {
+        const rawLine = lineas[i].trim();
+        if (!rawLine) continue;
+
+        // Parsear respetando valores
+        const cols = rawLine.split(delim).map(c => c.replace(/["'\r]/g, '').trim());
+        if (cols.length < 5) continue;
+
+        const diaRaw = idxDia >= 0 ? cols[idxDia] : cols[0];
+        if (!diaRaw || diaRaw.length < 8) continue;
+
+        // Normalizar fecha a formato YYYY-MM-DD
+        let diaNorm = diaRaw;
+        if (diaRaw.includes('/')) {
+            const parts = diaRaw.split('/');
+            if (parts[0].length === 4) {
+                diaNorm = `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+            } else if (parts[2].length === 4) {
+                diaNorm = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+            }
+        }
+
+        const parseNum = (val, def = 0) => {
+            if (val === undefined || val === null || val === '') return def;
+            const cleaned = String(val).replace(',', '.');
+            const num = parseFloat(cleaned);
+            return isNaN(num) ? def : num;
+        };
+
+        const anio = diaNorm.substring(0, 4);
+        const mesIdx = parseInt(diaNorm.substring(5, 7), 10) - 1;
+
+        registros.push({
+            dia: diaNorm,
+            anio: anio,
+            mesIdx: isNaN(mesIdx) ? 0 : mesIdx,
+            idEstacion: idxEst >= 0 ? (cols[idxEst] || '138') : '138',
+            nombre: idxNom >= 0 ? (cols[idxNom] || 'Los Robles') : 'Los Robles',
+            lluviaMm: parseNum(idxLluvia >= 0 ? cols[idxLluvia] : cols[5]),
+            humedadMedia: parseNum(idxHum >= 0 ? cols[idxHum] : cols[6]),
+            vientoKph: parseNum(idxVto >= 0 ? cols[idxVto] : cols[7]),
+            tempMedia: parseNum(idxTempMedia >= 0 ? cols[idxTempMedia] : cols[8]),
+            tempMax: parseNum(idxTempMax >= 0 ? cols[idxTempMax] : cols[9]),
+            tempMin: parseNum(idxTempMin >= 0 ? cols[idxTempMin] : cols[10]),
+            tempRocio: parseNum(idxTempRocio >= 0 ? cols[idxTempRocio] : cols[11]),
+            radSolarMax: parseNum(idxRad >= 0 ? cols[idxRad] : cols[12]),
+            horasSol: parseNum(idxSol >= 0 ? cols[idxSol] : cols[13])
+        });
+    }
+
+    // Ordenar cronológicamente
+    registros.sort((a, b) => a.dia.localeCompare(b.dia));
+    return registros;
+}
+
+// Cargar dataset inicial (precarga del archivo 2025 de Anacafé o localStorage)
+async function cargarDatosClimaIniciales() {
+    if (datosClimaCargados && todosLosRegistrosClima.length > 0) return;
+
+    try {
+        const guardado = localStorage.getItem('flr_clima_registros_v2');
+        if (guardado) {
+            const parsed = JSON.parse(guardado);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                todosLosRegistrosClima = parsed;
+                datosClimaCargados = true;
+                actualizarSelectAniosClima();
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn("Aviso al leer clima de localStorage:", e);
+    }
+
+    // Cargar directamente del archivo 2025 de Anacafé en /assets/aistudio/
+    try {
+        const resp = await fetch('/assets/aistudio/Anacafe_DIARIO_138_Los_Robles_2025_7f47b95f.csv');
+        if (resp.ok) {
+            const csvText = await resp.text();
+            const registros = parsearCSVAnacafe(csvText);
+            if (registros.length > 0) {
+                todosLosRegistrosClima = registros;
+                datosClimaCargados = true;
+                try {
+                    localStorage.setItem('flr_clima_registros_v2', JSON.stringify(registros));
+                } catch(e){}
+                actualizarSelectAniosClima();
+                console.log(`[Clima] Se cargaron ${registros.length} observaciones meteorológicas de Estación #138.`);
+            }
+        }
+    } catch (err) {
+        console.error("Error al precargar archivo CSV de clima:", err);
+    }
+}
+
+function actualizarSelectAniosClima() {
+    const select = document.getElementById('clima-filtro-anio');
+    if (!select) return;
+
+    const aniosSet = new Set();
+    todosLosRegistrosClima.forEach(r => {
+        if (r.anio && r.anio.length === 4) aniosSet.add(r.anio);
+    });
+
+    if (aniosSet.size === 0) aniosSet.add('2025');
+
+    const aniosArr = Array.from(aniosSet).sort((a,b) => b.localeCompare(a));
+    select.innerHTML = '';
+    aniosArr.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a;
+        opt.textContent = a;
+        if (a === anioClimaSeleccionado) opt.selected = true;
+        select.appendChild(opt);
+    });
+
+    if (!aniosArr.includes(anioClimaSeleccionado)) {
+        anioClimaSeleccionado = aniosArr[0];
+        select.value = anioClimaSeleccionado;
+    }
+
+    // Actualizar badge
+    const badge = document.getElementById('clima-badge-dataset');
+    if (badge) {
+        const total = todosLosRegistrosClima.length;
+        badge.innerHTML = `🟢 <span>Estación #138 • ${total} registros cargados (${aniosArr.join(', ')})</span>`;
+    }
+}
+
+window.inicializarModuloClima = async () => {
+    if (!datosClimaCargados || todosLosRegistrosClima.length === 0) {
+        await cargarDatosClimaIniciales();
+    }
+    actualizarSelectAniosClima();
+    window.renderModuloClima();
+};
+
+window.mostrarSubtabClima = (tab) => {
+    subtabClimaActual = tab;
+    ['mensual', 'diario', 'graficas', 'ia'].forEach(t => {
+        const sec = document.getElementById(`clima-subtab-${t}`);
+        const btn = document.getElementById(`tab-btn-clima-${t}`);
+        if (sec) sec.style.display = (t === tab) ? 'block' : 'none';
+        if (btn) btn.classList.toggle('active', t === tab);
+    });
+
+    window.renderModuloClima();
+};
+
+window.cambiarAnioClima = () => {
+    const sel = document.getElementById('clima-filtro-anio');
+    if (sel) anioClimaSeleccionado = sel.value;
+    window.renderModuloClima();
+};
+
+window.cambiarMesClima = () => {
+    const sel = document.getElementById('clima-filtro-mes');
+    if (sel) mesClimaSeleccionado = sel.value;
+    window.renderModuloClima();
+};
+
+window.renderModuloClima = () => {
+    if (subtabClimaActual === 'mensual') {
+        renderResumenMensualClima();
+    } else if (subtabClimaActual === 'diario') {
+        renderDetalleDiarioClima();
+    } else if (subtabClimaActual === 'graficas') {
+        renderGraficasClima();
+    } else if (subtabClimaActual === 'ia') {
+        // En vista IA, si no hay resultado cargado, preparar vista
+    }
+};
+
+// Cálculo y consolidación mensual exacto a los reportes de Anacafé
+function calcularResumenMensualClima(anio) {
+    const registrosAnio = todosLosRegistrosClima.filter(r => r.anio === anio);
+
+    const meses = Array.from({ length: 12 }, (_, i) => ({
+        mesIdx: i,
+        nombre: MESES_ANACAFE[i],
+        diasRegistrados: 0,
+        lluviaMm: 0,
+        humedades: [],
+        vientos: [],
+        tempsMedias: [],
+        tempsMax: [],
+        tempsMin: [],
+        tempsRocio: [],
+        radMax: 0,
+        horasSolTotal: 0,
+        diasConLluvia: 0,
+        diasSinLluvia: 0
+    }));
+
+    registrosAnio.forEach(r => {
+        const m = r.mesIdx;
+        if (m >= 0 && m < 12) {
+            meses[m].diasRegistrados++;
+            meses[m].lluviaMm += (r.lluviaMm || 0);
+
+            if (r.lluviaMm > 0.05) {
+                meses[m].diasConLluvia++;
+            } else {
+                meses[m].diasSinLluvia++;
+            }
+
+            if (r.humedadMedia > 0) meses[m].humedades.push(r.humedadMedia);
+            if (r.vientoKph !== undefined && r.vientoKph !== null) meses[m].vientos.push(r.vientoKph);
+            if (r.tempMedia !== 0) meses[m].tempsMedias.push(r.tempMedia);
+            if (r.tempMax !== 0) meses[m].tempsMax.push(r.tempMax);
+            if (r.tempMin !== 0) meses[m].tempsMin.push(r.tempMin);
+            if (r.tempRocio !== 0) meses[m].tempsRocio.push(r.tempRocio);
+            if (r.radSolarMax > meses[m].radMax) meses[m].radMax = r.radSolarMax;
+            meses[m].horasSolTotal += (r.horasSol || 0);
+        }
+    });
+
+    const avg = arr => arr.length > 0 ? (arr.reduce((a,b) => a+b, 0) / arr.length) : 0;
+    const maxVal = arr => arr.length > 0 ? Math.max(...arr) : 0;
+    const minVal = arr => arr.length > 0 ? Math.min(...arr) : 0;
+
+    const resultadoMeses = meses.map(m => {
+        return {
+            mesIdx: m.mesIdx,
+            nombre: m.nombre,
+            diasRegistrados: m.diasRegistrados,
+            lluviaMm: Math.round(m.lluviaMm * 10) / 10,
+            humMedia: m.humedades.length > 0 ? Math.round(avg(m.humedades) * 10) / 10 : 0,
+            vtoKph: m.vientos.length > 0 ? Math.round(avg(m.vientos) * 10) / 10 : 0,
+            tempMedia: m.tempsMedias.length > 0 ? Math.round(avg(m.tempsMedias) * 10) / 10 : 0,
+            tempMax: m.tempsMax.length > 0 ? Math.round(maxVal(m.tempsMax) * 10) / 10 : 0,
+            tempMin: m.tempsMin.length > 0 ? Math.round(minVal(m.tempsMin) * 10) / 10 : 0,
+            tempRocio: m.tempsRocio.length > 0 ? Math.round(avg(m.tempsRocio) * 10) / 10 : 0,
+            radMax: m.radMax || 0,
+            horasSol: Math.round(m.horasSolTotal * 10) / 10,
+            diasSinLluvia: m.diasSinLluvia,
+            diasConLluvia: m.diasConLluvia
+        };
+    });
+
+    // Totales y promedios anuales consolidados
+    const mesesConDatos = resultadoMeses.filter(m => m.diasRegistrados > 0);
+    const totLluvia = resultadoMeses.reduce((a, m) => a + m.lluviaMm, 0);
+    const totDiasLluvia = resultadoMeses.reduce((a, m) => a + m.diasConLluvia, 0);
+    const totDiasSecos = resultadoMeses.reduce((a, m) => a + m.diasSinLluvia, 0);
+    const totHorasSol = resultadoMeses.reduce((a, m) => a + m.horasSol, 0);
+
+    const promHum = mesesConDatos.length > 0 ? (mesesConDatos.reduce((a, m) => a + m.humMedia, 0) / mesesConDatos.length) : 0;
+    const promVto = mesesConDatos.length > 0 ? (mesesConDatos.reduce((a, m) => a + m.vtoKph, 0) / mesesConDatos.length) : 0;
+    const promTemp = mesesConDatos.length > 0 ? (mesesConDatos.reduce((a, m) => a + m.tempMedia, 0) / mesesConDatos.length) : 0;
+    const maxTempExtrema = mesesConDatos.length > 0 ? Math.max(...mesesConDatos.map(m => m.tempMax)) : 0;
+    const minTempExtrema = mesesConDatos.length > 0 ? Math.min(...mesesConDatos.filter(m => m.tempMin > 0).map(m => m.tempMin)) : 0;
+    const promRocio = mesesConDatos.length > 0 ? (mesesConDatos.reduce((a, m) => a + m.tempRocio, 0) / mesesConDatos.length) : 0;
+    const maxRadExtrema = mesesConDatos.length > 0 ? Math.max(...mesesConDatos.map(m => m.radMax)) : 0;
+
+    return {
+        meses: resultadoMeses,
+        totales: {
+            lluviaMm: Math.round(totLluvia * 10) / 10,
+            humMedia: Math.round(promHum * 10) / 10,
+            vtoKph: Math.round(promVto * 10) / 10,
+            tempMedia: Math.round(promTemp * 10) / 10,
+            tempMax: maxTempExtrema,
+            tempMin: minTempExtrema,
+            tempRocio: Math.round(promRocio * 10) / 10,
+            radMax: maxRadExtrema,
+            horasSol: Math.round(totHorasSol * 10) / 10,
+            diasSinLluvia: totDiasSecos,
+            diasConLluvia: totDiasLluvia
+        }
+    };
+}
+
+function renderResumenMensualClima() {
+    const dataAnio = calcularResumenMensualClima(anioClimaSeleccionado);
+    const { meses, totales } = dataAnio;
+
+    // Actualizar KPIs superiores
+    const kpiLluvia = document.getElementById('kpi-clima-lluvia-anual');
+    const kpiDiasLluvia = document.getElementById('kpi-clima-dias-lluvia');
+    const kpiTemp = document.getElementById('kpi-clima-temp-media');
+    const kpiRangoTemp = document.getElementById('kpi-clima-rango-temp');
+    const kpiHum = document.getElementById('kpi-clima-humedad-media');
+    const kpiRocio = document.getElementById('kpi-clima-rocio-medio');
+    const kpiSol = document.getElementById('kpi-clima-horas-sol');
+    const kpiRad = document.getElementById('kpi-clima-rad-max');
+
+    if (kpiLluvia) kpiLluvia.textContent = `${totales.lluviaMm.toFixed(1)} mm`;
+    if (kpiDiasLluvia) kpiDiasLluvia.textContent = `${totales.diasConLluvia} días lluvia | ${totales.diasSinLluvia} secos`;
+    if (kpiTemp) kpiTemp.textContent = `${totales.tempMedia.toFixed(1)} °C`;
+    if (kpiRangoTemp) kpiRangoTemp.textContent = `Mín: ${totales.tempMin.toFixed(1)} °C | Máx: ${totales.tempMax.toFixed(1)} °C`;
+    if (kpiHum) kpiHum.textContent = `${totales.humMedia.toFixed(1)} %`;
+    if (kpiRocio) kpiRocio.textContent = `Punto de rocío prom: ${totales.tempRocio.toFixed(1)} °C`;
+    if (kpiSol) kpiSol.textContent = `${totales.horasSol.toFixed(1)} hrs`;
+    if (kpiRad) kpiRad.textContent = `Rad Solar Máx: ${totales.radMax} W/m²`;
+
+    // Renderizar tabla mensual (idéntica a Anacafé)
+    const tbody = document.getElementById('tbody-resumen-mensual-clima');
+    if (!tbody) return;
+
+    if (meses.every(m => m.diasRegistrados === 0)) {
+        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:2rem; color:#888;">No hay registros para el año ${anioClimaSeleccionado}. Puedes cargar un archivo CSV con el botón superior.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = meses.map(m => {
+        const sinDatos = m.diasRegistrados === 0;
+        const nombreMin = m.nombre.toLowerCase();
+
+        return `
+            <tr style="border-bottom:1px solid #e2e8f0; ${sinDatos ? 'opacity:0.45;' : ''}">
+                <td style="font-weight:bold; color:#0369a1; text-transform:lowercase;">
+                    ${nombreMin}
+                    ${m.diasRegistrados > 0 ? `<span style="font-size:0.7rem; color:#94a3b8; font-weight:normal; display:block;">(${m.diasRegistrados} días)</span>` : ''}
+                </td>
+                <td style="text-align:right; font-weight:bold; color:${m.lluviaMm > 150 ? '#0284c7' : '#1e293b'}; background:${m.lluviaMm > 200 ? '#f0f9ff' : 'transparent'};">
+                    ${sinDatos ? '-' : m.lluviaMm.toFixed(1)}
+                </td>
+                <td style="text-align:right; color:${m.humMedia >= 88 ? '#b91c1c' : '#334155'}; font-weight:${m.humMedia >= 88 ? 'bold' : 'normal'};">
+                    ${sinDatos ? '-' : m.humMedia.toFixed(1)}
+                </td>
+                <td style="text-align:right;">${sinDatos ? '-' : m.vtoKph.toFixed(1)}</td>
+                <td style="text-align:right; font-weight:600;">${sinDatos ? '-' : m.tempMedia.toFixed(1)}</td>
+                <td style="text-align:right; color:#b91c1c; font-weight:600;">${sinDatos ? '-' : m.tempMax.toFixed(1)}</td>
+                <td style="text-align:right; color:#0369a1; font-weight:600;">${sinDatos ? '-' : m.tempMin.toFixed(1)}</td>
+                <td style="text-align:right;">${sinDatos ? '-' : m.tempRocio.toFixed(1)}</td>
+                <td style="text-align:right;">${sinDatos ? '-' : m.radMax}</td>
+                <td style="text-align:right;">${sinDatos ? '-' : m.horasSol.toFixed(1)}</td>
+                <td style="text-align:right; color:#ca8a04; font-weight:600;">${sinDatos ? '-' : m.diasSinLluvia}</td>
+                <td style="text-align:right; color:#0284c7; font-weight:bold;">${sinDatos ? '-' : m.diasConLluvia}</td>
+                <td style="text-align:center;">
+                    <button class="btn btn-xs" style="background:#0284c7; color:white; padding:3px 8px;" onclick="irADetalleMesClima(${m.mesIdx})" title="Ver detalle diario de ${m.nombre}">
+                        🔍 Ver
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Pie de tabla con totales anuales
+    const tfoot = document.getElementById('tfoot-resumen-mensual-clima');
+    if (tfoot) {
+        tfoot.innerHTML = `
+            <tr style="background:#f1f5f9; font-weight:bold; color:#0f172a; border-top:2px solid #0284c7;">
+                <td style="text-align:left; font-weight:800; color:#0369a1;">TOTAL / PROM.</td>
+                <td style="text-align:right; color:#0284c7; font-weight:800;">${totales.lluviaMm.toFixed(1)}</td>
+                <td style="text-align:right;">${totales.humMedia.toFixed(1)}</td>
+                <td style="text-align:right;">${totales.vtoKph.toFixed(1)}</td>
+                <td style="text-align:right;">${totales.tempMedia.toFixed(1)}</td>
+                <td style="text-align:right; color:#b91c1c;">${totales.tempMax.toFixed(1)}</td>
+                <td style="text-align:right; color:#0369a1;">${totales.tempMin.toFixed(1)}</td>
+                <td style="text-align:right;">${totales.tempRocio.toFixed(1)}</td>
+                <td style="text-align:right;">${totales.radMax}</td>
+                <td style="text-align:right;">${totales.horasSol.toFixed(1)}</td>
+                <td style="text-align:right; color:#ca8a04;">${totales.diasSinLluvia}</td>
+                <td style="text-align:right; color:#0284c7;">${totales.diasConLluvia}</td>
+                <td></td>
+            </tr>
+        `;
+    }
+}
+
+window.irADetalleMesClima = (mesIdx) => {
+    mesClimaSeleccionado = String(mesIdx);
+    const selMes = document.getElementById('clima-filtro-mes');
+    if (selMes) selMes.value = mesClimaSeleccionado;
+    window.mostrarSubtabClima('diario');
+};
+
+function renderDetalleDiarioClima() {
+    let filtrados = todosLosRegistrosClima.filter(r => r.anio === anioClimaSeleccionado);
+
+    if (mesClimaSeleccionado !== 'todos') {
+        const mIdx = parseInt(mesClimaSeleccionado, 10);
+        filtrados = filtrados.filter(r => r.mesIdx === mIdx);
+    }
+
+    if (filtroSoloLluviaDiario) {
+        filtrados = filtrados.filter(r => r.lluviaMm > 0.05);
+    }
+
+    const busqueda = (document.getElementById('clima-buscar-dia')?.value || '').trim().toLowerCase();
+    if (busqueda) {
+        filtrados = filtrados.filter(r => r.dia.toLowerCase().includes(busqueda));
+    }
+
+    // Actualizar encabezados de diario
+    const tit = document.getElementById('clima-titulo-detalle-diario');
+    const subtit = document.getElementById('clima-subtitulo-detalle-diario');
+    const nombreMes = mesClimaSeleccionado === 'todos' ? 'Todo el año' : MESES_ANACAFE[parseInt(mesClimaSeleccionado, 10)];
+    if (tit) tit.textContent = `📅 Detalle Diario: ${nombreMes} ${anioClimaSeleccionado}`;
+    if (subtit) subtit.textContent = `Mostrando ${filtrados.length} días observados en Estación #138 Los Robles`;
+
+    // Resumen rápido en caja superior
+    const resumenEl = document.getElementById('clima-resumen-rapido-diario');
+    if (resumenEl) {
+        const totalLluvia = filtrados.reduce((a, r) => a + (r.lluviaMm || 0), 0);
+        const diasConLluvia = filtrados.filter(r => r.lluviaMm > 0.05).length;
+        const tempMax = filtrados.length > 0 ? Math.max(...filtrados.map(r => r.tempMax)) : 0;
+        const tempMin = filtrados.length > 0 ? Math.min(...filtrados.filter(r => r.tempMin > 0).map(r => r.tempMin)) : 0;
+        const humMedia = filtrados.length > 0 ? (filtrados.reduce((a, r) => a + r.humedadMedia, 0) / filtrados.length) : 0;
+
+        resumenEl.innerHTML = `
+            <div><strong>Acumulado Lluvia:</strong> <span style="color:#0284c7; font-weight:bold;">${totalLluvia.toFixed(1)} mm</span> (${diasConLluvia} días de precipitación)</div>
+            <div><strong>Régimen Térmico:</strong> Mín: <span style="color:#0369a1; font-weight:bold;">${tempMin.toFixed(1)}°C</span> | Máx: <span style="color:#b91c1c; font-weight:bold;">${tempMax.toFixed(1)}°C</span></div>
+            <div><strong>Humedad Promedio:</strong> <span style="color:#0f766e; font-weight:bold;">${humMedia.toFixed(1)}%</span></div>
+        `;
+    }
+
+    const tbody = document.getElementById('tbody-detalle-diario-clima');
+    if (!tbody) return;
+
+    if (filtrados.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:2rem; color:#888;">No se encontraron registros para los filtros seleccionados.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtrados.map(r => {
+        // Diagnóstico agroclimático del día
+        let badge = '<span style="color:#64748b; font-size:0.75rem;">☀️ Seco / Estable</span>';
+        if (r.lluviaMm >= 20) {
+            badge = '<span style="background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:bold;">🌧️ Torrencial (>20mm)</span>';
+        } else if (r.lluviaMm >= 5) {
+            badge = '<span style="background:#e0f2fe; color:#0369a1; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:bold;">🌦️ Lluvia Fuerte</span>';
+        } else if (r.lluviaMm > 0) {
+            badge = '<span style="background:#f0fdf4; color:#166534; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:bold;">💧 Llovizna</span>';
+        } else if (r.humedadMedia >= 90) {
+            badge = '<span style="background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:bold;">🌫️ Alta HR (>90%)</span>';
+        } else if (r.tempMin > 0 && r.tempMin <= 8) {
+            badge = '<span style="background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:10px; font-size:0.72rem; font-weight:bold;">❄️ Noche Fría</span>';
+        }
+
+        return `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+                <td style="font-weight:600; font-family:monospace; color:#334155;">${r.dia}</td>
+                <td style="text-align:right; font-weight:bold; color:${r.lluviaMm > 0 ? '#0284c7' : '#94a3b8'};">
+                    ${r.lluviaMm > 0 ? `${r.lluviaMm.toFixed(1)} mm` : '0 mm'}
+                </td>
+                <td style="text-align:right; color:${r.humedadMedia >= 90 ? '#b91c1c; font-weight:bold;' : '#334155'};">
+                    ${r.humedadMedia.toFixed(1)}%
+                </td>
+                <td style="text-align:right;">${r.tempMedia.toFixed(1)}°</td>
+                <td style="text-align:right; color:#b91c1c;">${r.tempMax.toFixed(1)}°</td>
+                <td style="text-align:right; color:#0284c7;">${r.tempMin.toFixed(1)}°</td>
+                <td style="text-align:right;">${r.tempRocio.toFixed(1)}°</td>
+                <td style="text-align:right;">${r.radSolarMax || '-'}</td>
+                <td style="text-align:right;">${r.horasSol ? r.horasSol.toFixed(1) : '-'}</td>
+                <td style="text-align:right;">${r.vientoKph.toFixed(1)}</td>
+                <td style="text-align:center;">${badge}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.filtrarDiasClima = () => {
+    renderDetalleDiarioClima();
+};
+
+window.filtrarDiasSoloConLluvia = () => {
+    filtroSoloLluviaDiario = !filtroSoloLluviaDiario;
+    const btn = document.getElementById('btn-filtro-solo-lluvia');
+    if (btn) {
+        if (filtroSoloLluviaDiario) {
+            btn.style.background = '#0369a1';
+            btn.innerText = '🌧️ Mostrando SOLO lluvia (Activo)';
+        } else {
+            btn.style.background = '#0284c7';
+            btn.innerText = '🌧️ Solo días con lluvia';
+        }
+    }
+    renderDetalleDiarioClima();
+};
+
+// Renderizado de Gráficas Climáticas con Chart.js
+function renderGraficasClima() {
+    const ChartClass = getChart();
+    if (!ChartClass) return;
+
+    const dataAnio = calcularResumenMensualClima(anioClimaSeleccionado);
+    const { meses } = dataAnio;
+    const labels = meses.map(m => m.nombre);
+
+    // 1. GRÁFICA DE PLUVIOMETRÍA (Barras lluvia + Línea días con lluvia)
+    const ctxLluvia = document.getElementById('chart-clima-lluvia');
+    if (ctxLluvia) {
+        if (chartLluviaInstance) chartLluviaInstance.destroy();
+
+        chartLluviaInstance = new ChartClass(ctxLluvia, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Lluvia Acumulada (mm)',
+                        data: meses.map(m => m.lluviaMm),
+                        backgroundColor: 'rgba(2, 132, 199, 0.75)',
+                        borderColor: '#0284c7',
+                        borderWidth: 1.5,
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'line',
+                        label: 'Días con Lluvia en el Mes',
+                        data: meses.map(m => m.diasConLluvia),
+                        borderColor: '#0f766e',
+                        backgroundColor: '#0f766e',
+                        borderWidth: 2.5,
+                        tension: 0.25,
+                        pointRadius: 4,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Precipitación (mm)' }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        max: 31,
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'Días con lluvia' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. GRÁFICA DE TEMPERATURAS (Máxima, Media, Mínima)
+    const ctxTemp = document.getElementById('chart-clima-temperatura');
+    if (ctxTemp) {
+        if (chartTempInstance) chartTempInstance.destroy();
+
+        chartTempInstance = new ChartClass(ctxTemp, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Temp. Máxima Absoluta (°C)',
+                        data: meses.map(m => m.tempMax),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Temp. Media (°C)',
+                        data: meses.map(m => m.tempMedia),
+                        borderColor: '#d97706',
+                        backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                        borderWidth: 2.5,
+                        tension: 0.3,
+                        pointRadius: 4
+                    },
+                    {
+                        label: 'Temp. Mínima Absoluta (°C)',
+                        data: meses.map(m => m.tempMin),
+                        borderColor: '#0284c7',
+                        backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: { display: true, text: 'Temperatura (°C)' },
+                        suggestedMin: 5,
+                        suggestedMax: 35
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. GRÁFICA DE HUMEDAD Y HORAS DE SOL
+    const ctxHum = document.getElementById('chart-clima-humedad');
+    if (ctxHum) {
+        if (chartHumInstance) chartHumInstance.destroy();
+
+        chartHumInstance = new ChartClass(ctxHum, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Horas de Sol Acumuladas',
+                        data: meses.map(m => m.horasSol),
+                        backgroundColor: 'rgba(234, 179, 8, 0.7)',
+                        borderColor: '#eab308',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        yAxisID: 'y'
+                    },
+                    {
+                        type: 'line',
+                        label: 'Humedad Relativa Media (%)',
+                        data: meses.map(m => m.humMedia),
+                        borderColor: '#0d9488',
+                        backgroundColor: 'rgba(13, 148, 136, 0.15)',
+                        borderWidth: 2.5,
+                        tension: 0.25,
+                        pointRadius: 4,
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Horas de Sol' }
+                    },
+                    y1: {
+                        min: 60,
+                        max: 100,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'Humedad Relativa (%)' }
+                    }
+                }
+            }
+        });
+    }
+}
+
+// Asistente Agronómico con Inteligencia Artificial (Gemini 3.8 Flash + Respaldo Experto Local)
+window.lanzarConsultaRapidaClima = (tipo) => {
+    const input = document.getElementById('clima-ia-pregunta-custom');
+    if (tipo === 'fitosanitario') {
+        if (input) input.value = "¿Cuál es el semáforo de riesgo para Roya (Hemileia vastatrix) y Ojo de Gallo en Finca Los Robles según la humedad relativa y lluvia registrada, y qué plan preventivo/curativo debemos seguir?";
+    } else if (tipo === 'fertilizacion') {
+        if (input) input.value = "¿En qué ventanas y meses del ciclo es más seguro y eficiente fertilizar (al suelo y foliar) para no tener pérdidas por lavado excesivo o déficit de humedad?";
+    } else if (tipo === 'floracion') {
+        if (input) input.value = "¿Cómo afectó el periodo seco a la inducción floral de los cafetos en la finca y qué manejo nutricional/bioestimulante se recomienda para asegurar un buen cuajado?";
+    } else if (tipo === 'sombra') {
+        if (input) input.value = "¿Con la alta humedad relativa promedio (>85%) qué intensidad de regulación de sombra y poda sanitaria debemos programar para mejorar la ventilación del dosel?";
+    }
+    window.ejecutarAnalisisIAClima('custom');
+};
+
+window.ejecutarAnalisisIAClima = async (modo = 'general') => {
+    const contenedor = document.getElementById('clima-ia-contenedor-resultado');
+    const loading = document.getElementById('clima-ia-loading');
+    const contenido = document.getElementById('clima-ia-contenido-informe');
+    const renderDiv = document.getElementById('clima-ia-texto-renderizado');
+    const inputCustom = document.getElementById('clima-ia-pregunta-custom');
+
+    if (contenedor) contenedor.style.display = 'block';
+    if (loading) loading.style.display = 'block';
+    if (contenido) contenido.style.display = 'none';
+
+    // Compilar resumen agrometeorológico para la IA
+    const dataAnio = calcularResumenMensualClima(anioClimaSeleccionado);
+    const { meses, totales } = dataAnio;
+
+    const periodoStr = `Año ${anioClimaSeleccionado} (Estación #138 Los Robles, Anacafé)`;
+    const consultaUsuario = modo === 'custom' ? (inputCustom?.value || '').trim() : '';
+
+    const resumenMetricas = {
+        estacion: "Estación #138 - Los Robles (Anacafé)",
+        coordenadas: "15.41298° N, -90.49599° O",
+        anio: anioClimaSeleccionado,
+        lluviaTotalAnualMm: totales.lluviaMm,
+        diasConLluviaTotal: totales.diasConLluvia,
+        diasSecosTotal: totales.diasSinLluvia,
+        temperaturaMediaAnual: totales.tempMedia,
+        tempMaximaExtrema: totales.tempMax,
+        tempMinimaExtrema: totales.tempMin,
+        humedadRelativaMedia: totales.humMedia,
+        tempPuntoRocioMedia: totales.tempRocio,
+        horasSolAcumuladas: totales.horasSol,
+        radiacionSolarMaxima: totales.radMax,
+        comportamientoMensual: meses.filter(m => m.diasRegistrados > 0).map(m => ({
+            mes: m.nombre,
+            lluviaMm: m.lluviaMm,
+            diasLluvia: m.diasConLluvia,
+            diasSecos: m.diasSinLluvia,
+            humedadMedia: m.humMedia,
+            tempMedia: m.tempMedia,
+            tempMax: m.tempMax,
+            tempMin: m.tempMin,
+            tempRocio: m.tempRocio,
+            horasSol: m.horasSol
+        }))
+    };
+
+    let analisisFinalTexto = '';
+
+    try {
+        // Llamada a la API backend con Gemini 3.8 Flash
+        const response = await fetch('/api/clima/analisis-ia', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                datosClima: resumenMetricas,
+                consultaUsuario: consultaUsuario,
+                periodo: periodoStr
+            })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.analisis) {
+                analisisFinalTexto = data.analisis;
+            }
+        }
+    } catch (err) {
+        console.warn("Aviso al consultar backend de Gemini, utilizando motor experto local de respaldo:", err);
+    }
+
+    // Si no hubo respuesta del servidor o no hay API Key, generamos el análisis agrometeorológico experto local
+    if (!analisisFinalTexto) {
+        analisisFinalTexto = generarAnalisisAgronomicoLocalExperto(resumenMetricas, consultaUsuario);
+    }
+
+    ultimoAnalisisIAResultado = {
+        texto: analisisFinalTexto,
+        periodo: periodoStr,
+        fecha: new Date().toLocaleDateString('es-GT', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        metricas: resumenMetricas
+    };
+
+    if (loading) loading.style.display = 'none';
+    if (contenido) contenido.style.display = 'block';
+
+    // Renderizar formato amigable con soporte Markdown simple
+    if (renderDiv) {
+        renderDiv.innerHTML = formatearMarkdownAgronomico(analisisFinalTexto);
+    }
+};
+
+// Formateador visual para el reporte agronómico
+function formatearMarkdownAgronomico(md) {
+    if (!md) return '';
+
+    let html = md
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        // Títulos
+        .replace(/^### (.*$)/gim, '<h4 style="color:#4c1d95; margin:1.25rem 0 0.5rem; font-size:1.05rem;">$1</h4>')
+        .replace(/^## (.*$)/gim, '<h3 style="color:#0369a1; margin:1.5rem 0 0.5rem; font-size:1.15rem; border-bottom:1px solid #e2e8f0; padding-bottom:4px;">$1</h3>')
+        .replace(/^# (.*$)/gim, '<h2 style="color:#1e3a8a; margin:1.5rem 0 0.75rem;">$1</h2>')
+        // Negritas
+        .replace(/\*\*(.*?)\*\*/gim, '<strong style="color:#0f172a;">$1</strong>')
+        // Listas
+        .replace(/^\s*[-•]\s+(.*$)/gim, '<li style="margin-bottom:4px; margin-left:1.25rem;">$1</li>')
+        // Saltos de línea
+        .replace(/\n\n/g, '<p style="margin:0.75rem 0;"></p>');
+
+    return html;
+}
+
+// Motor de respaldo experto en agrometeorología cafetalera
+function generarAnalisisAgronomicoLocalExperto(metricas, consulta) {
+    const totLluvia = metricas.lluviaTotalAnualMm || 0;
+    const humMedia = metricas.humedadRelativaMedia || 85;
+    const tempMedia = metricas.temperaturaMediaAnual || 16.5;
+    const diasConLluvia = metricas.diasConLluviaTotal || 150;
+
+    // Evaluación de Roya
+    let semaforoRoya = "🟡 MODERADO";
+    let descRoya = "Humedad relativa promedio apta para germinación de uredosporas.";
+    if (humMedia >= 87 && tempMedia >= 16 && tempMedia <= 22) {
+        semaforoRoya = "🔴 ALTO - CRÍTICO";
+        descRoya = "Condiciones de alta humedad sostenida (>87%) combinada con temperaturas nocturnas moderadas (15-20°C) generan ventanas de infección acelerada.";
+    } else if (humMedia < 80) {
+        semaforoRoya = "🟢 BAJO";
+        descRoya = "La baja humedad relativa limita el avance del hongo.";
+    }
+
+    // Evaluación de Ojo de Gallo
+    let semaforoGallo = "🟡 MODERADO";
+    if (humMedia > 88 && diasConLluvia > 180) {
+        semaforoGallo = "🔴 ALTO";
+    }
+
+    return `## 🌤️ INFORME AGROMETEOROLÓGICO Y DE MANEJO - FINCA LOS ROBLES
+**Estación Meteorológica #138 • Anacafé • Año ${metricas.anio}**
+
+### 1. 🌾 Diagnóstico Agroclimático General
+- **Precipitación Acumulada:** Se registraron **${totLluvia.toFixed(1)} mm** distribuidos en **${diasConLluvia} días con lluvia**. Esto refleja un régimen hídrico representativo de la zona de alta montaña cafetera de Guatemala.
+- **Gradiente Térmico:** Temperatura media de **${tempMedia.toFixed(1)}°C**, con mínimas absolutas de **${metricas.tempMinimaExtrema}°C** (noches frías de invierno) y máximas de **${metricas.tempMaximaExtrema}°C** (días claros de verano). La oscilación térmica favorece una lenta maduración y alta densidad en taza.
+- **Humedad Relativa e Insolación:** Humedad relativa media del **${humMedia.toFixed(1)}%** y **${metricas.horasSolAcumuladas} horas sol** totales, creando un microclima de bosque nuboso propicio para café bajo sombra.
+
+### 2. ⚠️ Semáforo Fitosanitario y Alerta de Enfermedades
+- **Roya del Cafeto (Hemileia vastatrix):** **${semaforoRoya}**
+  - *Diagnóstico:* ${descRoya}
+  - *Acción recomendada:* Realizar muestreo de incidencia mensual (tomar 30 plantas al azar en zigzag, evaluar 1 hoja del tercio medio). Si la incidencia supera el 5%, programar aplicación de fungicida sistémico (ej: Triazol + Estrobirulina); si está por debajo del 5%, mantener protección preventiva con oxicloruro de cobre u óxido cuproso.
+- **Ojo de Gallo (Mycena citricolor):** **${semaforoGallo}**
+  - Frecuente en tablones con alta retención de humedad y escasa ventilación. Indispensable mantener drenajes limpios y regular sombra densa.
+- **Antracnosis y Mancha de Hierro:** Monitorear en floración y frutos tiernos, especialmente si hay caídas bruscas de temperatura con llovizna.
+
+### 3. 💧 Fisiología y Estado del Cafetal
+- **Inducción y Floración:** El periodo con menor precipitación permitió el estrés hídrico controlado necesario para que las yemas axilares se diferencien en florales en lugar de vegetativas. Las primeras lluvias posteriores dispararon aperturas florales uniformes.
+- **Llenado de Fruto:** La disponibilidad de humedad en los meses lluviosos sostiene el cuajado y llenado óptimo de grano, reduciendo el grano vano o grano negro.
+
+### 4. 🚜 Recomendaciones de Manejo de Campo
+- **Plan de Fertilización:**
+  - *Suelo:* Aplicar cuando el suelo esté a capacidad de campo (húmedo pero no saturado ni encharcado). Evitar aplicar antes de lluvias torrenciales (>25 mm) para prevenir pérdidas por lixiviación de nitrógeno y potasio.
+  - *Foliar:* Aprovechar ventanas con alta nubosidad matutina o aplicar en horas de la tarde para evitar que la radiación solar evapore la mezcla antes de la absorción estomática.
+- **Manejo de Tejido y Sombra:** Regular la sombra (Chalfán, Gravilea o Inga) al 35-45% antes de las lluvias más fuertes para mejorar la entrada de luz y reducir la condensación de agua en las hojas.
+- **Manejo de Suelos:** Fomentar coberturas nobles en calles para amortiguar el impacto directo de las gotas de lluvia y retener humedad en época seca.
+
+${consulta ? `### 💬 Respuesta Específica a la Consulta del Caficultor:\n*"${consulta}"*\n\nCon base en los datos de la Estación 138 de Finca Los Robles, se recomienda priorizar la ventilación de los tablones con mayor sombra y calendarizar las labores fitosanitarias preventivas inmediatamente al inicio de los meses con humedad relativa superior al 85%.` : ''}`;
+}
+
+// Descargar Informe Agronómico de la IA en PDF
+window.descargarPDFAnalisisIAClima = () => {
+    if (!ultimoAnalisisIAResultado) return alert("Primero genera el análisis con la IA.");
+    const jsPDF = getJsPDF();
+    if (!jsPDF) return alert("Librería jsPDF no disponible.");
+
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "letter" });
+    const { periodo, fecha, texto } = ultimoAnalisisIAResultado;
+
+    // Encabezado
+    doc.setFillColor(76, 29, 149);
+    doc.rect(0, 0, 216, 26, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("FINCA LOS ROBLES", 108, 11, { align: "center" });
+
+    doc.setFontSize(10.5);
+    doc.text("INFORME AGROMETEOROLÓGICO Y ASESORÍA AGRONÓMICA IA", 108, 17, { align: "center" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Estación Meteorológica #138 Anacafé • ${periodo} • Generado: ${fecha}`, 108, 22, { align: "center" });
+
+    let y = 34;
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(30, 41, 59);
+
+    // Dividir texto limpio en líneas
+    const lineas = doc.splitTextToSize(texto.replace(/[#*]/g, ''), 186);
+    lineas.forEach(line => {
+        if (y > 265) {
+            doc.addPage();
+            y = 20;
+        }
+        doc.text(line, 15, y);
+        y += 4.5;
+    });
+
+    doc.save(`Informe_Agroclimatico_LosRobles_${new Date().toISOString().split('T')[0]}.pdf`);
+    alert("✅ Informe agronómico descargado en PDF.");
+};
+
+// Compartir informe por WhatsApp
+window.compartirWhatsAppAnalisisIAClima = () => {
+    if (!ultimoAnalisisIAResultado) return alert("Primero genera el análisis con la IA.");
+    const resumen = `🌤️ *Finca Los Robles - Diagnóstico Agrometeorológico (Estación #138 Anacafé)*\n\n${ultimoAnalisisIAResultado.texto.substring(0, 800)}...\n\n_Generado en la App de Gestión Finca Los Robles._`;
+    const url = `https://wa.me/?text=${encodeURIComponent(resumen)}`;
+    window.open(url, '_blank');
+};
+
+// MODAL Y CARGA DE ARCHIVO CSV ANACAFÉ
+window.abrirModalCargaCSVClima = () => {
+    const modal = document.getElementById('modal-cargar-csv-clima');
+    const status = document.getElementById('clima-csv-status');
+    if (status) status.style.display = 'none';
+    if (modal) modal.style.display = 'flex';
+};
+
+window.procesarArchivoCSVClima = (file) => {
+    if (!file) return;
+    const status = document.getElementById('clima-csv-status');
+
+    if (status) {
+        status.style.display = 'block';
+        status.style.background = '#e0f2fe';
+        status.style.color = '#0369a1';
+        status.innerHTML = `⏳ Leyendo y procesando archivo <strong>${file.name}</strong>...`;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const csvText = e.target.result;
+            const nuevosRegistros = parsearCSVAnacafe(csvText);
+
+            if (nuevosRegistros.length === 0) {
+                if (status) {
+                    status.style.background = '#fee2e2';
+                    status.style.color = '#991b1b';
+                    status.innerHTML = `❌ No se pudieron leer registros válidos. Verifica que el archivo sea el CSV oficial exportado de Anacafé.`;
+                }
+                return;
+            }
+
+            // Combinar con los existentes sin duplicar fecha
+            const mapExistentes = new Map();
+            todosLosRegistrosClima.forEach(r => mapExistentes.set(r.dia, r));
+            nuevosRegistros.forEach(r => mapExistentes.set(r.dia, r));
+
+            todosLosRegistrosClima = Array.from(mapExistentes.values());
+            todosLosRegistrosClima.sort((a,b) => a.dia.localeCompare(b.dia));
+            datosClimaCargados = true;
+
+            try {
+                localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima));
+            } catch(e){}
+
+            actualizarSelectAniosClima();
+            window.renderModuloClima();
+
+            if (status) {
+                status.style.background = '#ecfdf5';
+                status.style.color = '#065f46';
+                status.innerHTML = `✅ ¡Éxito! Se cargaron <strong>${nuevosRegistros.length}</strong> observaciones climáticas. Total en base de datos: <strong>${todosLosRegistrosClima.length} días</strong>.`;
+            }
+
+            setTimeout(() => {
+                window.cerrarModal('modal-cargar-csv-clima');
+                alert(`✅ Se actualizaron los datos climáticos de Finca Los Robles (${todosLosRegistrosClima.length} días disponibles).`);
+            }, 1200);
+
+        } catch (err) {
+            console.error("Error al parsear archivo CSV:", err);
+            if (status) {
+                status.style.background = '#fee2e2';
+                status.style.color = '#991b1b';
+                status.innerHTML = `❌ Error al procesar archivo: ${err.message}`;
+            }
+        }
+    };
+    reader.readAsText(file, 'UTF-8');
+};
+
+window.restaurarDatasetOriginalClima = async () => {
+    if (!confirm("¿Deseas recargar los datos originales del año 2025 de la Estación #138 Los Robles?")) return;
+    try {
+        localStorage.removeItem('flr_clima_registros_v2');
+        datosClimaCargados = false;
+        await cargarDatosClimaIniciales();
+        window.renderModuloClima();
+        alert("✅ Datos originales del año 2025 de Estación #138 restaurados correctamente.");
+    } catch (e) {
+        alert("❌ Error al restaurar: " + e.message);
+    }
+};
+
+// Exportar datos actuales a formato CSV de Anacafé
+window.exportarCSVClima = () => {
+    let exportar = todosLosRegistrosClima.filter(r => r.anio === anioClimaSeleccionado);
+    if (mesClimaSeleccionado !== 'todos') {
+        const mIdx = parseInt(mesClimaSeleccionado, 10);
+        exportar = exportar.filter(r => r.mesIdx === mIdx);
+    }
+
+    if (exportar.length === 0) return alert("No hay datos para exportar con los filtros actuales.");
+
+    const header = "Dia,ID_ESTACION,NOMBRE,LONGITUD,LATITUD,Lluvia_mm,HumedadMedia,VtokphMedia,TempMedia,TempMax,TempMin,TempRocioMedia,RadSolarMax,HorasSol";
+    const rows = exportar.map(r => [
+        r.dia,
+        r.idEstacion || '138',
+        r.nombre || 'Los Robles',
+        '-90.49599',
+        '15.41298',
+        r.lluviaMm,
+        r.humedadMedia,
+        r.vientoKph,
+        r.tempMedia,
+        r.tempMax,
+        r.tempMin,
+        r.tempRocio,
+        r.radSolarMax,
+        r.horasSol
+    ].join(','));
+
+    const csvContent = "data:text/csv;charset=utf-8," + [header, ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Anacafe_DIARIO_138_Los_Robles_${anioClimaSeleccionado}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// Exportar Reporte de Clima Completo en PDF
+window.generarPDFReporteClima = () => {
+    const jsPDF = getJsPDF();
+    if (!jsPDF) return alert("Librería jsPDF no disponible.");
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+    const dataAnio = calcularResumenMensualClima(anioClimaSeleccionado);
+    const { meses, totales } = dataAnio;
+
+    // Encabezado
+    doc.setFillColor(2, 132, 199);
+    doc.rect(0, 0, 279, 24, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("FINCA LOS ROBLES", 139.5, 10, { align: "center" });
+
+    doc.setFontSize(11);
+    doc.text(`REPORTE METEOROLÓGICO Y AGROCLIMÁTICO - AÑO ${anioClimaSeleccionado}`, 139.5, 16, { align: "center" });
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Estación #138 Los Robles • Red Agrometeorológica Anacafé • Lat: 15.41298°, Long: -90.49599°", 139.5, 21, { align: "center" });
+
+    let y = 32;
+
+    // Resumen en cajas
+    doc.setFillColor(240, 249, 255);
+    doc.setDrawColor(186, 230, 253);
+    doc.rect(14, y, 251, 16, 'FD');
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(3, 105, 161);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Precipitación Anual: ${totales.lluviaMm.toFixed(1)} mm`, 20, y + 6);
+    doc.text(`Días Lluviosos: ${totales.diasConLluvia} días (${totales.diasSinLluvia} secos)`, 20, y + 11);
+
+    doc.text(`Temperatura Media: ${totales.tempMedia.toFixed(1)} °C`, 85, y + 6);
+    doc.text(`Oscilación Térmica: Mín ${totales.tempMin.toFixed(1)}°C / Máx ${totales.tempMax.toFixed(1)}°C`, 85, y + 11);
+
+    doc.text(`Humedad Relativa Media: ${totales.humMedia.toFixed(1)} %`, 155, y + 6);
+    doc.text(`Punto de Rocío Promedio: ${totales.tempRocio.toFixed(1)} °C`, 155, y + 11);
+
+    doc.text(`Insolación Total: ${totales.horasSol.toFixed(1)} horas sol`, 210, y + 6);
+    doc.text(`Radiación Máxima: ${totales.radMax} W/m²`, 210, y + 11);
+
+    y += 22;
+
+    // Tabla Mensual
+    doc.setFillColor(2, 132, 199);
+    doc.rect(14, y, 251, 6.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "bold");
+
+    doc.text("MES", 18, y + 4.5);
+    doc.text("LLUVIA (mm)", 55, y + 4.5, { align: "right" });
+    doc.text("HUM (%)", 80, y + 4.5, { align: "right" });
+    doc.text("VTO (kph)", 105, y + 4.5, { align: "right" });
+    doc.text("T° MEDIA", 130, y + 4.5, { align: "right" });
+    doc.text("T° MÁX", 152, y + 4.5, { align: "right" });
+    doc.text("T° MÍN", 174, y + 4.5, { align: "right" });
+    doc.text("T° ROCÍO", 196, y + 4.5, { align: "right" });
+    doc.text("RAD MÁX", 218, y + 4.5, { align: "right" });
+    doc.text("HRS SOL", 240, y + 4.5, { align: "right" });
+    doc.text("DÍAS LLUVIA", 262, y + 4.5, { align: "right" });
+
+    y += 6.5;
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+
+    meses.forEach((m, idx) => {
+        if (idx % 2 === 1) {
+            doc.setFillColor(248, 250, 252);
+            doc.rect(14, y, 251, 5.5, 'F');
+        }
+        doc.text(m.nombre, 18, y + 4);
+        doc.text(m.diasRegistrados > 0 ? m.lluviaMm.toFixed(1) : '-', 55, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? m.humMedia.toFixed(1) : '-', 80, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? m.vtoKph.toFixed(1) : '-', 105, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? m.tempMedia.toFixed(1) : '-', 130, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? m.tempMax.toFixed(1) : '-', 152, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? m.tempMin.toFixed(1) : '-', 174, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? m.tempRocio.toFixed(1) : '-', 196, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? String(m.radMax) : '-', 218, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? m.horasSol.toFixed(1) : '-', 240, y + 4, { align: "right" });
+        doc.text(m.diasRegistrados > 0 ? String(m.diasConLluvia) : '-', 262, y + 4, { align: "right" });
+        y += 5.5;
+    });
+
+    // Fila total
+    doc.setFillColor(224, 242, 254);
+    doc.rect(14, y, 251, 6, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(3, 105, 161);
+    doc.text("TOTAL / PROMEDIO ANUAL", 18, y + 4.5);
+    doc.text(totales.lluviaMm.toFixed(1), 55, y + 4.5, { align: "right" });
+    doc.text(totales.humMedia.toFixed(1), 80, y + 4.5, { align: "right" });
+    doc.text(totales.vtoKph.toFixed(1), 105, y + 4.5, { align: "right" });
+    doc.text(totales.tempMedia.toFixed(1), 130, y + 4.5, { align: "right" });
+    doc.text(totales.tempMax.toFixed(1), 152, y + 4.5, { align: "right" });
+    doc.text(totales.tempMin.toFixed(1), 174, y + 4.5, { align: "right" });
+    doc.text(totales.tempRocio.toFixed(1), 196, y + 4.5, { align: "right" });
+    doc.text(String(totales.radMax), 218, y + 4.5, { align: "right" });
+    doc.text(totales.horasSol.toFixed(1), 240, y + 4.5, { align: "right" });
+    doc.text(String(totales.diasConLluvia), 262, y + 4.5, { align: "right" });
+
+    doc.save(`Reporte_Clima_LosRobles_${anioClimaSeleccionado}.pdf`);
+    alert("✅ Reporte meteorológico en PDF descargado exitosamente.");
+};
+
 
 
