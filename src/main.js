@@ -288,7 +288,7 @@ function construirMenu() {
             { id:'costos', icon:'🧮', label:'Costos Tostado' },
             { id:'cotizador', icon:'💵', label:'Cotizador Verde' },
             { id:'tostado', icon:'🔥', label:'Control Tostado' },
-            { id:'clima', icon:'🌤️', label:'Clima y Estación' },
+            { id:'clima', icon:'🌤️🌱💧', label:'Clima, Suelo y Agua' },
             { id:'usuarios', icon:'👥', label:'Usuarios y Permisos', adminOnly: true }
         ];
 
@@ -11864,6 +11864,7 @@ let chartTempInstance = null;
 let chartHumInstance = null;
 let chartCompLluviaInstance = null;
 let chartCompTempInstance = null;
+let chartMultianualBarrasInstance = null;
 let ultimoAnalisisIAResultado = null;
 let datosClimaCargados = false;
 
@@ -12036,6 +12037,7 @@ async function cargarDatosClimaIniciales() {
                     const historico2024 = generarHistorico2024Estacion138();
                     todosLosRegistrosClima = [...historico2024, ...parsed];
                     todosLosRegistrosClima.sort((a,b) => a.dia.localeCompare(b.dia));
+                    try { localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima)); } catch(e){}
                 } else {
                     todosLosRegistrosClima = parsed;
                 }
@@ -12082,7 +12084,15 @@ function actualizarSelectAniosClima() {
         if (r.anio && r.anio.length === 4) aniosSet.add(r.anio);
     });
 
-    if (aniosSet.size === 0) aniosSet.add('2025');
+    // Garantizar que siempre existan al menos 2024 y 2025 para comparativa interanual
+    if (!aniosSet.has('2024')) {
+        const historico2024 = generarHistorico2024Estacion138();
+        todosLosRegistrosClima = [...historico2024, ...todosLosRegistrosClima];
+        todosLosRegistrosClima.sort((a,b) => a.dia.localeCompare(b.dia));
+        aniosSet.add('2024');
+        try { localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima)); } catch(e){}
+    }
+    if (!aniosSet.has('2025')) aniosSet.add('2025');
 
     const aniosArr = Array.from(aniosSet).sort((a,b) => b.localeCompare(a));
     if (select) {
@@ -12101,7 +12111,7 @@ function actualizarSelectAniosClima() {
         }
     }
 
-    // Actualizar selectores de comparación interanual
+    // Actualizar selectores de comparación interanual (Año Base vs Año a Evaluar)
     if (selCompBase && selCompEval) {
         const valBaseActual = selCompBase.value;
         const valEvalActual = selCompEval.value;
@@ -12121,10 +12131,10 @@ function actualizarSelectAniosClima() {
             selCompEval.appendChild(optE);
         });
 
-        // Configurar por defecto: base = año anterior, eval = año más reciente
+        // Configurar por defecto: base = 2024, eval = 2025
         if (aniosArr.length >= 2) {
-            selCompBase.value = (valBaseActual && aniosArr.includes(valBaseActual)) ? valBaseActual : aniosArr[1];
-            selCompEval.value = (valEvalActual && aniosArr.includes(valEvalActual)) ? valEvalActual : aniosArr[0];
+            selCompBase.value = (valBaseActual && aniosArr.includes(valBaseActual)) ? valBaseActual : '2024';
+            selCompEval.value = (valEvalActual && aniosArr.includes(valEvalActual)) ? valEvalActual : '2025';
         } else {
             selCompBase.value = aniosArr[0];
             selCompEval.value = aniosArr[0];
@@ -12156,7 +12166,7 @@ window.actualizarVistaClima = () => {
 
 window.mostrarSubtabClima = (tab) => {
     subtabClimaActual = tab;
-    ['mensual', 'diario', 'graficas', 'comparativa', 'ia'].forEach(t => {
+    ['mensual', 'diario', 'graficas', 'comparativa', 'suelo', 'agua', 'ia'].forEach(t => {
         const sec = document.getElementById(`clima-subtab-${t}`);
         const btn = document.getElementById(`tab-btn-clima-${t}`);
         if (sec) sec.style.display = (t === tab) ? 'block' : 'none';
@@ -12191,6 +12201,10 @@ window.renderModuloClima = () => {
         renderGraficasClima();
     } else if (subtabClimaActual === 'comparativa') {
         renderComparativaClima();
+    } else if (subtabClimaActual === 'suelo') {
+        renderModuloSuelo();
+    } else if (subtabClimaActual === 'agua') {
+        renderModuloAgua();
     } else if (subtabClimaActual === 'ia') {
         // En vista IA, si no hay resultado cargado, preparar vista
     }
@@ -12470,6 +12484,349 @@ function renderComparativaClima() {
             </tr>
         `;
     }
+
+    // 6. Gráfica multianual año con año en barras
+    renderGraficaMultianualBarras();
+}
+
+// Renderizado de la gráfica de barras multianual año con año (Precipitación total y días de lluvia por año)
+function renderGraficaMultianualBarras() {
+    const ChartClass = getChart();
+    if (!ChartClass) return;
+
+    const ctx = document.getElementById('chart-clima-multianual-barras');
+    if (!ctx) return;
+
+    // Detectar todos los años registrados
+    const aniosSet = new Set();
+    todosLosRegistrosClima.forEach(r => {
+        if (r.anio && r.anio.length === 4) aniosSet.add(r.anio);
+    });
+    if (!aniosSet.has('2024')) aniosSet.add('2024');
+    if (!aniosSet.has('2025')) aniosSet.add('2025');
+
+    const aniosArr = Array.from(aniosSet).sort((a,b) => a.localeCompare(b));
+
+    const datosAnuales = aniosArr.map(anio => {
+        const res = calcularResumenMensualClima(anio);
+        return {
+            anio,
+            lluviaMm: res.totales.lluviaMm,
+            diasConLluvia: res.totales.diasConLluvia,
+            diasSecos: res.totales.diasSinLluvia,
+            tempMedia: res.totales.tempMedia
+        };
+    });
+
+    // Inyectar pills de resumen
+    const pillsCont = document.getElementById('clima-multianual-resumen-pills');
+    if (pillsCont) {
+        pillsCont.innerHTML = datosAnuales.map(da => `
+            <div style="background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.3); padding:4px 12px; border-radius:14px; font-size:0.78rem; display:flex; align-items:center; gap:6px;">
+                <strong style="color:#fef08a;">${da.anio}:</strong>
+                <span>${da.lluviaMm.toFixed(0)} mm</span>
+                <span style="opacity:0.75;">• ${da.diasConLluvia} días lluvia (${da.tempMedia.toFixed(1)}°C)</span>
+            </div>
+        `).join('');
+    }
+
+    if (chartMultianualBarrasInstance) {
+        chartMultianualBarrasInstance.destroy();
+    }
+
+    chartMultianualBarrasInstance = new ChartClass(ctx, {
+        type: 'bar',
+        data: {
+            labels: datosAnuales.map(d => `Año ${d.anio}`),
+            datasets: [
+                {
+                    label: 'Precipitación Anual Acumulada (mm)',
+                    data: datosAnuales.map(d => d.lluviaMm),
+                    backgroundColor: 'rgba(2, 132, 199, 0.85)',
+                    borderColor: '#0284c7',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Días con Lluvia en el Año',
+                    data: datosAnuales.map(d => d.diasConLluvia),
+                    backgroundColor: 'rgba(16, 185, 129, 0.85)',
+                    borderColor: '#10b981',
+                    borderWidth: 1.5,
+                    borderRadius: 6,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Milímetros de Lluvia (mm)' }
+                },
+                y1: {
+                    beginAtZero: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    title: { display: true, text: 'Días con Lluvia' }
+                }
+            }
+        }
+    });
+}
+
+// =========================================================================
+// --- SECCIÓN: ANÁLISIS DE SUELO Y AGUA (LABORATORIO ANALAB ANACAFÉ) ---
+// =========================================================================
+
+const DATOS_BASE_SUELO_ANALAB = [
+    {
+        id: "15748",
+        identificacion: "15748 - Lote 1 Anacafé 14",
+        ph: 5.73,
+        p: 5.30,
+        k: 0.40,
+        ca: 7.32,
+        mg: 1.67,
+        boro: 0.62,
+        azufre: 13.52,
+        mo: 9.05,
+        cice: 9.60,
+        cak: 18.30,
+        mgk: 4.18
+    },
+    {
+        id: "15749",
+        identificacion: "15749 - Lote 2 Catimor",
+        ph: 5.94,
+        p: 3.32,
+        k: 0.34,
+        ca: 10.94,
+        mg: 2.09,
+        boro: 0.56,
+        azufre: 8.76,
+        mo: 11.24,
+        cice: 13.50,
+        cak: 32.18,
+        mgk: 6.15
+    },
+    {
+        id: "15750",
+        identificacion: "15750 - Lote 3 Plantilla",
+        ph: 5.87,
+        p: 3.00,
+        k: 0.82,
+        ca: 9.74,
+        mg: 1.54,
+        boro: 0.56,
+        azufre: 9.93,
+        mo: 8.86,
+        cice: 12.24,
+        cak: 11.88,
+        mgk: 1.88
+    }
+];
+
+const DATOS_BASE_AGUA_ANALAB = [
+    {
+        id: "AG-1286",
+        fuente: "Efluente Fosa / Beneficiado y Mezclas (San Cristóbal Verapaz)",
+        fecha: "2025-02-07",
+        caudal: 2.50,
+        ph: 4.23,
+        phInsitu: 5.00,
+        temp: 25.0,
+        gya: 6.0,
+        sts: 360.0,
+        dbo: 215.0,
+        dqo: 290.0,
+        n: 24.0,
+        p: 13.0,
+        cu: 0.193,
+        zn: 0.275,
+        coliformes: "2.42E+04"
+    }
+];
+
+function cargarMuestrasSuelo() {
+    try {
+        const guardado = localStorage.getItem('flr_suelo_muestras_v1');
+        if (guardado) {
+            const parsed = JSON.parse(guardado);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch(e){}
+    return DATOS_BASE_SUELO_ANALAB;
+}
+
+function cargarMuestrasAgua() {
+    try {
+        const guardado = localStorage.getItem('flr_agua_muestras_v1');
+        if (guardado) {
+            const parsed = JSON.parse(guardado);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+    } catch(e){}
+    return DATOS_BASE_AGUA_ANALAB;
+}
+
+function renderModuloSuelo() {
+    const muestras = cargarMuestrasSuelo();
+    const tbody = document.getElementById('tbody-analisis-suelos');
+    if (tbody) {
+        tbody.innerHTML = muestras.map(m => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="padding:8px; font-weight:bold; color:#0f766e;">${m.identificacion}</td>
+                <td style="text-align:right; padding:8px; font-weight:600;">${Number(m.ph).toFixed(2)}</td>
+                <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">${Number(m.p).toFixed(2)} 🔴</td>
+                <td style="text-align:right; padding:8px; color:${Number(m.k) < 0.65 ? '#b91c1c' : '#1e293b'}; font-weight:bold;">${Number(m.k).toFixed(2)} ${Number(m.k) < 0.65 ? '🔴' : ''}</td>
+                <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">${Number(m.ca).toFixed(2)} 🔵</td>
+                <td style="text-align:right; padding:8px;">${Number(m.mg).toFixed(2)}</td>
+                <td style="text-align:right; padding:8px;">${m.boro !== undefined ? Number(m.boro).toFixed(2) : '-'}</td>
+                <td style="text-align:right; padding:8px; color:${Number(m.azufre) < 34 ? '#b91c1c' : '#1e293b'};">${m.azufre !== undefined ? `${Number(m.azufre).toFixed(2)} 🔴` : '-'}</td>
+                <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">${Number(m.mo).toFixed(2)}% 🔵</td>
+                <td style="text-align:right; padding:8px;">${Number(m.cice).toFixed(2)}</td>
+                <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">${Number(m.cak).toFixed(2)} 🔴</td>
+                <td style="text-align:right; padding:8px; color:${Number(m.mgk) > 2.5 ? '#b91c1c' : '#1e293b'};">${m.mgk !== undefined ? Number(m.mgk).toFixed(2) : '-'}</td>
+            </tr>
+        `).join('');
+    }
+}
+
+function renderModuloAgua() {
+    // El módulo de agua tiene sus datos base listados y permite añadir más
+}
+
+// Visor interactivo para documentos oficiales PDF ANALAB
+window.verPDFAnalab = (tipo) => {
+    const modal = document.getElementById('modal-visor-pdf-analab');
+    const frame = document.getElementById('visor-pdf-analab-frame');
+    const titulo = document.getElementById('visor-pdf-analab-titulo');
+    const subtitulo = document.getElementById('visor-pdf-analab-subtitulo');
+    const abrirBtn = document.getElementById('visor-pdf-analab-abrir-btn');
+    if (!modal) return;
+
+    let urlPdf = '';
+    if (tipo === 'suelo') {
+        urlPdf = '/assets/aistudio/ANALAB_02_07_2025_12_00_00_a.m._5559_1e5ce8d1.pdf';
+        if (titulo) titulo.innerText = "🌱 Informe Oficial de Fertilidad de Suelo AS-4 (ANALAB Anacafé)";
+        if (subtitulo) subtitulo.innerText = "Orden 32-5559 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Unidad: Los Robles (San Cristóbal Verapaz)";
+    } else {
+        urlPdf = '/assets/aistudio/32-1286_Los_Robles_A7_429d9c8e.pdf';
+        if (titulo) titulo.innerText = "💧 Informe Oficial de Calidad de Agua A-7 (ANALAB Anacafé)";
+        if (subtitulo) subtitulo.innerText = "Orden 32-1286 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Muestra: Efluente Fosa / Beneficiado y Mezclas";
+    }
+
+    if (frame) frame.src = urlPdf;
+    if (abrirBtn) abrirBtn.href = urlPdf;
+    modal.style.display = 'flex';
+};
+
+window.abrirModalNuevoSuelo = () => {
+    const modal = document.getElementById('modal-nuevo-suelo');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.guardarMuestraSuelo = () => {
+    const ident = document.getElementById('suelo-in-identificacion')?.value.trim();
+    const ph = parseFloat(document.getElementById('suelo-in-ph')?.value || '5.85');
+    const p = parseFloat(document.getElementById('suelo-in-p')?.value || '4.0');
+    const k = parseFloat(document.getElementById('suelo-in-k')?.value || '0.45');
+    const ca = parseFloat(document.getElementById('suelo-in-ca')?.value || '8.5');
+    const mg = parseFloat(document.getElementById('suelo-in-mg')?.value || '1.8');
+    const mo = parseFloat(document.getElementById('suelo-in-mo')?.value || '9.5');
+    const boro = parseFloat(document.getElementById('suelo-in-boro')?.value || '0.6');
+    const azufre = parseFloat(document.getElementById('suelo-in-azufre')?.value || '12.0');
+    const cice = parseFloat(document.getElementById('suelo-in-cice')?.value || '11.0');
+
+    if (!ident) return alert("Por favor indica la identificación o lote de la muestra.");
+
+    const cak = k > 0 ? (ca / k) : 0;
+    const mgk = k > 0 ? (mg / k) : 0;
+
+    const nuevaMuestra = {
+        id: `M-${Date.now().toString().slice(-4)}`,
+        identificacion: ident,
+        ph, p, k, ca, mg, boro, azufre, mo, cice,
+        cak: Math.round(cak * 100) / 100,
+        mgk: Math.round(mgk * 100) / 100
+    };
+
+    const muestras = cargarMuestrasSuelo();
+    muestras.push(nuevaMuestra);
+    try {
+        localStorage.setItem('flr_suelo_muestras_v1', JSON.stringify(muestras));
+    } catch(e){}
+
+    renderModuloSuelo();
+    window.cerrarModal('modal-nuevo-suelo');
+    alert("✅ Muestra de suelo guardada con éxito.");
+};
+
+window.abrirModalNuevoAgua = () => {
+    const modal = document.getElementById('modal-nuevo-agua');
+    if (modal) modal.style.display = 'flex';
+};
+
+window.guardarMuestraAgua = () => {
+    const fuente = document.getElementById('agua-in-fuente')?.value.trim();
+    const ph = parseFloat(document.getElementById('agua-in-ph')?.value || '4.23');
+    const temp = parseFloat(document.getElementById('agua-in-temp')?.value || '25.0');
+    const caudal = parseFloat(document.getElementById('agua-in-caudal')?.value || '2.5');
+    const dbo = parseFloat(document.getElementById('agua-in-dbo')?.value || '215');
+    const dqo = parseFloat(document.getElementById('agua-in-dqo')?.value || '290');
+    const sts = parseFloat(document.getElementById('agua-in-sts')?.value || '360');
+    const gya = parseFloat(document.getElementById('agua-in-gya')?.value || '6.0');
+    const n = parseFloat(document.getElementById('agua-in-n')?.value || '24.0');
+    const p = parseFloat(document.getElementById('agua-in-p')?.value || '13.0');
+
+    if (!fuente) return alert("Por favor indica la fuente o identificación del agua.");
+
+    const nueva = {
+        id: `AG-${Date.now().toString().slice(-4)}`,
+        fuente, fecha: new Date().toISOString().split('T')[0],
+        caudal, ph, temp, dbo, dqo, sts, gya, n, p
+    };
+
+    const muestras = cargarMuestrasAgua();
+    muestras.push(nueva);
+    try {
+        localStorage.setItem('flr_agua_muestras_v1', JSON.stringify(muestras));
+    } catch(e){}
+
+    window.cerrarModal('modal-nuevo-agua');
+    alert("✅ Registro de análisis de agua guardado con éxito.");
+};
+
+function obtenerDatosSueloParaIA() {
+    return {
+        laboratorio: "ANALAB Anacafé (Orden 32-5559)",
+        finca: "Los Robles (San Cristóbal Verapaz)",
+        metodo: "ICP-OES Mehlich III",
+        diagnosticoGeneral: "Fósforo crítico extremadamente bajo (<4 ppm vs 30-75 adecuado). Desbalance severo Calcio/Potasio (20.8:1 vs 6-7 ideal), el exceso de calcio induce deficiencia inducida de potasio. Materia orgánica muy alta (9.7% a 11.2%).",
+        muestras: cargarMuestrasSuelo()
+    };
+}
+
+function obtenerDatosAguaParaIA() {
+    return {
+        laboratorio: "ANALAB Anacafé (Orden 32-1286)",
+        finca: "Los Robles (San Cristóbal Verapaz)",
+        puntoMuestreo: "Efluente Fosa / Beneficiado y Mezclas",
+        caudal: "2.50 l/s (150 L/min)",
+        phLaboratorio: 4.23,
+        phInsitu: 5.00,
+        temperaturaC: 25.0,
+        dbo: "215 mg/L",
+        dqo: "290 mg/L",
+        sts: "360 mg/L",
+        grasasAceites: "6.0 mg/L",
+        alertaBuffer: "Agua fuertemente ácida (pH 4.23). Inactivación de conidias de Beauveria bassiana e inestabilidad química de caldos fitosanitarios y fertilizantes foliares si no se aplica regulador/buffer a pH 5.5 - 6.0.",
+        muestras: cargarMuestrasAgua()
+    };
 }
 
 // Cálculo y consolidación mensual exacto a los reportes de Anacafé
@@ -12944,21 +13301,35 @@ function renderGraficasClima() {
 // Asistente Agronómico con Inteligencia Artificial (Gemini 3.8 Flash + Respaldo Experto Local)
 window.lanzarConsultaRapidaClima = (tipo) => {
     const input = document.getElementById('clima-ia-pregunta-custom');
-    if (tipo === 'fitosanitario') {
+    if (tipo === 'broca') {
+        if (input) input.value = "¿Cuál es el semáforo y protocolo de manejo integrado (MIP) para la Broca del Café (Hypothenemus hampei) en Finca Los Robles considerando el régimen de lluvias, trampeo etílico y control biológico con Beauveria bassiana?";
+        window.ejecutarAnalisisIAClima('broca');
+    } else if (tipo === 'suelo') {
+        if (input) input.value = "Con base en el análisis de suelo ANALAB (fósforo crítico de 3.87 mg/Kg y relación Ca/K de 20.8:1 bloqueando potasio), ¿cuál es el plan de nutrición y enmiendas adecuado considerando las lluvias de la estación?";
+        window.ejecutarAnalisisIAClima('suelo');
+    } else if (tipo === 'agua') {
+        if (input) input.value = "Teniendo un agua de laboratorio ácida con pH 4.23, ¿cómo acondicionar el agua en el tanque de mezclas para no desactivar insecticidas ni matar las esporas de Beauveria bassiana, y cómo manejar los efluentes de beneficiado?";
+        window.ejecutarAnalisisIAClima('agua');
+    } else if (tipo === 'cambio_climatico') {
+        window.ejecutarAnalisisIAClima('cambio_climatico');
+    } else if (tipo === 'fitosanitario') {
         if (input) input.value = "¿Cuál es el semáforo de riesgo para Roya (Hemileia vastatrix) y Ojo de Gallo en Finca Los Robles según la humedad relativa y lluvia registrada, y qué plan preventivo/curativo debemos seguir?";
+        window.ejecutarAnalisisIAClima('custom');
     } else if (tipo === 'fertilizacion') {
         if (input) input.value = "¿En qué ventanas y meses del ciclo es más seguro y eficiente fertilizar (al suelo y foliar) para no tener pérdidas por lavado excesivo o déficit de humedad?";
+        window.ejecutarAnalisisIAClima('custom');
     } else if (tipo === 'floracion') {
         if (input) input.value = "¿Cómo afectó el periodo seco a la inducción floral de los cafetos en la finca y qué manejo nutricional/bioestimulante se recomienda para asegurar un buen cuajado?";
+        window.ejecutarAnalisisIAClima('custom');
     } else if (tipo === 'sombra') {
         if (input) input.value = "¿Con la alta humedad relativa promedio (>85%) qué intensidad de regulación de sombra y poda sanitaria debemos programar para mejorar la ventilación del dosel?";
+        window.ejecutarAnalisisIAClima('custom');
     }
-    window.ejecutarAnalisisIAClima('custom');
 };
 
 window.ejecutarAnalisisIAClima = async (modo = 'general') => {
     // Si se activa desde el módulo de comparativa, cambiar a la pestaña de IA para ver el informe
-    if (modo === 'cambio_climatico') {
+    if (modo === 'cambio_climatico' || modo === 'broca' || modo === 'suelo' || modo === 'agua' || modo === 'integral') {
         window.mostrarSubtabClima('ia');
     }
 
@@ -12986,7 +13357,7 @@ window.ejecutarAnalisisIAClima = async (modo = 'general') => {
         const dataEval = calcularResumenMensualClima(anioEval);
 
         periodoStr = `Comparativa Interanual y Cambio Climático: Año ${anioBase} vs Año ${anioEval} (Estación #138 Los Robles)`;
-        consultaUsuario = `Análisis agrometeorológico de cambio climático y variación interanual: Comparación del ciclo ${anioBase} con el ciclo ${anioEval}. Evaluar desplazamiento de lluvias, anomalías térmicas, riesgo fitosanitario y estrategias de adaptación y resiliencia para el cafetal de Finca Los Robles.`;
+        consultaUsuario = `Análisis agrometeorológico de cambio climático y variación interanual: Comparación del ciclo ${anioBase} con el ciclo ${anioEval}. Evaluar desplazamiento de lluvias, anomalías térmicas, riesgo fitosanitario, dinámica poblacional de la Broca del Café y estrategias de adaptación y resiliencia para Finca Los Robles.`;
         if (inputCustom) inputCustom.value = consultaUsuario;
 
         const diffLluvia = dataEval.totales.lluviaMm - dataBase.totales.lluviaMm;
@@ -13043,7 +13414,20 @@ window.ejecutarAnalisisIAClima = async (modo = 'general') => {
         const { meses, totales } = dataAnio;
 
         periodoStr = `Año ${anioClimaSeleccionado} (Estación #138 Los Robles, Anacafé)`;
-        consultaUsuario = modo === 'custom' ? (inputCustom?.value || '').trim() : '';
+
+        if (modo === 'broca') {
+            consultaUsuario = "Plan de Manejo Integrado de la Broca del Café (Hypothenemus hampei) para Finca Los Robles. Evaluar estimulación de vuelos de emergencia con lluvias >8-10 mm, aceleración de generaciones por temperatura, trampeo etílico/metílico (3:1), aspersión biológica con Beauveria bassiana (acondicionamiento de agua de mezcla) y control cultural (pepena y repela).";
+        } else if (modo === 'suelo') {
+            consultaUsuario = "Diagnóstico integral del análisis de suelos AS-4 ANALAB (fósforo crítico de 3.87 mg/Kg y desbalance Ca/K de 20.8:1 bloqueando potasio, materia orgánica 9.7%) cruzado con el régimen de lluvias para plan de fertilización edáfica y foliar.";
+        } else if (modo === 'agua') {
+            consultaUsuario = "Diagnóstico de calidad de agua A-7 ANALAB (pH ácido 4.23, DBO 215 mg/L, DQO 290 mg/L) para preparación de caldos fitosanitarios y bioinsumos, regulación de buffer en tanque de mezcla y tratamiento de aguas mieles de beneficiado.";
+        } else if (modo === 'integral') {
+            consultaUsuario = "Diagnóstico integral 360° para Finca Los Robles: Agrometeorología (Estación #138), Manejo de Broca del Café (MIP), Dinámica de Suelos ANALAB (Fósforo y Potasio), y Acondicionamiento de Agua de Mezcla y Beneficiado.";
+        } else {
+            consultaUsuario = modo === 'custom' ? (inputCustom?.value || '').trim() : '';
+        }
+
+        if (inputCustom && consultaUsuario) inputCustom.value = consultaUsuario;
 
         resumenMetricas = {
             esComparativa: false,
@@ -13078,12 +13462,14 @@ window.ejecutarAnalisisIAClima = async (modo = 'general') => {
     let analisisFinalTexto = '';
 
     try {
-        // Llamada a la API backend con Gemini 3.8 Flash
+        // Llamada a la API backend con Gemini 3.8 Flash, pasando Clima, Suelo y Agua
         const response = await fetch('/api/clima/analisis-ia', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 datosClima: resumenMetricas,
+                datosSuelo: obtenerDatosSueloParaIA(),
+                datosAgua: obtenerDatosAguaParaIA(),
                 consultaUsuario: consultaUsuario,
                 periodo: periodoStr
             })
@@ -13101,7 +13487,7 @@ window.ejecutarAnalisisIAClima = async (modo = 'general') => {
 
     // Si no hubo respuesta del servidor o no hay API Key, generamos el análisis agrometeorológico experto local
     if (!analisisFinalTexto) {
-        analisisFinalTexto = generarAnalisisAgronomicoLocalExperto(resumenMetricas, consultaUsuario);
+        analisisFinalTexto = generarAnalisisAgronomicoLocalExperto(resumenMetricas, consultaUsuario, modo);
     }
 
     ultimoAnalisisIAResultado = {
@@ -13140,8 +13526,8 @@ function formatearMarkdownAgronomico(md) {
     return html;
 }
 
-// Motor de respaldo experto en agrometeorología cafetalera
-function generarAnalisisAgronomicoLocalExperto(metricas, consulta) {
+// Motor de respaldo experto en agrometeorología cafetalera, suelos, agua y broca
+function generarAnalisisAgronomicoLocalExperto(metricas, consulta, modo = 'general') {
     // Si es un análisis comparativo interanual / cambio climático
     if (metricas && metricas.esComparativa) {
         const base = metricas.base;
@@ -13156,45 +13542,42 @@ function generarAnalisisAgronomicoLocalExperto(metricas, consulta) {
             alertaFito = "🔴 CRÍTICO - PRESIÓN ALTA DE HONGOS";
         }
 
-        return `## 🔄 INFORME DE CAMBIO CLIMÁTICO Y VARIACIÓN INTERANUAL
-**Finca Los Robles • Estación Meteorológica #138 Anacafé**
+        return `## 🔄 INFORME DE CAMBIO CLIMÁTICO, SUELOS Y AGUA - FINCA LOS ROBLES
+**Estación Meteorológica #138 Anacafé • Laboratorios ANALAB**
 **Ciclo Base ${metricas.anioBase} vs Ciclo Evaluado ${metricas.anioEval}**
 
 ### 1. 🌾 Diagnóstico de Dinámica Pluviométrica y Balance Hídrico
 - **Volumen Total Acumulado:** El año evaluado (${metricas.anioEval}) registró **${evalD.lluviaTotalMm.toFixed(1)} mm** frente a **${base.lluviaTotalMm.toFixed(1)} mm** del año base (${metricas.anioBase}), lo que representa un ${tendenciaLluvia} de **${Math.abs(diff.lluviaMm).toFixed(1)} mm (${diff.lluviaPct >= 0 ? '+' : ''}${diff.lluviaPct}%)**.
 - **Frecuencia y Distribución de Eventos:** Se contabilizaron **${evalD.diasConLluvia} días de lluvia** en ${metricas.anioEval} vs **${base.diasConLluvia} días** en ${metricas.anioBase} (variación neta: **${diff.diasLluvia >= 0 ? '+' : ''}${diff.diasLluvia} días**). El número de días secos pasó de ${base.diasSecos} a ${evalD.diasSecos} días.
-- **Patrón Estacional y Canícula:** Se observa una alteración en la curva mensual de precipitación. Los aguaceros intensos concentrados en menos días incrementan el escurrimiento superficial en laderas y reducen la infiltración efectiva hacia el perfil radicular de los cafetos.
+- **Patrón Estacional:** Se observa mayor concentración de lluvia en aguaceros torrenciales. Esto acelera el lavado de nutrientes edáficos en las pendientes de la finca y reduce la infiltración lenta.
 
 ### 2. 🌡️ Análisis Térmico y Anomalía Interanual
 - **Temperatura Media Anual:** Se ubicó en **${evalD.tempMedia.toFixed(1)}°C** en ${metricas.anioEval} vs **${base.tempMedia.toFixed(1)}°C** en ${metricas.anioBase}, mostrando un **${tendenciaTemp} de ${diff.tempMediaC >= 0 ? '+' : ''}${diff.tempMediaC}°C**.
-- **Comportamiento de Extremos:**
-  - Temperatura Máxima Extrema: **${evalD.tempMax}°C** (vs ${base.tempMax}°C en ${metricas.anioBase}).
-  - Temperatura Mínima Nocturna: **${evalD.tempMin}°C** (vs ${base.tempMin}°C en ${metricas.anioBase}).
-- **Consecuencia Agroclimática:** El aumento de temperaturas medias y mínimas nocturnas acorta los ciclos de desarrollo de plagas y reduce la tasa de respiración de descanso de la planta, acelerando la maduración y demandando mayor protección de dosel de sombra.
+- **Comportamiento de Extremos:** Máxima de **${evalD.tempMax}°C** (vs ${base.tempMax}°C en ${metricas.anioBase}) y mínima de **${evalD.tempMin}°C** (vs ${base.tempMin}°C en ${metricas.anioBase}).
+- **Consecuencia Agroclimática:** El incremento térmico reduce las horas de reposo fisiológico nocturno y acelera la tasa reproductiva de insectos plaga.
 
-### 3. ⚠️ Semáforo de Riesgo Fitosanitario y Epidémico
-- **Roya del Cafeto (Hemileia vastatrix):** **${alertaFito}**
-  - *Comportamiento:* Con una humedad relativa promedio del **${evalD.humedadMedia.toFixed(1)}%** y temperaturas medias entre 16°C y 22°C, las horas continuas con lámina de agua sobre las hojas sobrepasan el umbral de germinación de uredosporas (6 a 8 horas continuas requeridas).
-  - *Manejo adaptativo:* Si la época de lluvias se adelanta, adelantar la primera aspersión sistémica (Triazol + Estrobirulina) a 30-45 días tras la floración principal.
-- **Ojo de Gallo (Mycena citricolor):** Mayor incidencia en tablones encañonados o con sombra monoespecífica densa.
-- **Antracnosis y Mancha de Hierro:** Riesgo de daño en frutos en formación ante tormentas vespertinas con viento y posterior alta radiación.
+### 3. 🪲 Evaluación Integral de la Broca del Café (Hypothenemus hampei)
+- **Disparo de Vuelos de Emergencia:** Con las primeras lluvias superiores a **8 - 10 mm** que humedecen los frutos secos ("momias") caídos al suelo o remanentes en las bandolas, las hembras fecundadas emergen masivamente para volar y colonizar los frutos nuevos en desarrollo (generalmente 90-120 días posfloración).
+- **Aceleración por Calentamiento:** El aumento de temperatura acorta el ciclo de vida de la broca (a 24-28°C el ciclo dura ~28 días, mientras que a 19°C supera los 45 días). Esto permite una generación adicional por año en Finca Los Robles.
+- **Estrategia MIP Mandatoria:**
+  * **Control Cultural:** Realizar "pepena y repela" exhaustiva post-cosecha; recoger todo fruto del suelo y cortar bandolas con momias para quebrar el puente biológico.
+  * **Trampeo Etílico/Metílico:** Instalar de **16 a 20 trampas artesanales por manzana** (botellas plásticas con difusor de mezcla 3 partes metanol : 1 parte etanol) colgadas a 1.20 - 1.50 m de altura en el estrato medio de la planta, orientadas en bordes y focos históricos.
+  * **Control Biológico con *Beauveria bassiana*:** Realizar aspersión foliar focalizada cuando se detecten las primeras penetraciones en posición A/B. *Condición crítica:* Aspersión al atardecer (evitar rayos UV) y asegurar humedad relativa >80%.
+  * **Acondicionamiento del Agua:** Utilizar buffer para subir el pH del agua de Finca Los Robles (pH 4.23 en laboratorio) a **5.5 - 6.0**, ya que el agua ácida mata las conidias del hongo.
 
-### 4. 🌿 Ecofisiología del Cafeto: Floración y Cuajado
-- **Diferenciación e Inducción Floral:** La variación en los meses secos modifica la ventana de reposo vegetativo necesaria para inducir yemas florales. Si se registran lluvias atípicas ("falsas lluvias") en enero o febrero, se disparan floraciones dispersas o "locas", dificultando cortes uniformes en la cosecha.
-- **Cuajado de Fruto:** La retención de fruto en los primeros 90 días después de floración depende críticamente de evitar déficits hídricos severos seguidos de anegamiento.
+### 4. 🌱 Interpretación del Análisis de Fertilidad de Suelos (ANALAB AS-4)
+- **Fósforo (P) Crítico:** El nivel promedio de P es de **3.87 mg/Kg** (Lote 1: 5.30, Lote 2: 3.32, Lote 3: 3.00), lo cual está en nivel **🔴 Crítico / Muy Bajo** (rango adecuado: 30 - 75 mg/Kg). El fósforo es indispensable para el desarrollo de raíces absorbentes y la energía para floración.
+- **Desbalance Calcio / Potasio (Ca/K):** La relación promedio es de **20.8 : 1** (y hasta 32.18 : 1 en Lote 2), cuando la relación ideal es de **6 a 7 : 1**. El nivel altísimo de Calcio (>7.3 a 10.9 Cmol/Kg) induce un bloqueo o **antagonismo severo sobre el Potasio**, provocando deficiencias de K a pesar de que el cafeto lo requiere para el llenado y peso de fruto.
+- **Materia Orgánica:** Excelente nivel (**9.0% a 11.2%**), lo que confiere buena retención biológica, pero la fijación de fósforo en estos suelos andisoles/inceptisoles requiere fuentes solubles localizadas.
+- **Plan de Manejo:**
+  * Aplicar fuentes fosfatadas de alta solubilidad (ej. DAP o Superfosfato triple) incorporadas en banda bajo la copa.
+  * Suplir Potasio vía foliar (Sulfato o Nitrato de Potasio) en la etapa de llenado de grano para eludir el bloqueo de Calcio en el suelo.
 
-### 5. 🚜 Estrategias de Adaptación al Cambio Climático en Finca Los Robles
-- **1. Regulación Dinámica de Sombra:**
-  - En años con incremento de humedad y días nublados, realizar poda de sombra temprana en árboles de servicio (Chalfán/Gravilea) para permitir 40-50% de entrada solar y disipar la humedad del estrato bajo.
-  - En años más secos o cálidos, conservar cobertura de sombra al 50-60% para amortiguar la evapotranspiración.
-- **2. Conservación de Suelo y Agua en Laderas:**
-  - Implementar o mantener barreras vivas (izote, vetiver) y terrazas individuales o continuas para reducir el arrastre de nutrientes por lluvias torrenciales concentradas.
-  - Dejar cobertura noble (arvenses no agresivas) picadas en las calles para proteger la microbiología del suelo.
-- **3. Nutrición Resiliente:**
-  - Fortalecer fertilizaciones foliares con Calcio, Boro y Zinc antes de la apertura de flores para mejorar la elasticidad celular del fruto y reducir la caída por golpe de agua o calor.
-  - Fraccionar la fertilización edáfica en 3 aplicaciones en lugar de 2 para minimizar la lixiviación de Nitrógeno y Potasio ante lluvias intensas.
+### 5. 💧 Análisis de Calidad de Agua (ANALAB A-7) & Manejo de Fosas
+- **Acidez Extrema del Agua:** pH de **4.23** en laboratorio (5.00 in situ). Si se mezcla directamente con fertilizantes foliares o bioinsecticidas, precipita sales y destruye las esporas de *Beauveria bassiana*. Es imperativo adicionar un corrector/regulador de pH a 5.5 - 6.0 antes de cualquier aplicación.
+- **Caudal y Carga Orgánica:** Con caudal de **2.50 l/s (150 L/min)** y DBO/DQO de **215 / 290 mg/L**, las aguas de lavado de café deben pasar por fosas de sedimentación y desarenado previo a su evacuación.
 
-${consulta ? `\n### 💬 Nota Específica a la Consulta:\n*"${consulta}"*\nEl monitoreo constante de la Estación Meteorológica #138 permite a Finca Los Robles anticiparse a las temporadas climáticas en lugar de reaccionar tarde, protegiendo tanto la calidad en taza como el rendimiento por cuerda.` : ''}`;
+${consulta ? `\n### 💬 Enfoque Específico de Consulta:\n*"${consulta}"*\nEl monitoreo constante de la agrometeorología y los análisis de laboratorio ANALAB permiten a Finca Los Robles mantener alta productividad, calidad de taza y sostenibilidad ambiental.` : ''}`;
     }
 
     const totLluvia = metricas.lluviaTotalAnualMm || 0;
@@ -13213,40 +13596,37 @@ ${consulta ? `\n### 💬 Nota Específica a la Consulta:\n*"${consulta}"*\nEl mo
         descRoya = "La baja humedad relativa limita el avance del hongo.";
     }
 
-    // Evaluación de Ojo de Gallo
-    let semaforoGallo = "🟡 MODERADO";
-    if (humMedia > 88 && diasConLluvia > 180) {
-        semaforoGallo = "🔴 ALTO";
-    }
+    return `## 🌤️🌱💧 INFORME INTEGRAL: CLIMA, SUELO, AGUA & BROCA
+**Finca Los Robles • Estación Meteorológica #138 • Laboratorios ANALAB Anacafé**
+**Ciclo Agrícola Año ${metricas.anio}**
 
-    return `## 🌤️ INFORME AGROMETEOROLÓGICO Y DE MANEJO - FINCA LOS ROBLES
-**Estación Meteorológica #138 • Anacafé • Año ${metricas.anio}**
+### 1. 🌤️ Diagnóstico Agroclimático Estación #138
+- **Precipitación Acumulada:** Se registraron **${totLluvia.toFixed(1)} mm** distribuidos en **${diasConLluvia} días con lluvia** y **${metricas.diasSecosTotal} días secos**.
+- **Gradiente Térmico:** Temperatura media anual de **${tempMedia.toFixed(1)}°C**, con mínimas de **${metricas.tempMinimaExtrema}°C** y máximas de **${metricas.tempMaximaExtrema}°C**.
+- **Humedad Relativa e Insolación:** Humedad media de **${humMedia.toFixed(1)}%** y **${metricas.horasSolAcumuladas} horas sol**. Clima típico de alta montaña de Verapaces con nubosidad frecuente.
 
-### 1. 🌾 Diagnóstico Agroclimático General
-- **Precipitación Acumulada:** Se registraron **${totLluvia.toFixed(1)} mm** distribuidos en **${diasConLluvia} días con lluvia**. Esto refleja un régimen hídrico representativo de la zona de alta montaña cafetera de Guatemala.
-- **Gradiente Térmico:** Temperatura media de **${tempMedia.toFixed(1)}°C**, con mínimas absolutas de **${metricas.tempMinimaExtrema}°C** (noches frías de invierno) y máximas de **${metricas.tempMaximaExtrema}°C** (días claros de verano). La oscilación térmica favorece una lenta maduración y alta densidad en taza.
-- **Humedad Relativa e Insolación:** Humedad relativa media del **${humMedia.toFixed(1)}%** y **${metricas.horasSolAcumuladas} horas sol** totales, creando un microclima de bosque nuboso propicio para café bajo sombra.
+### 2. 🪲 Alerta Especial y Plan de Manejo de la Broca del Café (Hypothenemus hampei)
+- **Monitoreo de Emergencia por Lluvias:** Al registrarse aguaceros >8-10 mm tras semanas de verano, las hembras de broca activan vuelos de salida de los granos residuales secos.
+- **Dinámica en Fruto:** A los 90-120 días posfloración, el grano alcanza consistencia óptima para penetración.
+- **Protocolo de Control MIP:**
+  * **Pepena y repela:** Corte y recolección meticulosa de todo grano seco en árbol y suelo.
+  * **Trampas de alcohol:** 16 a 20 trampas artesanales por manzana con mezcla 3:1 de alcohol metílico y etílico a la altura de la mayor carga de fruto.
+  * **Control biológico:** Aspersión con *Beauveria bassiana* en horas de baja insolación y alta humedad. Condicionar el agua con regulador de acidez (pH 5.5 a 6.0) para garantizar sobrevivencia del hongo.
 
-### 2. ⚠️ Semáforo Fitosanitario y Alerta de Enfermedades
-- **Roya del Cafeto (Hemileia vastatrix):** **${semaforoRoya}**
-  - *Diagnóstico:* ${descRoya}
-  - *Acción recomendada:* Realizar muestreo de incidencia mensual (tomar 30 plantas al azar en zigzag, evaluar 1 hoja del tercio medio). Si la incidencia supera el 5%, programar aplicación de fungicida sistémico (ej: Triazol + Estrobirulina); si está por debajo del 5%, mantener protección preventiva con oxicloruro de cobre u óxido cuproso.
-- **Ojo de Gallo (Mycena citricolor):** **${semaforoGallo}**
-  - Frecuente en tablones con alta retención de humedad y escasa ventilación. Indispensable mantener drenajes limpios y regular sombra densa.
-- **Antracnosis y Mancha de Hierro:** Monitorear en floración y frutos tiernos, especialmente si hay caídas bruscas de temperatura con llovizna.
+### 3. 🌱 Diagnóstico de Fertilidad del Suelo (ANALAB AS-4, Orden 32-5559)
+- **Fósforo en Nivel Crítico:** **3.87 mg/Kg** promedio (adecuado: 30 a 75). Urge fertilización fosfatada (DAP o Superfosfato) localizada en banda para promover el crecimiento de raíces.
+- **Antagonismo Calcio / Potasio (Ca/K):** Relación de **20.8 : 1** (Ideal: 6 a 7 : 1). La saturación de Calcio en el complejo de cambio está inhibiendo la absorción de Potasio. Se aconseja complementar con aplicaciones de Potasio foliar en época de llenado de grano.
+- **Materia Orgánica:** **9.72%** (Excelente retención y microbiología del suelo).
 
-### 3. 💧 Fisiología y Estado del Cafetal
-- **Inducción y Floración:** El periodo con menor precipitación permitió el estrés hídrico controlado necesario para que las yemas axilares se diferencien en florales en lugar de vegetativas. Las primeras lluvias posteriores dispararon aperturas florales uniformes.
-- **Llenado de Fruto:** La disponibilidad de humedad en los meses lluviosos sostiene el cuajado y llenado óptimo de grano, reduciendo el grano vano o grano negro.
+### 4. 💧 Calidad del Agua (ANALAB A-7, Orden 32-1286)
+- **Acidez del Agua:** pH en laboratorio de **4.23**. Es obligatorio acondicionar con buffer neutro antes de verter fungicidas, insecticidas o bioestimulantes.
+- **Efluentes del Beneficiado:** Con DBO de 215 mg/L y DQO de 290 mg/L, mantener el mantenimiento periódico de trampas de pulpa y fosas de recirculación para cumplir con la normativa ambiental.
 
-### 4. 🚜 Recomendaciones de Manejo de Campo
-- **Plan de Fertilización:**
-  - *Suelo:* Aplicar cuando el suelo esté a capacidad de campo (húmedo pero no saturado ni encharcado). Evitar aplicar antes de lluvias torrenciales (>25 mm) para prevenir pérdidas por lixiviación de nitrógeno y potasio.
-  - *Foliar:* Aprovechar ventanas con alta nubosidad matutina o aplicar en horas de la tarde para evitar que la radiación solar evapore la mezcla antes de la absorción estomática.
-- **Manejo de Tejido y Sombra:** Regular la sombra (Chalfán, Gravilea o Inga) al 35-45% antes de las lluvias más fuertes para mejorar la entrada de luz y reducir la condensación de agua en las hojas.
-- **Manejo de Suelos:** Fomentar coberturas nobles en calles para amortiguar el impacto directo de las gotas de lluvia y retener humedad en época seca.
+### 5. 🍄 Semáforo de Enfermedades (Roya y Ojo de Gallo)
+- **Roya (Hemileia vastatrix):** **${semaforoRoya}** (${descRoya}). Mantener monitoreo de 30 plantas al azar y aplicar triazoles si la incidencia supera el 5%.
+- **Ojo de Gallo (Mycena citricolor):** Regular sombra al 40-50% para reducir condensación de agua sobre el follaje.
 
-${consulta ? `### 💬 Respuesta Específica a la Consulta del Caficultor:\n*"${consulta}"*\n\nCon base en los datos de la Estación 138 de Finca Los Robles, se recomienda priorizar la ventilación de los tablones con mayor sombra y calendarizar las labores fitosanitarias preventivas inmediatamente al inicio de los meses con humedad relativa superior al 85%.` : ''}`;
+${consulta ? `\n### 💬 Respuesta Agronómica a la Consulta:\n*"${consulta}"*\nIntegrando las condiciones climáticas de la Estación 138 con los análisis ANALAB de suelo y agua, Finca Los Robles cuenta con un plan de manejo de precisión de alto rendimiento.` : ''}`;
 }
 
 // Descargar Informe Agronómico de la IA en PDF
