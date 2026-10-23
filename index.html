@@ -3897,10 +3897,33 @@
                             </div>
                         </div>
 
+                        <!-- BARRA DE CONTROL POR AÑO Y GESTIÓN DE DUPLICADOS -->
+                        <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <label for="filtro-anio-suelo" style="font-size:0.83rem; font-weight:bold; color:#14532d; margin:0; display:flex; align-items:center; gap:4px;">
+                                    📅 Filtrar por Año de Análisis:
+                                </label>
+                                <select id="filtro-anio-suelo" onchange="renderModuloSuelo()" style="padding:4px 10px; border-radius:6px; border:1px solid #86efac; font-weight:bold; color:#14532d; background:#f0fdf4; font-size:0.83rem;">
+                                    <option value="todos">Todos los Años</option>
+                                    <option value="2025" selected>Año 2025</option>
+                                    <option value="2024">Año 2024</option>
+                                </select>
+                                <span id="badge-contador-muestras-suelo" style="background:#e0f2fe; color:#0369a1; font-weight:bold; font-size:0.78rem; padding:3px 8px; border-radius:12px;">
+                                    Muestras: 3
+                                </span>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <button type="button" class="btn btn-xs" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-weight:bold; padding:5px 12px; border-radius:6px; cursor:pointer;" onclick="window.limpiarDuplicadosSuelo()" title="Detecta y remueve muestras con el mismo lote y año">
+                                    🧹 Limpiar Duplicados
+                                </button>
+                            </div>
+                        </div>
+
                         <div class="table-wrapper">
                             <table style="width:100%; border-collapse:collapse; font-size:0.82rem; background:white;">
                                 <thead>
                                     <tr style="background:#14532d; color:white; text-align:right;">
+                                        <th style="text-align:center; padding:8px; width:70px;">Año</th>
                                         <th style="text-align:left; padding:8px;">Identificación Muestra</th>
                                         <th style="text-align:right; padding:8px;">pH</th>
                                         <th style="text-align:right; padding:8px;">P (mg/Kg)</th>
@@ -3913,8 +3936,10 @@
                                         <th style="text-align:right; padding:8px;">CICe</th>
                                         <th style="text-align:right; padding:8px;">Ca/K</th>
                                         <th style="text-align:right; padding:8px;">Mg/K</th>
+                                        <th style="text-align:center; padding:8px; width:65px;">Acción</th>
                                     </tr>
                                     <tr style="background:#dcfce7; color:#14532d; font-weight:bold; font-size:0.75rem; text-align:right;">
+                                        <td style="text-align:center; padding:4px 8px;">-</td>
                                         <td style="text-align:left; padding:4px 8px;">Niveles Adecuados:</td>
                                         <td style="padding:4px 8px;">5.5 - 6.5</td>
                                         <td style="padding:4px 8px;">30 - 75</td>
@@ -3927,6 +3952,7 @@
                                         <td style="padding:4px 8px;">5.5 - 10.5</td>
                                         <td style="padding:4px 8px;">6 - 7</td>
                                         <td style="padding:4px 8px;">1.0 - 2.5</td>
+                                        <td style="text-align:center; padding:4px 8px;">-</td>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-analisis-suelos">
@@ -4094,6 +4120,50 @@
                                     <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Cobre (Cu)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">0.193</td><td style="color:#64748b; font-size:0.78rem;">ICP/OES Emisión de plasma</td></tr>
                                     <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Cinc (Zn)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">0.275</td><td style="color:#64748b; font-size:0.78rem;">ICP/OES Emisión de plasma</td></tr>
                                     <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Coliformes Fecales (CF)</td><td style="text-align:center;">NMP</td><td style="text-align:right; font-weight:bold; color:#b91c1c;">2.42E+04</td><td style="color:#64748b; font-size:0.78rem;">APHA 9223 Enzyme substrate</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- HISTORIAL DE INFORMES DE AGUA REGISTRADOS -->
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <h4 style="margin:0; color:#0369a1; font-size:1.05rem;">📅 Historial de Informes de Calidad de Agua</h4>
+                                <span style="font-size:0.8rem; color:#64748b;">Muestras y fechas de análisis cargadas en el sistema</span>
+                            </div>
+                            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <label for="filtro-anio-agua" style="font-size:0.82rem; font-weight:bold; color:#0369a1; margin:0;">
+                                    Filtrar Año:
+                                </label>
+                                <select id="filtro-anio-agua" onchange="renderModuloAgua()" style="padding:4px 8px; border-radius:6px; border:1px solid #bae6fd; font-weight:bold; color:#0369a1; background:#f0f9ff; font-size:0.82rem;">
+                                    <option value="todos">Todos los Años</option>
+                                    <option value="2025" selected>Año 2025</option>
+                                    <option value="2024">Año 2024</option>
+                                </select>
+                                <button type="button" class="btn btn-xs" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-weight:bold; padding:5px 12px; border-radius:6px; cursor:pointer;" onclick="window.limpiarDuplicadosAgua()" title="Detecta y remueve registros repetidos de agua">
+                                    🧹 Limpiar Duplicados
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="table-wrapper">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.84rem; background:white;">
+                                <thead>
+                                    <tr style="background:#0284c7; color:white;">
+                                        <th style="padding:8px; text-align:center; width:75px;">Año</th>
+                                        <th style="padding:8px; text-align:left;">Fecha</th>
+                                        <th style="padding:8px; text-align:left;">Punto de Muestreo / Fuente</th>
+                                        <th style="padding:8px; text-align:right;">pH</th>
+                                        <th style="padding:8px; text-align:right;">Temp °C</th>
+                                        <th style="padding:8px; text-align:right;">Caudal l/s</th>
+                                        <th style="padding:8px; text-align:right;">DBO (mg/L)</th>
+                                        <th style="padding:8px; text-align:right;">STS (mg/L)</th>
+                                        <th style="padding:8px; text-align:center; width:70px;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-analisis-agua">
+                                    <!-- Renderizado dinámico -->
                                 </tbody>
                             </table>
                         </div>
@@ -4399,6 +4469,22 @@
                     </span>
                 </div>
 
+                <!-- CONTROLES DE ASIGNACIÓN DE AÑO Y PREVENCIÓN DE DUPLICADOS -->
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label for="pdf-preview-anio" style="font-size:0.85rem; font-weight:bold; color:#166534; margin:0;">
+                            📅 Año del Análisis a Registrar:
+                        </label>
+                        <input type="number" id="pdf-preview-anio" value="2025" min="2000" max="2100" style="width:90px; padding:5px 8px; font-weight:bold; border-radius:6px; border:1px solid #86efac; color:#14532d; background:white; font-size:0.9rem;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; font-size:0.82rem; color:#166534;">
+                        <input type="checkbox" id="pdf-check-reemplazar-duplicados" checked style="cursor:pointer; width:16px; height:16px;">
+                        <label for="pdf-check-reemplazar-duplicados" style="cursor:pointer; margin:0; font-weight:bold;">
+                            🔄 Actualizar / Reemplazar muestras si el lote y año ya existen (evita duplicados)
+                        </label>
+                    </div>
+                </div>
+
                 <div id="pdf-preview-tabla-container" style="max-height:280px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:white; margin-bottom:12px;">
                     <!-- Tabla de previsualización -->
                 </div>
@@ -4442,9 +4528,13 @@
 
         <form id="form-nuevo-suelo" onsubmit="event.preventDefault(); window.guardarMuestraSuelo();">
             <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));">
-                <div class="form-group" style="grid-column: 1 / -1;">
+                <div class="form-group" style="grid-column: span 2;">
                     <label>Identificación de Muestra / Lote / Tablón *</label>
                     <input type="text" id="suelo-in-identificacion" class="yellow-input" placeholder="Ej: 15751 - Lote 4 Caturra" required>
+                </div>
+                <div class="form-group">
+                    <label>Año del Análisis *</label>
+                    <input type="number" id="suelo-in-anio" value="2025" min="2000" max="2100" class="yellow-input" required>
                 </div>
                 <div class="form-group">
                     <label>pH (H₂O 1:1)</label>
@@ -4505,9 +4595,13 @@
 
         <form id="form-nuevo-agua" onsubmit="event.preventDefault(); window.guardarMuestraAgua();">
             <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));">
-                <div class="form-group" style="grid-column: 1 / -1;">
+                <div class="form-group" style="grid-column: span 2;">
                     <label>Fuente / Identificación del Agua *</label>
                     <input type="text" id="agua-in-fuente" class="yellow-input" placeholder="Ej: Nacimiento Principal / Tanque de Mezclas" required>
+                </div>
+                <div class="form-group">
+                    <label>Año del Análisis *</label>
+                    <input type="number" id="agua-in-anio" value="2025" min="2000" max="2100" class="yellow-input" required>
                 </div>
                 <div class="form-group">
                     <label>pH en Laboratorio *</label>
