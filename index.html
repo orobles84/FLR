@@ -3820,17 +3820,34 @@
                                 Orden 32-5559 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Unidad: LOS ROBLES (San Cristóbal Verapaz) • Especialista: Ing. Gelver Larios
                             </p>
                         </div>
-                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                             <button type="button" class="btn btn-xs" style="background:#fef08a; color:#713f12; font-weight:bold; padding:8px 12px;" onclick="window.verPDFAnalab('suelo')">
                                 📄 Ver Documento PDF ANALAB
                             </button>
+                            <button type="button" class="btn btn-xs" style="background:#22c55e; color:#052e16; font-weight:800; padding:8px 14px; box-shadow:0 2px 6px rgba(0,0,0,0.2);" onclick="window.abrirModalSubirPDF('suelo')">
+                                📄✨ Subir PDF y Extraer con IA
+                            </button>
                             <button type="button" class="btn btn-xs btn-primary" style="background:#38bdf8; color:#0c4a6e; font-weight:bold; padding:8px 12px;" onclick="window.abrirModalNuevoSuelo()">
-                                ➕ Cargar Nueva Muestra
+                                ➕ Cargar Manual
                             </button>
                             <button type="button" class="btn btn-xs" style="background:#7c3aed; color:white; font-weight:bold; padding:8px 12px;" onclick="window.ejecutarAnalisisIAClima('suelo')">
                                 🤖 Diagnóstico Suelo + Clima IA
                             </button>
                         </div>
+                    </div>
+
+                    <!-- BANNER ASISTENTE SUBIDA PDF DE SUELOS -->
+                    <div style="background:#f0fdf4; border:1px dashed #16a34a; border-radius:10px; padding:12px 16px; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:1.8rem;">🤖📄</span>
+                            <div>
+                                <strong style="color:#166534; font-size:0.95rem;">Extracción Automática de Estudios de Suelo con Inteligencia Artificial:</strong>
+                                <div style="font-size:0.83rem; color:#14532d;">Sube el informe PDF de ANALAB (AS-4) u otro laboratorio y la IA extraerá todos los tablones, pH, Fósforo, Potasio, Calcio y Materia Orgánica automáticamente sin tener que llenar a mano.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-xs" style="background:#166534; color:white; font-weight:bold; padding:8px 16px; border-radius:6px;" onclick="window.abrirModalSubirPDF('suelo')">
+                            📤 Subir PDF de Suelos
+                        </button>
                     </div>
 
                     <!-- KPIS DESTACADOS DEL SUELO -->
@@ -3983,17 +4000,34 @@
                                 Orden 32-1286 • Cliente: LOS ROBLES • Muestra: Efluente Fosa / Beneficiado y Tanque de Mezclas • Caudal: 2.50 l/s • San Cristóbal Verapaz
                             </p>
                         </div>
-                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                             <button type="button" class="btn btn-xs" style="background:#fef08a; color:#713f12; font-weight:bold; padding:8px 12px;" onclick="window.verPDFAnalab('agua')">
                                 📄 Ver Documento PDF ANALAB
                             </button>
-                            <button type="button" class="btn btn-xs btn-primary" style="background:#bae6fd; color:#0369a1; font-weight:bold; padding:8px 12px;" onclick="window.abrirModalNuevaAgua()">
-                                ➕ Cargar Nuevo Análisis
+                            <button type="button" class="btn btn-xs" style="background:#0284c7; color:white; font-weight:800; padding:8px 14px; box-shadow:0 2px 6px rgba(0,0,0,0.2);" onclick="window.abrirModalSubirPDF('agua')">
+                                💧✨ Subir PDF y Extraer con IA
+                            </button>
+                            <button type="button" class="btn btn-xs btn-primary" style="background:#bae6fd; color:#0369a1; font-weight:bold; padding:8px 12px;" onclick="window.abrirModalNuevoAgua()">
+                                ➕ Cargar Manual
                             </button>
                             <button type="button" class="btn btn-xs" style="background:#7c3aed; color:white; font-weight:bold; padding:8px 12px;" onclick="window.ejecutarAnalisisIAClima('agua')">
                                 🤖 Diagnóstico Agua + Mezclas IA
                             </button>
                         </div>
+                    </div>
+
+                    <!-- BANNER ASISTENTE SUBIDA PDF DE AGUA -->
+                    <div style="background:#f0f9ff; border:1px dashed #0284c7; border-radius:10px; padding:12px 16px; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span style="font-size:1.8rem;">🤖💧</span>
+                            <div>
+                                <strong style="color:#0369a1; font-size:0.95rem;">Extracción Automática de Calidad de Agua con Inteligencia Artificial:</strong>
+                                <div style="font-size:0.83rem; color:#0c4a6e;">Sube el informe PDF de ANALAB (A-7) u otro laboratorio y la IA extraerá el pH, Caudal, DBO, DQO, STS y Coliformes automáticamente sin digitar a mano.</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-xs" style="background:#0284c7; color:white; font-weight:bold; padding:8px 16px; border-radius:6px;" onclick="window.abrirModalSubirPDF('agua')">
+                            📤 Subir PDF de Agua
+                        </button>
                     </div>
 
                     <!-- KPIS DE CALIDAD DE AGUA -->
@@ -4216,33 +4250,175 @@
     </div>
 </div>
 
-<!-- MODAL: VISOR DE DOCUMENTO PDF ANALAB -->
+<!-- MODAL: VISOR DE DOCUMENTO PDF ANALAB CON DOBLE MODO (PDF REAL + FICHA DIGITAL) -->
 <div class="modal-overlay" id="modal-visor-pdf-analab">
-    <div class="modal-content-large" style="max-width:960px; height:90vh; display:flex; flex-direction:column;">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.6rem; margin-bottom:0.75rem;">
+    <div class="modal-content-large" style="max-width:1050px; height:92vh; display:flex; flex-direction:column; padding:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.6rem; margin-bottom:0.75rem; flex-wrap:wrap; gap:10px;">
             <div>
-                <h3 style="margin:0; color:#0369a1; font-size:1.15rem;" id="visor-pdf-analab-titulo">📄 Documento Oficial de Laboratorio ANALAB</h3>
+                <h3 style="margin:0; color:#0369a1; font-size:1.15rem; display:flex; align-items:center; gap:8px;" id="visor-pdf-analab-titulo">
+                    📄 Documento Oficial de Laboratorio ANALAB
+                </h3>
                 <span style="font-size:0.8rem; color:#64748b;" id="visor-pdf-analab-subtitulo">Asociación Nacional del Café - Anacafé</span>
             </div>
+            
+            <!-- Selector de Modos de Visualización -->
+            <div style="display:flex; gap:6px; background:#e2e8f0; padding:3px; border-radius:8px;">
+                <button type="button" id="tab-btn-visor-pdf-raw" class="btn btn-xs" onclick="window.cambiarModoVisorPDF('pdf')" style="background:#0284c7; color:white; font-weight:bold; border-radius:6px; padding:5px 12px; border:none; cursor:pointer;">
+                    📄 PDF Original
+                </button>
+                <button type="button" id="tab-btn-visor-pdf-digital" class="btn btn-xs" onclick="window.cambiarModoVisorPDF('digital')" style="background:transparent; color:#334155; font-weight:bold; border-radius:6px; padding:5px 12px; border:none; cursor:pointer;">
+                    📋 Ficha Digital Oficial
+                </button>
+            </div>
+
             <div style="display:flex; gap:8px; align-items:center;">
-                <a id="visor-pdf-analab-abrir-btn" href="#" target="_blank" class="btn btn-xs btn-primary" style="background:#0284c7; color:white; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:bold;">
-                    ↗️ Abrir en Pestaña Nueva
+                <a id="visor-pdf-analab-descargar-btn" href="#" download="informe_analab.pdf" class="btn btn-xs" style="background:#10b981; color:white; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:bold; padding:5px 10px; border-radius:6px;">
+                    📥 Descargar PDF
                 </a>
-                <button class="btn btn-xs" onclick="cerrarModal('modal-visor-pdf-analab')" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b; line-height:1;">✕</button>
+                <a id="visor-pdf-analab-abrir-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-primary" style="background:#0284c7; color:white; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:bold; padding:5px 10px; border-radius:6px;">
+                    ↗️ Nueva Ventana
+                </a>
+                <button class="btn btn-xs" onclick="cerrarModal('modal-visor-pdf-analab')" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b; line-height:1; padding:0 4px;">✕</button>
             </div>
         </div>
 
-        <div style="flex:1; background:#f1f5f9; border-radius:8px; overflow:hidden; position:relative; border:1px solid #cbd5e1;">
-            <iframe id="visor-pdf-analab-frame" src="" style="width:100%; height:100%; border:none;" title="Visor ANALAB"></iframe>
+        <!-- MODO 1: IFRAME PDF EMBEBIDO -->
+        <div id="visor-pdf-frame-container" style="flex:1; display:flex; flex-direction:column; min-height:0;">
+            <div style="background:#e0f2fe; border:1px solid #bae6fd; border-radius:6px; padding:6px 12px; margin-bottom:8px; font-size:0.8rem; color:#0369a1; display:flex; justify-content:space-between; align-items:center;">
+                <span>💡 <strong>Visualización garantizada:</strong> El documento se sirve desde la memoria local. Si tu navegador móvil no incrusta PDFs, presiona <strong>"📋 Ficha Digital Oficial"</strong> o <strong>"Descargar PDF"</strong>.</span>
+                <span id="visor-pdf-fuente-badge" style="background:#0284c7; color:white; padding:2px 6px; border-radius:4px; font-size:0.75rem; font-weight:bold;">Memoria Local</span>
+            </div>
+            <div style="flex:1; background:#f1f5f9; border-radius:8px; overflow:hidden; position:relative; border:1px solid #cbd5e1; min-height:0;">
+                <iframe id="visor-pdf-analab-frame" src="" style="width:100%; height:100%; border:none;" title="Visor ANALAB"></iframe>
+            </div>
+        </div>
+
+        <!-- MODO 2: FICHA DIGITAL OFICIAL FACSÍMIL (100% GARANTIZADA SIN DEPENDER DE PLUGINS PDF) -->
+        <div id="visor-pdf-digital-container" style="display:none; flex:1; overflow-y:auto; padding:1.25rem; background:#ffffff; border-radius:8px; border:1px solid #cbd5e1; min-height:0;">
+            <div id="visor-pdf-digital-contenido">
+                <!-- Se llena dinámicamente con renderVistaDigitalPDFModal -->
+            </div>
         </div>
 
         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; flex-wrap:wrap; gap:8px;">
-            <span style="font-size:0.8rem; color:#64748b;">
+            <span style="font-size:0.8rem; color:#64748b;" id="visor-pdf-analab-pie">
                 Laboratorio de Suelos, Plantas y Aguas ANALAB Anacafé • Finca Los Robles
             </span>
             <button type="button" class="btn btn-secondary btn-small" onclick="cerrarModal('modal-visor-pdf-analab')">
                 Cerrar Visor
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: SUBIR PDF Y EXTRAER CON IA (GEMINI MULTIMODAL) -->
+<div class="modal-overlay" id="modal-subir-pdf-laboratorio">
+    <div class="modal-content-large" style="max-width:850px; max-height:92vh; display:flex; flex-direction:column; padding:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0284c7; padding-bottom:0.6rem; margin-bottom:1rem;">
+            <div>
+                <h3 style="margin:0; color:#0369a1; font-size:1.2rem; display:flex; align-items:center; gap:8px;">
+                    📄✨ Carga Inteligente de Análisis de Laboratorio con IA
+                </h3>
+                <span style="font-size:0.82rem; color:#64748b;">
+                    Sube tu informe PDF oficial de ANALAB Anacafé u otro laboratorio para extraer automáticamente todas las tablas sin teclear a mano.
+                </span>
+            </div>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-subir-pdf-laboratorio')" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; min-height:0; padding-right:4px;">
+            <!-- Selector de Tipo de Documento -->
+            <div style="display:flex; gap:10px; margin-bottom:1rem; align-items:center; flex-wrap:wrap;">
+                <label style="font-size:0.85rem; font-weight:bold; color:#1e293b;">Tipo de Análisis a Subir:</label>
+                <div style="display:flex; gap:8px;">
+                    <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; cursor:pointer; background:#f0fdf4; border:1px solid #bbf7d0; padding:5px 12px; border-radius:6px;">
+                        <input type="radio" name="pdf-subir-tipo" id="pdf-tipo-suelo" value="suelo" checked onchange="window.actualizarTipoSubidaPDF()">
+                        <span style="font-weight:bold; color:#166534;">🌱 Análisis de Suelo (AS-4)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; cursor:pointer; background:#f0f9ff; border:1px solid #bae6fd; padding:5px 12px; border-radius:6px;">
+                        <input type="radio" name="pdf-subir-tipo" id="pdf-tipo-agua" value="agua" onchange="window.actualizarTipoSubidaPDF()">
+                        <span style="font-weight:bold; color:#0369a1;">💧 Análisis de Agua (A-7)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:5px; font-size:0.85rem; cursor:pointer; background:#f8fafc; border:1px solid #e2e8f0; padding:5px 12px; border-radius:6px;">
+                        <input type="radio" name="pdf-subir-tipo" id="pdf-tipo-auto" value="auto" onchange="window.actualizarTipoSubidaPDF()">
+                        <span style="font-weight:bold; color:#475569;">🔍 Auto-detectar con IA</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Zona de Carga Drag & Drop -->
+            <div id="pdf-upload-dropzone" 
+                 onclick="document.getElementById('input-pdf-laboratorio-file').click()"
+                 ondragover="event.preventDefault(); this.style.borderColor='#0284c7'; this.style.background='#f0f9ff';"
+                 ondragleave="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';"
+                 ondrop="event.preventDefault(); this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; window.onDropArchivoPDF(event);"
+                 style="border:2px dashed #94a3b8; border-radius:10px; padding:2rem 1.5rem; text-align:center; background:#f8fafc; cursor:pointer; transition:all 0.2s ease;">
+                <div style="font-size:2.4rem; margin-bottom:8px;">📄📑</div>
+                <div style="font-size:1rem; font-weight:bold; color:#0f172a; margin-bottom:4px;">
+                    Haz clic aquí o arrastra tu archivo PDF de laboratorio
+                </div>
+                <div style="font-size:0.82rem; color:#64748b; margin-bottom:12px;">
+                    Compatible con informes oficiales de ANALAB Anacafé (Suelos AS-4, Aguas A-7, Foliares, etc.). Máximo 25 MB.
+                </div>
+                <button type="button" class="btn btn-xs" style="background:#0284c7; color:white; padding:7px 18px; border-radius:6px; font-weight:bold; pointer-events:none;">
+                    📂 Seleccionar Archivo PDF del Equipo
+                </button>
+                <input type="file" id="input-pdf-laboratorio-file" accept="application/pdf,.pdf" style="display:none;" onchange="window.onArchivoPDFSeleccionado(this)">
+            </div>
+
+            <!-- Barra de Progreso y Carga con IA -->
+            <div id="pdf-upload-progreso" style="display:none; margin-top:1.25rem; padding:1.25rem; background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; text-align:center;">
+                <div style="font-size:1.8rem; margin-bottom:6px; animation:spin 1.5s linear infinite; display:inline-block;">⚡</div>
+                <div style="font-weight:bold; color:#0369a1; font-size:1.02rem; margin-bottom:4px;" id="pdf-progreso-titulo">
+                    Extrayendo tablas y datos analíticos con Gemini Flash...
+                </div>
+                <div style="font-size:0.82rem; color:#64748b;" id="pdf-progreso-subtitulo">
+                    Leyendo parámetros químicos, pH, nutrientes, identificadores de tablón y dictamen del laboratorio...
+                </div>
+            </div>
+
+            <!-- Vista Previa de Datos Extraídos -->
+            <div id="pdf-upload-preview" style="display:none; margin-top:1.25rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#ecfdf5; border:1px solid #a7f3d0; padding:10px 14px; border-radius:8px; margin-bottom:12px;">
+                    <div>
+                        <div style="font-weight:bold; color:#065f46; font-size:0.95rem;" id="pdf-preview-tipo-doc">
+                            ✅ Documento Analizado con Éxito
+                        </div>
+                        <div style="font-size:0.8rem; color:#047857;" id="pdf-preview-resumen-meta">
+                            Orden: -- • Muestras encontradas: 0
+                        </div>
+                    </div>
+                    <span id="pdf-preview-confianza-badge" style="background:#059669; color:white; padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:bold;">
+                        IA 100% Precisión
+                    </span>
+                </div>
+
+                <div id="pdf-preview-tabla-container" style="max-height:280px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:white; margin-bottom:12px;">
+                    <!-- Tabla de previsualización -->
+                </div>
+
+                <div style="display:flex; align-items:center; gap:8px; background:#fffbeb; border:1px solid #fde68a; padding:8px 12px; border-radius:6px; margin-bottom:12px; font-size:0.82rem; color:#92400e;">
+                    <input type="checkbox" id="pdf-check-guardar-memoria" checked style="cursor:pointer;">
+                    <label for="pdf-check-guardar-memoria" style="cursor:pointer; margin:0;">
+                        <strong>💾 Guardar copia del archivo PDF en la memoria segura del navegador</strong> (permite abrirlo y descargarlo en cualquier momento sin depender de GitHub ni de conexión).
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Acciones del Modal -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e2e8f0; padding-top:0.75rem; margin-top:0.75rem; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:0.78rem; color:#64748b;">
+                🔒 Los datos se procesan con seguridad mediante el modelo oficial de Gemini.
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-secondary btn-small" onclick="cerrarModal('modal-subir-pdf-laboratorio')">
+                    Cancelar
+                </button>
+                <button type="button" id="btn-confirmar-pdf-extraido" class="btn btn-success btn-small" style="display:none; font-weight:bold; background:#059669;" onclick="window.confirmarGuardarDatosPDFExtraidos()">
+                    💾 Confirmar y Registrar en la App
+                </button>
+            </div>
         </div>
     </div>
 </div>
