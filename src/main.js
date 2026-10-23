@@ -12697,32 +12697,712 @@ function renderModuloSuelo() {
 }
 
 function renderModuloAgua() {
-    // El módulo de agua tiene sus datos base listados y permite añadir más
+    const muestras = cargarMuestrasAgua();
+    if (!muestras || muestras.length === 0) return;
+    const m = muestras[muestras.length - 1]; // Última muestra analizada
+
+    // Actualizar KPIs en el DOM si existen
+    const phEl = document.querySelector('#clima-subtab-agua .dash-kpi-grid .card:nth-child(1) div');
+    if (phEl && m.ph !== undefined) phEl.innerText = Number(m.ph).toFixed(2);
+
+    const tempEl = document.querySelector('#clima-subtab-agua .dash-kpi-grid .card:nth-child(2) div');
+    if (tempEl && m.temp !== undefined) tempEl.innerText = `${Number(m.temp).toFixed(1)} °C`;
+
+    const dboEl = document.querySelector('#clima-subtab-agua .dash-kpi-grid .card:nth-child(3) div');
+    if (dboEl && m.dbo !== undefined && m.dqo !== undefined) {
+        dboEl.innerText = `${Number(m.dbo).toFixed(0)} / ${Number(m.dqo).toFixed(0)} mg/L`;
+    }
+
+    const stsEl = document.querySelector('#clima-subtab-agua .dash-kpi-grid .card:nth-child(4) div');
+    if (stsEl && m.sts !== undefined) {
+        stsEl.innerText = `${Number(m.sts).toFixed(0)} mg/L`;
+    }
 }
 
-// Visor interactivo para documentos oficiales PDF ANALAB
-window.verPDFAnalab = (tipo) => {
+// -------------------------------------------------------------
+// GESTIÓN DE ALMACENAMIENTO SEGURO DE ARCHIVOS PDF (INDEXEDDB)
+// Garantiza disponibilidad 100% offline sin errores de GitHub 404
+// -------------------------------------------------------------
+function abrirDBLaboratorio() {
+    return new Promise((resolve, reject) => {
+        if (!window.indexedDB) {
+            return reject(new Error('IndexedDB no soportado en este navegador'));
+        }
+        const req = indexedDB.open('flr_laboratorio_pdf_db', 1);
+        req.onupgradeneeded = (e) => {
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains('archivos_pdf')) {
+                db.createObjectStore('archivos_pdf', { keyPath: 'id' });
+            }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function guardarPDFLocal(id, blob, nombre) {
+    try {
+        const db = await abrirDBLaboratorio();
+        const tx = db.transaction('archivos_pdf', 'readwrite');
+        const store = tx.objectStore('archivos_pdf');
+        store.put({ id, blob, nombre, fecha: new Date().toISOString() });
+        return new Promise(resolve => {
+            tx.oncomplete = () => resolve(true);
+            tx.onerror = () => resolve(false);
+        });
+    } catch(e) {
+        console.warn('Error guardando PDF en IndexedDB:', e);
+        return false;
+    }
+}
+
+async function obtenerPDFLocal(id) {
+    try {
+        const db = await abrirDBLaboratorio();
+        const tx = db.transaction('archivos_pdf', 'readonly');
+        const store = tx.objectStore('archivos_pdf');
+        const req = store.get(id);
+        return new Promise(resolve => {
+            req.onsuccess = () => resolve(req.result ? req.result.blob : null);
+            req.onerror = () => resolve(null);
+        });
+    } catch(e) {
+        return null;
+    }
+}
+
+// -------------------------------------------------------------
+// VISOR DE DOCUMENTOS PDF ANALAB CON DOBLE MODO (PDF REAL + DIGITAL)
+// -------------------------------------------------------------
+let _ultimoPdfBlobUrl = null;
+let _tipoDocumentoActualVisor = 'suelo';
+
+window.cambiarModoVisorPDF = (modo) => {
+    const frameContainer = document.getElementById('visor-pdf-frame-container');
+    const digitalContainer = document.getElementById('visor-pdf-digital-container');
+    const btnRaw = document.getElementById('tab-btn-visor-pdf-raw');
+    const btnDigital = document.getElementById('tab-btn-visor-pdf-digital');
+
+    if (modo === 'digital') {
+        if (frameContainer) frameContainer.style.display = 'none';
+        if (digitalContainer) digitalContainer.style.display = 'block';
+        if (btnRaw) {
+            btnRaw.style.background = 'transparent';
+            btnRaw.style.color = '#334155';
+        }
+        if (btnDigital) {
+            btnDigital.style.background = '#0284c7';
+            btnDigital.style.color = 'white';
+        }
+    } else {
+        if (frameContainer) frameContainer.style.display = 'flex';
+        if (digitalContainer) digitalContainer.style.display = 'none';
+        if (btnRaw) {
+            btnRaw.style.background = '#0284c7';
+            btnRaw.style.color = 'white';
+        }
+        if (btnDigital) {
+            btnDigital.style.background = 'transparent';
+            btnDigital.style.color = '#334155';
+        }
+    }
+};
+
+function renderVistaDigitalPDFModal(tipo) {
+    const cont = document.getElementById('visor-pdf-digital-contenido');
+    if (!cont) return;
+
+    if (tipo === 'suelo') {
+        const muestras = cargarMuestrasSuelo();
+        cont.innerHTML = `
+            <div style="border-bottom:2px solid #16a34a; padding-bottom:12px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="background:#166534; color:white; font-size:1.6rem; width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-weight:bold;">🌱</div>
+                    <div>
+                        <div style="font-size:0.75rem; letter-spacing:1px; color:#15803d; font-weight:bold; text-transform:uppercase;">Asociación Nacional del Café - Anacafé</div>
+                        <h3 style="margin:0; color:#166534; font-size:1.25rem;">Laboratorio de Suelos, Plantas y Aguas ANALAB</h3>
+                        <div style="font-size:0.85rem; color:#475569;">Informe Oficial de Ensayo: <strong>Análisis de Fertilidad de Suelos (AS-4)</strong></div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:6px 14px; border-radius:6px; font-weight:bold; color:#166534; font-size:0.9rem;">
+                        Orden de Trabajo No: <strong>32-5559</strong>
+                    </div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">Fecha de Emisión: 07/02/2025</div>
+                </div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; font-size:0.84rem;">
+                <div><span style="color:#64748b;">Solicitante / Cliente:</span> <strong style="color:#0f172a;">ROBLES ALDANA, OSCAR AUGUSTO</strong></div>
+                <div><span style="color:#64748b;">Unidad Productiva:</span> <strong style="color:#0f172a;">Finca Los Robles</strong></div>
+                <div><span style="color:#64748b;">Ubicación:</span> <strong style="color:#0f172a;">San Cristóbal Verapaz, Alta Verapaz</strong></div>
+                <div><span style="color:#64748b;">Metodología Analítica:</span> <strong style="color:#0284c7;">ICP-OES Mehlich III / Potenciometría</strong></div>
+            </div>
+
+            <h4 style="margin:0 0 8px; color:#166534; font-size:0.95rem;">📊 Cuadro de Resultados de Laboratorio por Lote / Tablón:</h4>
+            <div style="overflow-x:auto; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:16px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:right;">
+                    <thead>
+                        <tr style="background:#166534; color:white; font-size:0.78rem;">
+                            <th style="padding:8px; text-align:left;">Muestra / Lote</th>
+                            <th style="padding:8px;">pH (1:2.5)</th>
+                            <th style="padding:8px;">P (ppm)</th>
+                            <th style="padding:8px;">K (meq)</th>
+                            <th style="padding:8px;">Ca (meq)</th>
+                            <th style="padding:8px;">Mg (meq)</th>
+                            <th style="padding:8px;">B (ppm)</th>
+                            <th style="padding:8px;">S (ppm)</th>
+                            <th style="padding:8px;">M.O. (%)</th>
+                            <th style="padding:8px;">CICE</th>
+                            <th style="padding:8px;">Ca/K</th>
+                            <th style="padding:8px;">Mg/K</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${muestras.map((m, idx) => `
+                            <tr style="border-bottom:1px solid #e2e8f0; background:${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
+                                <td style="padding:8px; text-align:left; font-weight:bold; color:#0f766e;">${m.identificacion}</td>
+                                <td style="padding:8px; font-weight:bold; color:${Number(m.ph) < 5.5 ? '#b91c1c' : '#15803d'};">${Number(m.ph).toFixed(2)}</td>
+                                <td style="padding:8px; font-weight:bold; color:#b91c1c; background:#fef2f2;">${Number(m.p).toFixed(2)} 🔴</td>
+                                <td style="padding:8px; font-weight:bold; color:${Number(m.k) < 0.65 ? '#b91c1c' : '#0f172a'};">${Number(m.k).toFixed(2)}</td>
+                                <td style="padding:8px; font-weight:bold; color:#0369a1; background:#f0f9ff;">${Number(m.ca).toFixed(2)} 🔵</td>
+                                <td style="padding:8px;">${Number(m.mg).toFixed(2)}</td>
+                                <td style="padding:8px;">${m.boro !== undefined ? Number(m.boro).toFixed(2) : '-'}</td>
+                                <td style="padding:8px; color:${Number(m.azufre) < 34 ? '#b91c1c' : '#0f172a'};">${m.azufre !== undefined ? Number(m.azufre).toFixed(2) : '-'}</td>
+                                <td style="padding:8px; font-weight:bold; color:#0369a1;">${Number(m.mo).toFixed(2)}%</td>
+                                <td style="padding:8px;">${Number(m.cice).toFixed(2)}</td>
+                                <td style="padding:8px; font-weight:bold; color:#b91c1c; background:#fef2f2;">${Number(m.cak).toFixed(2)} 🔴</td>
+                                <td style="padding:8px; font-weight:bold; color:${Number(m.mgk) > 2.5 ? '#b91c1c' : '#0f172a'};">${m.mgk !== undefined ? Number(m.mgk).toFixed(2) : '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:0.82rem; color:#78350f;">
+                <strong>💡 Dictamen e Interpretación de ANALAB Anacafé para Finca Los Robles:</strong>
+                <ul style="margin:6px 0 0; padding-left:18px; line-height:1.45;">
+                    <li><strong>Fósforo Crítico Severo:</strong> Los valores de 3.0 a 3.32 ppm se ubican muy por debajo del umbral mínimo de suficiencia (30-75 ppm). Se recomienda fertilización fosfatada localizada con enmienda o fuentes solubles protegidas contra fijación.</li>
+                    <li><strong>Desbalance Antagónico Calcio/Potasio (Ca/K > 20:1):</strong> El exceso relativo de calcio libre bloquea la absorción activa de potasio en la raíz, lo que merma el llenado y peso de grano en cereza si no se suministra potasio foliar y al suelo.</li>
+                    <li><strong>Materia Orgánica Sobresaliente (9.7% - 11.2%):</strong> Excelente bioestructura y retención de humedad en suelos volcánicos, favoreciendo la microbiota benéfica.</li>
+                </ul>
+            </div>
+        `;
+    } else {
+        const muestras = cargarMuestrasAgua();
+        const m = (muestras && muestras.length > 0) ? muestras[muestras.length - 1] : {
+            fuente: "Efluente Fosa / Beneficiado y Mezclas",
+            caudal: 2.50, ph: 4.23, temp: 25.0, dbo: 215, dqo: 290, sts: 360, gya: 6.0, n: 24, p: 13, coliformes: "2.42E+04"
+        };
+
+        cont.innerHTML = `
+            <div style="border-bottom:2px solid #0284c7; padding-bottom:12px; margin-bottom:15px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <div style="background:#0369a1; color:white; font-size:1.6rem; width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-weight:bold;">💧</div>
+                    <div>
+                        <div style="font-size:0.75rem; letter-spacing:1px; color:#0369a1; font-weight:bold; text-transform:uppercase;">Asociación Nacional del Café - Anacafé</div>
+                        <h3 style="margin:0; color:#0369a1; font-size:1.25rem;">Laboratorio de Suelos, Plantas y Aguas ANALAB</h3>
+                        <div style="font-size:0.85rem; color:#475569;">Informe Oficial de Ensayo: <strong>Análisis de Calidad de Agua (A-7)</strong></div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="background:#f0f9ff; border:1px solid #bae6fd; padding:6px 14px; border-radius:6px; font-weight:bold; color:#0369a1; font-size:0.9rem;">
+                        Orden de Trabajo No: <strong>32-1286</strong>
+                    </div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">Acreditación OGA-LE-087-18</div>
+                </div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:12px 16px; margin-bottom:16px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:10px; font-size:0.84rem;">
+                <div><span style="color:#64748b;">Solicitante / Cliente:</span> <strong style="color:#0f172a;">ROBLES ALDANA, OSCAR AUGUSTO</strong></div>
+                <div><span style="color:#64748b;">Unidad Productiva:</span> <strong style="color:#0f172a;">Finca Los Robles</strong></div>
+                <div><span style="color:#64748b;">Punto de Muestreo:</span> <strong style="color:#0f172a;">${m.fuente || 'Efluente Fosa / Beneficiado y Mezclas'}</strong></div>
+                <div><span style="color:#64748b;">Caudal de Aforo:</span> <strong style="color:#0284c7;">${m.caudal || 2.50} l/s (150 L/min)</strong></div>
+            </div>
+
+            <h4 style="margin:0 0 8px; color:#0369a1; font-size:0.95rem;">📋 Parámetros Químicos y Microbiológicos Analizados:</h4>
+            <div style="overflow-x:auto; border:1px solid #cbd5e1; border-radius:8px; margin-bottom:16px;">
+                <table style="width:100%; border-collapse:collapse; font-size:0.84rem; text-align:left;">
+                    <thead>
+                        <tr style="background:#0284c7; color:white;">
+                            <th style="padding:8px;">Parámetro</th>
+                            <th style="padding:8px; text-align:center;">Unidad</th>
+                            <th style="padding:8px; text-align:right;">Resultado</th>
+                            <th style="padding:8px;">Método Oficial</th>
+                            <th style="padding:8px;">Evaluación Fitosanitaria / Vertido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr style="border-bottom:1px solid #e2e8f0; background:#fef2f2;">
+                            <td style="padding:7px 8px; font-weight:bold;">pH en Laboratorio</td>
+                            <td style="text-align:center;">Unidades</td>
+                            <td style="text-align:right; font-weight:bold; color:#b91c1c;">${Number(m.ph || 4.23).toFixed(2)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">APHA 4500-H+ Potenciometría</td>
+                            <td><span style="color:#b91c1c; font-weight:bold; font-size:0.78rem;">⚠️ Ácida • Requiere Buffer pH 5.5-6.0</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:7px 8px; font-weight:bold;">Temperatura</td>
+                            <td style="text-align:center;">°C</td>
+                            <td style="text-align:right; font-weight:bold;">${Number(m.temp || 25.0).toFixed(1)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">APHA 2550 Termometría</td>
+                            <td><span style="color:#15803d; font-size:0.78rem;">Adecuada para biopreparados</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:7px 8px; font-weight:bold;">Demanda Biológica de Oxígeno (DBO₅)</td>
+                            <td style="text-align:center;">mg/L</td>
+                            <td style="text-align:right; font-weight:bold; color:#0369a1;">${Number(m.dbo || 215).toFixed(0)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">APHA 5210 Respirometría</td>
+                            <td><span style="color:#475569; font-size:0.78rem;">Carga biodegradable del beneficiado</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:7px 8px; font-weight:bold;">Demanda Química de Oxígeno (DQO)</td>
+                            <td style="text-align:center;">mg/L</td>
+                            <td style="text-align:right; font-weight:bold; color:#0369a1;">${Number(m.dqo || 290).toFixed(0)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">DIN ISO 15705 / EPA 410.4</td>
+                            <td><span style="color:#475569; font-size:0.78rem;">Monitoreo para fosa de oxidación</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:7px 8px; font-weight:bold;">Sólidos Totales en Suspensión (STS)</td>
+                            <td style="text-align:center;">mg/L</td>
+                            <td style="text-align:right; font-weight:bold;">${Number(m.sts || 360).toFixed(0)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">APHA 2540D Gravimetría</td>
+                            <td><span style="color:#475569; font-size:0.78rem;">Requiere sedimentación previa</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:7px 8px; font-weight:bold;">Grasas y Aceites (GyA)</td>
+                            <td style="text-align:center;">mg/L</td>
+                            <td style="text-align:right; font-weight:bold;">${Number(m.gya || 6.0).toFixed(1)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">APHA 5520</td>
+                            <td><span style="color:#15803d; font-size:0.78rem;">Nivel bajo y manejable</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:7px 8px; font-weight:bold;">Nitrógeno Total (N)</td>
+                            <td style="text-align:center;">mg/L</td>
+                            <td style="text-align:right; font-weight:bold;">${Number(m.n || 24.0).toFixed(1)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">ISO 11905-1</td>
+                            <td><span style="color:#475569; font-size:0.78rem;">Aporte orgánico aprovechable</span></td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:7px 8px; font-weight:bold;">Fósforo Total (P)</td>
+                            <td style="text-align:center;">mg/L</td>
+                            <td style="text-align:right; font-weight:bold;">${Number(m.p || 13.0).toFixed(1)}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">EPA 365.2+3</td>
+                            <td><span style="color:#475569; font-size:0.78rem;">Fósforo residual</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding:7px 8px; font-weight:bold;">Coliformes Fecales (CF)</td>
+                            <td style="text-align:center;">NMP</td>
+                            <td style="text-align:right; font-weight:bold; color:#b91c1c;">${m.coliformes || '2.42E+04'}</td>
+                            <td style="color:#64748b; font-size:0.78rem;">APHA 9223 Enzyme substrate</td>
+                            <td><span style="color:#b91c1c; font-weight:bold; font-size:0.78rem;">Microbiología de aguas mieles</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px 16px; font-size:0.82rem; color:#0369a1;">
+                <strong>🛡️ Recomendación de Aplicación para Fitosanidad y Control de Broca:</strong>
+                <p style="margin:6px 0 0; line-height:1.45;">
+                    Al usar esta agua para preparar caldos y dispersar <em>Beauveria bassiana</em> contra la Broca del café (<em>Hypothenemus hampei</em>), 
+                    <strong>es imperativo acondicionarla previamente con un corrector de pH neutro</strong> (hasta llegar a 5.8 - 6.2). Si se aplica a pH 4.23 sin corregir, 
+                    la acidez hidroliza las esporas del hongo benéfico y desestabiliza los quelatos foliares.
+                </p>
+            </div>
+        `;
+    }
+}
+
+// Visor interactivo para documentos oficiales PDF ANALAB (Memoria local + Blob + Ficha Digital)
+window.verPDFAnalab = async (tipo) => {
+    _tipoDocumentoActualVisor = tipo;
     const modal = document.getElementById('modal-visor-pdf-analab');
     const frame = document.getElementById('visor-pdf-analab-frame');
     const titulo = document.getElementById('visor-pdf-analab-titulo');
     const subtitulo = document.getElementById('visor-pdf-analab-subtitulo');
     const abrirBtn = document.getElementById('visor-pdf-analab-abrir-btn');
+    const descargarBtn = document.getElementById('visor-pdf-analab-descargar-btn');
+    const badgeFuente = document.getElementById('visor-pdf-fuente-badge');
     if (!modal) return;
 
-    let urlPdf = '';
+    // Resetear a modo PDF por defecto
+    window.cambiarModoVisorPDF('pdf');
+
+    // Título y metadatos del modal
     if (tipo === 'suelo') {
-        urlPdf = '/assets/aistudio/ANALAB_02_07_2025_12_00_00_a.m._5559_1e5ce8d1.pdf';
-        if (titulo) titulo.innerText = "🌱 Informe Oficial de Fertilidad de Suelo AS-4 (ANALAB Anacafé)";
-        if (subtitulo) subtitulo.innerText = "Orden 32-5559 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Unidad: Los Robles (San Cristóbal Verapaz)";
+        if (titulo) titulo.innerHTML = `🌱 Informe Oficial de Fertilidad de Suelo AS-4 (ANALAB Anacafé)`;
+        if (subtitulo) subtitulo.innerText = "Orden 32-5559 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Finca Los Robles (San Cristóbal Verapaz)";
+        if (descargarBtn) descargarBtn.download = "informe_suelo_analab_32_5559.pdf";
     } else {
-        urlPdf = '/assets/aistudio/32-1286_Los_Robles_A7_429d9c8e.pdf';
-        if (titulo) titulo.innerText = "💧 Informe Oficial de Calidad de Agua A-7 (ANALAB Anacafé)";
-        if (subtitulo) subtitulo.innerText = "Orden 32-1286 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Muestra: Efluente Fosa / Beneficiado y Mezclas";
+        if (titulo) titulo.innerHTML = `💧 Informe Oficial de Calidad de Agua A-7 (ANALAB Anacafé)`;
+        if (subtitulo) subtitulo.innerText = "Orden 32-1286 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Efluente Fosa / Beneficiado y Mezclas";
+        if (descargarBtn) descargarBtn.download = "informe_agua_analab_32_1286.pdf";
     }
 
-    if (frame) frame.src = urlPdf;
-    if (abrirBtn) abrirBtn.href = urlPdf;
+    // Renderizar la ficha digital oficial facsímil
+    renderVistaDigitalPDFModal(tipo);
+
+    // Intentar obtener el Blob local desde IndexedDB
+    let pdfBlob = await obtenerPDFLocal(`analab_pdf_${tipo}`);
+    let nombreFuente = 'Caché Seguro Local';
+
+    // Si no está en IndexedDB, descargar desde el path relativo del repositorio
+    if (!pdfBlob) {
+        const urlRelativa = tipo === 'suelo' 
+            ? './assets/docs/analab_suelo_32_5559.pdf'
+            : './assets/docs/analab_agua_32_1286.pdf';
+        
+        try {
+            const resp = await fetch(urlRelativa);
+            if (resp.ok) {
+                pdfBlob = await resp.blob();
+                nombreFuente = 'Documento Base del Proyecto';
+                // Guardarlo en IndexedDB para disponibilidad offline instantánea
+                guardarPDFLocal(`analab_pdf_${tipo}`, pdfBlob, `${tipo}_analab.pdf`);
+            }
+        } catch(e) {
+            console.warn('No se pudo precargar el archivo relativo:', e);
+        }
+    }
+
+    if (badgeFuente) badgeFuente.innerText = nombreFuente;
+
+    if (pdfBlob) {
+        if (_ultimoPdfBlobUrl) {
+            try { URL.revokeObjectURL(_ultimoPdfBlobUrl); } catch(e){}
+        }
+        _ultimoPdfBlobUrl = URL.createObjectURL(pdfBlob);
+
+        if (frame) frame.src = _ultimoPdfBlobUrl;
+        if (abrirBtn) abrirBtn.href = _ultimoPdfBlobUrl;
+        if (descargarBtn) descargarBtn.href = _ultimoPdfBlobUrl;
+    } else {
+        // Fallback por si acaso
+        const fallbackUrl = tipo === 'suelo' 
+            ? './assets/docs/analab_suelo_32_5559.pdf'
+            : './assets/docs/analab_agua_32_1286.pdf';
+        if (frame) frame.src = fallbackUrl;
+        if (abrirBtn) abrirBtn.href = fallbackUrl;
+        if (descargarBtn) descargarBtn.href = fallbackUrl;
+    }
+
     modal.style.display = 'flex';
+};
+
+// -------------------------------------------------------------
+// CARGA Y EXTRACCIÓN INTELIGENTE DE ARCHIVOS PDF CON IA GEMINI
+// -------------------------------------------------------------
+window._pdfExtraidoTemp = null;
+
+window.abrirModalSubirPDF = (tipo) => {
+    const modal = document.getElementById('modal-subir-pdf-laboratorio');
+    if (!modal) return;
+
+    // Resetear formulario y estados
+    const radioSuelo = document.getElementById('pdf-tipo-suelo');
+    const radioAgua = document.getElementById('pdf-tipo-agua');
+    if (tipo === 'suelo' && radioSuelo) radioSuelo.checked = true;
+    else if (tipo === 'agua' && radioAgua) radioAgua.checked = true;
+
+    const inputFile = document.getElementById('input-pdf-laboratorio-file');
+    if (inputFile) inputFile.value = '';
+
+    const progreso = document.getElementById('pdf-upload-progreso');
+    if (progreso) progreso.style.display = 'none';
+
+    const preview = document.getElementById('pdf-upload-preview');
+    if (preview) preview.style.display = 'none';
+
+    const btnConfirmar = document.getElementById('btn-confirmar-pdf-extraido');
+    if (btnConfirmar) btnConfirmar.style.display = 'none';
+
+    window._pdfExtraidoTemp = null;
+    modal.style.display = 'flex';
+};
+
+window.actualizarTipoSubidaPDF = () => {
+    // Permite al usuario conmutar entre Suelo, Agua o Auto
+};
+
+window.onDropArchivoPDF = (e) => {
+    const dt = e.dataTransfer;
+    if (dt && dt.files && dt.files.length > 0) {
+        const file = dt.files[0];
+        window.procesarArchivoPDF(file);
+    }
+};
+
+window.onArchivoPDFSeleccionado = (input) => {
+    if (input && input.files && input.files.length > 0) {
+        const file = input.files[0];
+        window.procesarArchivoPDF(file);
+    }
+};
+
+window.procesarArchivoPDF = (file) => {
+    if (!file) return;
+    if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+        return alert('⚠️ Por favor selecciona un archivo en formato PDF.');
+    }
+    if (file.size > 30 * 1024 * 1024) {
+        return alert('⚠️ El archivo PDF excede el límite máximo de 30 MB.');
+    }
+
+    const dropzone = document.getElementById('pdf-upload-dropzone');
+    const progreso = document.getElementById('pdf-upload-progreso');
+    const preview = document.getElementById('pdf-upload-preview');
+    const btnConfirmar = document.getElementById('btn-confirmar-pdf-extraido');
+
+    if (progreso) progreso.style.display = 'block';
+    if (preview) preview.style.display = 'none';
+    if (btnConfirmar) btnConfirmar.style.display = 'none';
+
+    // Detectar tipo seleccionado por el usuario
+    let tipoSel = 'auto';
+    if (document.getElementById('pdf-tipo-suelo')?.checked) tipoSel = 'suelo';
+    else if (document.getElementById('pdf-tipo-agua')?.checked) tipoSel = 'agua';
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+        try {
+            const dataUrl = reader.result;
+            const base64Data = dataUrl.split(',')[1];
+
+            const resp = await fetch('/api/laboratorio/extraer-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileBase64: base64Data, tipo: tipoSel })
+            });
+
+            if (!resp.ok) {
+                const errJson = await resp.json().catch(() => ({}));
+                throw new Error(errJson.error || `Error del servidor HTTP ${resp.status}`);
+            }
+
+            const resultado = await resp.json();
+            if (!resultado || !resultado.datos) {
+                throw new Error('No se recibieron datos analíticos válidos del modelo.');
+            }
+
+            // Guardar temporalmente
+            window._pdfExtraidoTemp = {
+                tipo: resultado.tipo,
+                datos: resultado.datos,
+                archivo: file
+            };
+
+            // Renderizar vista previa
+            renderizarVistaPreviaPDFExtraido(resultado.tipo, resultado.datos);
+
+            if (progreso) progreso.style.display = 'none';
+            if (preview) preview.style.display = 'block';
+            if (btnConfirmar) btnConfirmar.style.display = 'inline-flex';
+
+        } catch(err) {
+            console.error('Error procesando PDF con Gemini:', err);
+            if (progreso) progreso.style.display = 'none';
+            alert(`❌ Error al analizar el PDF con IA: ${err.message || err}\n\nVerifica que el archivo sea legible o intenta con otro informe.`);
+        }
+    };
+    reader.onerror = () => {
+        if (progreso) progreso.style.display = 'none';
+        alert('❌ No se pudo leer el archivo local del equipo.');
+    };
+    reader.readAsDataURL(file);
+};
+
+function renderizarVistaPreviaPDFExtraido(tipo, datos) {
+    const previewTipo = document.getElementById('pdf-preview-tipo-doc');
+    const previewMeta = document.getElementById('pdf-preview-resumen-meta');
+    const tableCont = document.getElementById('pdf-preview-tabla-container');
+    if (!tableCont) return;
+
+    if (tipo === 'suelo') {
+        if (previewTipo) previewTipo.innerHTML = `🌱 Análisis de Suelos AS-4 Detectado con Éxito`;
+        if (previewMeta) previewMeta.innerText = `Orden: ${datos.ordenTrabajo || 'N/A'} • Cliente: ${datos.cliente || 'Finca Los Robles'} • Muestras/Lotes: ${Array.isArray(datos.muestras) ? datos.muestras.length : 0}`;
+
+        const muestras = Array.isArray(datos.muestras) ? datos.muestras : [];
+        tableCont.innerHTML = `
+            <table style="width:100%; border-collapse:collapse; font-size:0.8rem; text-align:right;">
+                <thead>
+                    <tr style="background:#166534; color:white;">
+                        <th style="padding:6px 8px; text-align:left;">Muestra / Lote</th>
+                        <th style="padding:6px 8px;">pH</th>
+                        <th style="padding:6px 8px;">P (ppm)</th>
+                        <th style="padding:6px 8px;">K (meq)</th>
+                        <th style="padding:6px 8px;">Ca (meq)</th>
+                        <th style="padding:6px 8px;">Mg (meq)</th>
+                        <th style="padding:6px 8px;">B (ppm)</th>
+                        <th style="padding:6px 8px;">S (ppm)</th>
+                        <th style="padding:6px 8px;">M.O. %</th>
+                        <th style="padding:6px 8px;">CICE</th>
+                        <th style="padding:6px 8px;">Ca/K</th>
+                        <th style="padding:6px 8px;">Mg/K</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${muestras.map((m, idx) => `
+                        <tr style="border-bottom:1px solid #e2e8f0; background:${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
+                            <td style="padding:6px 8px; text-align:left; font-weight:bold; color:#0f766e;">${m.identificacion}</td>
+                            <td style="padding:6px 8px; font-weight:bold;">${Number(m.ph || 0).toFixed(2)}</td>
+                            <td style="padding:6px 8px; font-weight:bold; color:#b91c1c;">${Number(m.p || 0).toFixed(2)}</td>
+                            <td style="padding:6px 8px;">${Number(m.k || 0).toFixed(2)}</td>
+                            <td style="padding:6px 8px; color:#0369a1; font-weight:bold;">${Number(m.ca || 0).toFixed(2)}</td>
+                            <td style="padding:6px 8px;">${Number(m.mg || 0).toFixed(2)}</td>
+                            <td style="padding:6px 8px;">${m.boro !== undefined ? Number(m.boro).toFixed(2) : '-'}</td>
+                            <td style="padding:6px 8px;">${m.azufre !== undefined ? Number(m.azufre).toFixed(2) : '-'}</td>
+                            <td style="padding:6px 8px; font-weight:bold; color:#0369a1;">${Number(m.mo || 0).toFixed(2)}%</td>
+                            <td style="padding:6px 8px;">${Number(m.cice || 0).toFixed(2)}</td>
+                            <td style="padding:6px 8px; font-weight:bold; color:#b91c1c;">${Number(m.cak || 0).toFixed(2)}</td>
+                            <td style="padding:6px 8px;">${Number(m.mgk || 0).toFixed(2)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } else {
+        if (previewTipo) previewTipo.innerHTML = `💧 Análisis de Calidad de Agua A-7 Detectado con Éxito`;
+        if (previewMeta) previewMeta.innerText = `Orden: ${datos.ordenTrabajo || 'N/A'} • Fuente: ${datos.puntoMuestreo || 'Efluente Fosa'} • Caudal: ${datos.caudalLps || 2.5} l/s`;
+
+        const m = datos.parametros || {};
+        tableCont.innerHTML = `
+            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; text-align:left;">
+                <thead>
+                    <tr style="background:#0284c7; color:white;">
+                        <th style="padding:6px 8px;">Parámetro Extraído</th>
+                        <th style="padding:6px 8px; text-align:center;">Unidad</th>
+                        <th style="padding:6px 8px; text-align:right;">Valor</th>
+                        <th style="padding:6px 8px;">Estado Interpretativo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="border-bottom:1px solid #e2e8f0; background:#fef2f2;">
+                        <td style="padding:6px 8px; font-weight:bold;">pH en Laboratorio</td>
+                        <td style="text-align:center;">Unidades</td>
+                        <td style="text-align:right; font-weight:bold; color:#b91c1c;">${Number(m.ph || 4.23).toFixed(2)}</td>
+                        <td style="color:#b91c1c; font-weight:bold;">Ácido • Requiere buffer antes de mezclas</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:6px 8px; font-weight:bold;">Temperatura</td>
+                        <td style="text-align:center;">°C</td>
+                        <td style="text-align:right; font-weight:bold;">${Number(m.temp || 25.0).toFixed(1)}</td>
+                        <td style="color:#15803d;">Óptima</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:6px 8px; font-weight:bold;">Demanda Biológica de Oxígeno (DBO₅)</td>
+                        <td style="text-align:center;">mg/L</td>
+                        <td style="text-align:right; font-weight:bold; color:#0369a1;">${Number(m.dbo || 215).toFixed(0)}</td>
+                        <td>Carga del beneficiado</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:6px 8px; font-weight:bold;">Demanda Química de Oxígeno (DQO)</td>
+                        <td style="text-align:center;">mg/L</td>
+                        <td style="text-align:right; font-weight:bold; color:#0369a1;">${Number(m.dqo || 290).toFixed(0)}</td>
+                        <td>Oxidación química</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:6px 8px; font-weight:bold;">Sólidos Totales en Suspensión (STS)</td>
+                        <td style="text-align:center;">mg/L</td>
+                        <td style="text-align:right; font-weight:bold;">${Number(m.sts || 360).toFixed(0)}</td>
+                        <td>Sedimentables en fosa</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 8px; font-weight:bold;">Coliformes Fecales</td>
+                        <td style="text-align:center;">NMP</td>
+                        <td style="text-align:right; font-weight:bold; color:#b91c1c;">${m.coliformes || '2.42E+04'}</td>
+                        <td style="color:#b91c1c;">Biológico residual</td>
+                    </tr>
+                </tbody>
+            </table>
+        `;
+    }
+}
+
+window.confirmarGuardarDatosPDFExtraidos = async () => {
+    if (!window._pdfExtraidoTemp) return;
+
+    const { tipo, datos, archivo } = window._pdfExtraidoTemp;
+    const guardarMemoria = document.getElementById('pdf-check-guardar-memoria')?.checked;
+
+    try {
+        if (tipo === 'suelo') {
+            const muestrasActuales = cargarMuestrasSuelo();
+            const nuevasMuestras = Array.isArray(datos.muestras) ? datos.muestras : [];
+
+            if (nuevasMuestras.length === 0) {
+                return alert('⚠️ No se encontraron muestras de suelo estructuradas en el informe.');
+            }
+
+            // Normalizar y agregar
+            nuevasMuestras.forEach(m => {
+                const k = Number(m.k || 0);
+                const ca = Number(m.ca || 0);
+                const mg = Number(m.mg || 0);
+                const cak = k > 0 ? (ca / k) : 0;
+                const mgk = k > 0 ? (mg / k) : 0;
+
+                muestrasActuales.push({
+                    id: m.id || `M-${Date.now().toString().slice(-4)}`,
+                    identificacion: m.identificacion || 'Muestra de Suelo Extraída',
+                    ph: Number(m.ph || 5.85),
+                    p: Number(m.p || 3.0),
+                    k: Number(m.k || 0.45),
+                    ca: Number(m.ca || 8.5),
+                    mg: Number(m.mg || 1.8),
+                    boro: m.boro !== undefined ? Number(m.boro) : 0.5,
+                    azufre: m.azufre !== undefined ? Number(m.azufre) : 10.0,
+                    mo: Number(m.mo || 9.5),
+                    cice: Number(m.cice || 12.0),
+                    cak: Math.round(cak * 100) / 100,
+                    mgk: Math.round(mgk * 100) / 100
+                });
+            });
+
+            localStorage.setItem('flr_suelo_muestras_v1', JSON.stringify(muestrasActuales));
+            renderModuloSuelo();
+
+            if (guardarMemoria && archivo) {
+                await guardarPDFLocal('analab_pdf_suelo', archivo, archivo.name || 'informe_suelo.pdf');
+            }
+
+            window.cerrarModal('modal-subir-pdf-laboratorio');
+            alert(`✅ ¡Éxito! Se registraron ${nuevasMuestras.length} tablones/muestras de suelo extraídos automáticamente con IA.`);
+
+        } else {
+            // Agua
+            const muestrasActuales = cargarMuestrasAgua();
+            const p = datos.parametros || {};
+
+            const nuevaAgua = {
+                id: datos.ordenTrabajo ? `AG-${datos.ordenTrabajo}` : `AG-${Date.now().toString().slice(-4)}`,
+                fuente: datos.puntoMuestreo || 'Muestra de Agua Extraída',
+                fecha: datos.fechaEmision || new Date().toISOString().split('T')[0],
+                caudal: Number(datos.caudalLps || 2.5),
+                ph: Number(p.ph || 4.23),
+                temp: Number(p.temp || 25.0),
+                dbo: Number(p.dbo || 215),
+                dqo: Number(p.dqo || 290),
+                sts: Number(p.sts || 360),
+                gya: Number(p.gya || 6.0),
+                n: Number(p.n || 24.0),
+                p: Number(p.p || 13.0),
+                coliformes: p.coliformes || '2.42E+04'
+            };
+
+            muestrasActuales.push(nuevaAgua);
+            localStorage.setItem('flr_agua_muestras_v1', JSON.stringify(muestrasActuales));
+            renderModuloAgua();
+
+            if (guardarMemoria && archivo) {
+                await guardarPDFLocal('analab_pdf_agua', archivo, archivo.name || 'informe_agua.pdf');
+            }
+
+            window.cerrarModal('modal-subir-pdf-laboratorio');
+            alert(`✅ ¡Éxito! Se registraron los parámetros analíticos de agua extraídos con IA.`);
+        }
+    } catch(e) {
+        console.error('Error al guardar datos extraídos:', e);
+        alert(`❌ Ocurrió un error al guardar los datos: ${e.message || e}`);
+    }
 };
 
 window.abrirModalNuevoSuelo = () => {
