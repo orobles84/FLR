@@ -3418,35 +3418,38 @@
             </div>
         </div>
 
-        <!-- MÓDULO: ESTACIÓN METEOROLÓGICA Y CLIMA FINCA LOS ROBLES (#138) -->
+        <!-- MÓDULO: CLIMA, SUELO Y AGUA - FINCA LOS ROBLES -->
         <div id="clima" class="section">
-            <!-- ENCABEZADO DE LA ESTACIÓN -->
+            <!-- ENCABEZADO DE LA ESTACIÓN Y LABORATORIO -->
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:1.25rem; border-bottom:2px solid var(--accent); padding-bottom:0.75rem;">
                 <div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <h2 style="margin:0; border:none; padding:0; color:#0369a1; display:flex; align-items:center; gap:8px;">
-                            <span>🌤️ Estación Meteorológica #138 "Los Robles"</span>
+                            <span>🌤️🌱💧 Clima, Suelo y Agua</span>
                         </h2>
                         <span style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:12px; font-size:0.75rem; font-weight:bold; border:1px solid #bae6fd;">
-                            Red Anacafé
+                            Estación #138 Anacafé & ANALAB
                         </span>
                     </div>
                     <p style="margin:4px 0 0; font-size:0.85rem; color:#64748b;">
-                        📍 Coordenadas: 15.41298° N, -90.49599° O • Registros diarios de lluvia, temperatura, humedad y radiación solar para decisiones agronómicas.
+                        📍 Finca Los Robles • San Cristóbal Verapaz • Registros agrometeorológicos diarios, análisis de suelos AS-4 y calidad de agua A-7 para decisiones agronómicas de alta precisión.
                     </p>
                 </div>
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="btn btn-small btn-primary" style="background:#0284c7; color:white; font-weight:bold;" onclick="abrirModalCargaCSVClima()">
-                        📂 Cargar CSV Anacafé
+                        📂 Cargar CSV Clima
                     </button>
-                    <button class="btn btn-small" style="background:#0f766e; color:white; font-weight:bold;" onclick="exportarCSVClima()">
-                        📥 Exportar a CSV
+                    <button class="btn btn-small" style="background:#15803d; color:white; font-weight:bold;" onclick="mostrarSubtabClima('suelo')">
+                        🌱 Suelo ANALAB
+                    </button>
+                    <button class="btn btn-small" style="background:#0f766e; color:white; font-weight:bold;" onclick="mostrarSubtabClima('agua')">
+                        💧 Calidad Agua
                     </button>
                     <button class="btn btn-small btn-pdf" onclick="generarPDFReporteClima()">
                         📄 Reporte PDF
                     </button>
                     <button class="btn btn-small" style="background:linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%); color:white; font-weight:bold;" onclick="mostrarSubtabClima('ia')">
-                        🤖 Asistente Agronómico IA
+                        🤖 Diagnóstico Integral IA
                     </button>
                 </div>
             </div>
@@ -3455,7 +3458,7 @@
             <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px 16px; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                     <div>
-                        <label style="font-size:0.75rem; font-weight:bold; color:#475569; display:block; margin-bottom:2px;">Año:</label>
+                        <label style="font-size:0.75rem; font-weight:bold; color:#475569; display:block; margin-bottom:2px;">Año Clima:</label>
                         <select id="clima-filtro-anio" style="padding:6px 12px; font-weight:bold; border:1px solid #cbd5e1; border-radius:6px; background:white; min-width:110px;" onchange="cambiarAnioClima()">
                             <option value="2025" selected>2025</option>
                         </select>
@@ -3493,19 +3496,25 @@
             <!-- SUBTABS DE NAVEGACIÓN -->
             <div class="madera-subtabs" style="margin-bottom:1.25rem;">
                 <button type="button" class="madera-tab-btn active" id="tab-btn-clima-mensual" onclick="mostrarSubtabClima('mensual')">
-                    📊 Resumen Mensual (Anacafé)
+                    📊 Clima Mensual
                 </button>
                 <button type="button" class="madera-tab-btn" id="tab-btn-clima-diario" onclick="mostrarSubtabClima('diario')">
-                    📅 Detalle Diario
+                    📅 Clima Diario
                 </button>
                 <button type="button" class="madera-tab-btn" id="tab-btn-clima-graficas" onclick="mostrarSubtabClima('graficas')">
-                    📈 Gráficas Climáticas
+                    📈 Gráficas Clima
                 </button>
                 <button type="button" class="madera-tab-btn" id="tab-btn-clima-comparativa" onclick="mostrarSubtabClima('comparativa')">
-                    🔄 Comparativa y Cambio Climático
+                    🔄 Comparativa Interanual (Año con Año)
+                </button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-clima-suelo" onclick="mostrarSubtabClima('suelo')" style="color:#15803d; font-weight:bold;">
+                    🌱 Análisis de Suelo (ANALAB)
+                </button>
+                <button type="button" class="madera-tab-btn" id="tab-btn-clima-agua" onclick="mostrarSubtabClima('agua')" style="color:#0f766e; font-weight:bold;">
+                    💧 Calidad de Agua (ANALAB)
                 </button>
                 <button type="button" class="madera-tab-btn" id="tab-btn-clima-ia" onclick="mostrarSubtabClima('ia')" style="color:#7c3aed; font-weight:bold;">
-                    ✨ Asistente Agronómico IA
+                    ✨ Diagnóstico Integral IA & Broca
                 </button>
             </div>
 
@@ -3681,16 +3690,39 @@
             <!-- SUBTAB 4: COMPARATIVA Y CAMBIO CLIMÁTICO AÑO CON AÑO -->
             <div id="clima-subtab-comparativa" style="display:none;">
                 <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:1.5rem;">
-                    <!-- ENCABEZADO Y SELECTORES DE COMPARACIÓN -->
+                    
+                    <!-- 1. GRÁFICA MULTIANUAL AÑO CON AÑO (BARRAS DE PRECIPITACIÓN Y DÍAS DE LLUVIA) -->
+                    <div style="background:linear-gradient(135deg, #042f2e 0%, #0f766e 100%); color:white; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:1rem;">
+                            <div>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <span style="font-size:1.3rem;">📊</span>
+                                    <h3 style="margin:0; color:white; font-size:1.15rem;">Evolución Histórica Multianual (Año con Año en Barras)</h3>
+                                </div>
+                                <p style="margin:3px 0 0; font-size:0.83rem; opacity:0.9;">
+                                    Compara la precipitación total acumulada y frecuencia de días lluviosos de cada año registrado en la Estación #138 Los Robles.
+                                </p>
+                            </div>
+                            <div id="clima-multianual-resumen-pills" style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <!-- Se inyectan botones o badges de años -->
+                            </div>
+                        </div>
+
+                        <div style="background:white; border-radius:8px; padding:1rem; position:relative; height:320px; width:100%;">
+                            <canvas id="chart-clima-multianual-barras"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2. COMPARATIVA INTERANUAL DETALLADA (AÑO BASE VS AÑO A EVALUAR) -->
                     <div style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:white; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
                         <div style="max-width:650px;">
                             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                                 <span style="font-size:1.3rem;">🔄</span>
-                                <h3 style="margin:0; color:white; font-size:1.15rem;">Análisis de Cambio Climático y Variación Interanual</h3>
+                                <h3 style="margin:0; color:white; font-size:1.15rem;">Comparativa Directa de Ciclos y Desplazamiento Estacional</h3>
                                 <span style="background:rgba(255,255,255,0.15); color:#38bdf8; padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">Estación #138 Los Robles</span>
                             </div>
                             <p style="margin:0; font-size:0.83rem; opacity:0.85; line-height:1.4;">
-                                Compara dos ciclos de cultivo para identificar desplazamiento de lluvias, tendencias de calentamiento térmico, canículas y su impacto en la floración y sanidad del cafetal.
+                                Selecciona dos ciclos para contrastar la distribución mensual de lluvias, canícula, anomalías térmicas y su repercusión en la floración y broca.
                             </p>
                         </div>
 
@@ -3773,43 +3805,318 @@
                 </div>
             </div>
 
-            <!-- SUBTAB 5: ASISTENTE AGRONÓMICO CON INTELIGENCIA ARTIFICIAL -->
+            <!-- SUBTAB 5: ANÁLISIS DE SUELO (LABORATORIO ANALAB ANACAFÉ) -->
+            <div id="clima-subtab-suelo" style="display:none;">
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:1.5rem;">
+                    <!-- ENCABEZADO ANALAB SUELOS -->
+                    <div style="background:linear-gradient(135deg, #14532d 0%, #166534 100%); color:white; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.4rem;">🌱</span>
+                                <h3 style="margin:0; color:white; font-size:1.2rem;">Informe de Análisis de Fertilidad de Suelo AS-4</h3>
+                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">ANALAB Anacafé</span>
+                            </div>
+                            <p style="margin:4px 0 0; font-size:0.85rem; opacity:0.9;">
+                                Orden 32-5559 • Cliente: ROBLES ALDANA, OSCAR AUGUSTO • Unidad: LOS ROBLES (San Cristóbal Verapaz) • Especialista: Ing. Gelver Larios
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-xs" style="background:#fef08a; color:#713f12; font-weight:bold; padding:8px 12px;" onclick="window.verPDFAnalab('suelo')">
+                                📄 Ver Documento PDF ANALAB
+                            </button>
+                            <button type="button" class="btn btn-xs btn-primary" style="background:#38bdf8; color:#0c4a6e; font-weight:bold; padding:8px 12px;" onclick="window.abrirModalNuevoSuelo()">
+                                ➕ Cargar Nueva Muestra
+                            </button>
+                            <button type="button" class="btn btn-xs" style="background:#7c3aed; color:white; font-weight:bold; padding:8px 12px;" onclick="window.ejecutarAnalisisIAClima('suelo')">
+                                🤖 Diagnóstico Suelo + Clima IA
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPIS DESTACADOS DEL SUELO -->
+                    <div class="dash-kpi-grid" style="margin-bottom:1.5rem;">
+                        <div class="card" style="background:#f0fdf4; border-left:4px solid #16a34a; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#166534; font-weight:bold;">🧪 pH PROMEDIO DEL SUELO</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#14532d; margin:4px 0;">5.85</div>
+                            <span style="font-size:0.78rem; color:#166534;">Ligeramente ácido • Adecuado para café (5.5 - 6.5)</span>
+                        </div>
+
+                        <div class="card" style="background:#f0fdf4; border-left:4px solid #059669; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#065f46; font-weight:bold;">🍂 MATERIA ORGÁNICA (M.O.)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#064e3b; margin:4px 0;">9.72%</div>
+                            <span style="font-size:0.78rem; color:#065f46;">🔵 Nivel Alto / Excelente (Ideal: 3% - 6%)</span>
+                        </div>
+
+                        <div class="card" style="background:#fef2f2; border-left:4px solid #dc2626; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#991b1b; font-weight:bold;">⚠️ FÓSFORO (P) DISPONIBLE</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#b91c1c; margin:4px 0;">3.87 mg/Kg</div>
+                            <span style="font-size:0.78rem; color:#991b1b; font-weight:bold;">🔴 CRÍTICO / MUY BAJO (Adecuado: 30 - 75)</span>
+                        </div>
+
+                        <div class="card" style="background:#fefce8; border-left:4px solid #ca8a04; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#854d0e; font-weight:bold;">⚖️ RELACIÓN CALCIO / POTASIO (Ca/K)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#a16207; margin:4px 0;">20.8 : 1</div>
+                            <span style="font-size:0.78rem; color:#854d0e;">🔴 Desbalance severo (Ideal: 6-7). Exceso de Calcio bloquea Potasio</span>
+                        </div>
+                    </div>
+
+                    <!-- TABLA COMPLETA DE TABLONES Y RESULTADOS ANALAB -->
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <h4 style="margin:0; color:#14532d; font-size:1.05rem;">📊 Resultados de Laboratorio por Tablón / Muestra (ICP-OES Mehlich III)</h4>
+                                <span style="font-size:0.8rem; color:#64748b;">Niveles interpretativos oficiales según estándares de Anacafé</span>
+                            </div>
+                            <div style="display:flex; gap:10px; font-size:0.78rem;">
+                                <span><strong style="color:#b91c1c;">🔴 Rojo:</strong> Nivel Bajo</span>
+                                <span><strong style="color:#1e293b;">⚫ Negro:</strong> Nivel Adecuado</span>
+                                <span><strong style="color:#0284c7;">🔵 Azul:</strong> Nivel Alto</span>
+                            </div>
+                        </div>
+
+                        <div class="table-wrapper">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.82rem; background:white;">
+                                <thead>
+                                    <tr style="background:#14532d; color:white; text-align:right;">
+                                        <th style="text-align:left; padding:8px;">Identificación Muestra</th>
+                                        <th style="text-align:right; padding:8px;">pH</th>
+                                        <th style="text-align:right; padding:8px;">P (mg/Kg)</th>
+                                        <th style="text-align:right; padding:8px;">K (Cmol/Kg)</th>
+                                        <th style="text-align:right; padding:8px;">Ca (Cmol/Kg)</th>
+                                        <th style="text-align:right; padding:8px;">Mg (Cmol/Kg)</th>
+                                        <th style="text-align:right; padding:8px;">Boro</th>
+                                        <th style="text-align:right; padding:8px;">Azufre</th>
+                                        <th style="text-align:right; padding:8px;">M.O. %</th>
+                                        <th style="text-align:right; padding:8px;">CICe</th>
+                                        <th style="text-align:right; padding:8px;">Ca/K</th>
+                                        <th style="text-align:right; padding:8px;">Mg/K</th>
+                                    </tr>
+                                    <tr style="background:#dcfce7; color:#14532d; font-weight:bold; font-size:0.75rem; text-align:right;">
+                                        <td style="text-align:left; padding:4px 8px;">Niveles Adecuados:</td>
+                                        <td style="padding:4px 8px;">5.5 - 6.5</td>
+                                        <td style="padding:4px 8px;">30 - 75</td>
+                                        <td style="padding:4px 8px;">0.65 - 1.0</td>
+                                        <td style="padding:4px 8px;">4.2 - 6.7</td>
+                                        <td style="padding:4px 8px;">0.86 - 2.15</td>
+                                        <td style="padding:4px 8px;">0.5 - 1.0</td>
+                                        <td style="padding:4px 8px;">34 - 55</td>
+                                        <td style="padding:4px 8px;">3.0 - 6.0%</td>
+                                        <td style="padding:4px 8px;">5.5 - 10.5</td>
+                                        <td style="padding:4px 8px;">6 - 7</td>
+                                        <td style="padding:4px 8px;">1.0 - 2.5</td>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-analisis-suelos">
+                                    <tr style="border-bottom:1px solid #e2e8f0;">
+                                        <td style="padding:8px; font-weight:bold; color:#0f766e;">15748 - Lote 1 Anacafé 14</td>
+                                        <td style="text-align:right; padding:8px; font-weight:600;">5.73</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">5.30 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">0.40 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">7.32 🔵</td>
+                                        <td style="text-align:right; padding:8px;">1.67</td>
+                                        <td style="text-align:right; padding:8px;">0.62</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c;">13.52 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">9.05% 🔵</td>
+                                        <td style="text-align:right; padding:8px;">9.60</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">18.30 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c;">4.18</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;">
+                                        <td style="padding:8px; font-weight:bold; color:#0f766e;">15749 - Lote 2 Catimor</td>
+                                        <td style="text-align:right; padding:8px; font-weight:600;">5.94</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">3.32 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">0.34 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">10.94 🔵</td>
+                                        <td style="text-align:right; padding:8px;">2.09</td>
+                                        <td style="text-align:right; padding:8px;">0.56</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c;">8.76 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">11.24% 🔵</td>
+                                        <td style="text-align:right; padding:8px;">13.50</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">32.18 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c;">6.15</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;">
+                                        <td style="padding:8px; font-weight:bold; color:#0f766e;">15750 - Lote 3 Plantilla</td>
+                                        <td style="text-align:right; padding:8px; font-weight:600;">5.87</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">3.00 🔴</td>
+                                        <td style="text-align:right; padding:8px; font-weight:600;">0.82</td>
+                                        <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">9.74 🔵</td>
+                                        <td style="text-align:right; padding:8px;">1.54</td>
+                                        <td style="text-align:right; padding:8px;">0.56</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c;">9.93 🔴</td>
+                                        <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">8.86% 🔵</td>
+                                        <td style="text-align:right; padding:8px;">12.24</td>
+                                        <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">11.88 🔴</td>
+                                        <td style="text-align:right; padding:8px;">1.88</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- RECOMENDACIONES CLAVE DE MANEJO SUELO-CLIMA -->
+                    <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:1.25rem;">
+                        <h4 style="margin:0 0 0.5rem; color:#1e40af; font-size:1rem; display:flex; align-items:center; gap:6px;">
+                            💡 Diagnóstico Agronómico del Suelo (Finca Los Robles):
+                        </h4>
+                        <div style="font-size:0.88rem; color:#1e3a8a; line-height:1.5;">
+                            • <strong>Fósforo Crítico (P &lt; 5 ppm):</strong> El fósforo es indispensable para el desarrollo de raíces y energía para floración. Se recomienda aplicar fuentes con alta solubilidad al inicio de lluvias y usar biofertilizantes micorrízicos.<br>
+                            • <strong>Antagonismo Calcio-Potasio:</strong> Los niveles de Calcio son muy altos (&gt;76-81% de saturación), lo que inhibe la absorción del Potasio disponible. Se debe reforzar Potasio (K) vía edáfica fraccionada y foliar durante el llenado de grano.<br>
+                            • <strong>Materia Orgánica Excepcional (9-11%):</strong> Excelente capacidad de retención de humedad en época seca y amortiguamiento biológico.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUBTAB 6: ANÁLISIS DE AGUA (LABORATORIO ANALAB ANACAFÉ) -->
+            <div id="clima-subtab-agua" style="display:none;">
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:1.5rem;">
+                    <!-- ENCABEZADO ANALAB AGUA -->
+                    <div style="background:linear-gradient(135deg, #0369a1 0%, #0284c7 100%); color:white; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <div>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.4rem;">💧</span>
+                                <h3 style="margin:0; color:white; font-size:1.2rem;">Informe de Calidad de Agua A-7</h3>
+                                <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">ANALAB Anacafé</span>
+                            </div>
+                            <p style="margin:4px 0 0; font-size:0.85rem; opacity:0.9;">
+                                Orden 32-1286 • Cliente: LOS ROBLES • Muestra: Efluente Fosa / Beneficiado y Tanque de Mezclas • Caudal: 2.50 l/s • San Cristóbal Verapaz
+                            </p>
+                        </div>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-xs" style="background:#fef08a; color:#713f12; font-weight:bold; padding:8px 12px;" onclick="window.verPDFAnalab('agua')">
+                                📄 Ver Documento PDF ANALAB
+                            </button>
+                            <button type="button" class="btn btn-xs btn-primary" style="background:#bae6fd; color:#0369a1; font-weight:bold; padding:8px 12px;" onclick="window.abrirModalNuevaAgua()">
+                                ➕ Cargar Nuevo Análisis
+                            </button>
+                            <button type="button" class="btn btn-xs" style="background:#7c3aed; color:white; font-weight:bold; padding:8px 12px;" onclick="window.ejecutarAnalisisIAClima('agua')">
+                                🤖 Diagnóstico Agua + Mezclas IA
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- KPIS DE CALIDAD DE AGUA -->
+                    <div class="dash-kpi-grid" style="margin-bottom:1.5rem;">
+                        <div class="card" style="background:#fef2f2; border-left:4px solid #dc2626; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#991b1b; font-weight:bold;">🧪 POTENCIAL DE HIDRÓGENO (pH)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#b91c1c; margin:4px 0;">4.23</div>
+                            <span style="font-size:0.78rem; color:#991b1b; font-weight:bold;">Agua muy ácida (In situ: 5.00) • Requiere buffer para mezclas</span>
+                        </div>
+
+                        <div class="card" style="background:#f0fdf4; border-left:4px solid #059669; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#065f46; font-weight:bold;">🌡️ TEMPERATURA & CAUDAL</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#064e3b; margin:4px 0;">25.0 °C</div>
+                            <span style="font-size:0.78rem; color:#065f46;">Caudal aforo: 2.50 l/s (150 litros/minuto)</span>
+                        </div>
+
+                        <div class="card" style="background:#fffbeb; border-left:4px solid #d97706; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#78350f; font-weight:bold;">🫧 CARGA ORGÁNICA (DBO / DQO)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#92400e; margin:4px 0;">215 / 290 mg/L</div>
+                            <span style="font-size:0.78rem; color:#78350f;">Demanda Bioquímica y Química de Oxígeno</span>
+                        </div>
+
+                        <div class="card" style="background:#f8fafc; border-left:4px solid #475569; margin:0;">
+                            <span style="font-size:0.75rem; text-transform:uppercase; color:#334155; font-weight:bold;">⚖️ SÓLIDOS SUSPENDIDOS (STS)</span>
+                            <div style="font-size:1.8rem; font-weight:bold; color:#1e293b; margin:4px 0;">360 mg/L</div>
+                            <span style="font-size:0.78rem; color:#334155;">Grasas y aceites: 6.0 mg/L | Nitrógeno: 24 mg/L</span>
+                        </div>
+                    </div>
+
+                    <!-- TABLA DETALLADA DE ENSAYOS DE AGUA (APHA / AWWA / WEF) -->
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:10px; padding:1.25rem; margin-bottom:1.5rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <h4 style="margin:0; color:#0369a1; font-size:1.05rem;">📋 Parámetros de Laboratorio (Métodos Estándar Acreditados OGA-LE-087-18)</h4>
+                                <span style="font-size:0.8rem; color:#64748b;">Evaluación analítica oficial de ANALAB Anacafé</span>
+                            </div>
+                        </div>
+
+                        <div class="table-wrapper">
+                            <table style="width:100%; border-collapse:collapse; font-size:0.85rem; background:white;">
+                                <thead>
+                                    <tr style="background:#0284c7; color:white;">
+                                        <th style="text-align:left; padding:8px;">Parámetro Analizado</th>
+                                        <th style="text-align:center; padding:8px;">Dimensional</th>
+                                        <th style="text-align:right; padding:8px;">Resultado</th>
+                                        <th style="text-align:left; padding:8px;">Metodología Oficial</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">pH en Laboratorio</td><td style="text-align:center;">Unidades</td><td style="text-align:right; font-weight:bold; color:#b91c1c;">4.23</td><td style="color:#64748b; font-size:0.78rem;">APHA 4500-H+ Potenciometría</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Temperatura</td><td style="text-align:center;">°C</td><td style="text-align:right; font-weight:bold;">25.00</td><td style="color:#64748b; font-size:0.78rem;">APHA 2550 Termometría</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Grasas y Aceites (GyA)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">6.00</td><td style="color:#64748b; font-size:0.78rem;">APHA 5520</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Sólidos Totales en Suspensión (STS)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">360.00</td><td style="color:#64748b; font-size:0.78rem;">APHA 2540D Gravimetría</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Demanda Biológica de Oxígeno (DBO)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold; color:#0369a1;">215.00</td><td style="color:#64748b; font-size:0.78rem;">APHA 5210 Respirometría</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Demanda Química de Oxígeno (DQO)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold; color:#0369a1;">290.00</td><td style="color:#64748b; font-size:0.78rem;">DIN ISO 15705 / EPA 410.4</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Nitrógeno Total (N)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">24.00</td><td style="color:#64748b; font-size:0.78rem;">ISO 11905-1 Fotometría</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Fósforo Total (P)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">13.00</td><td style="color:#64748b; font-size:0.78rem;">EPA 365.2+3 / DIN EN ISO 6878</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Cobre (Cu)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">0.193</td><td style="color:#64748b; font-size:0.78rem;">ICP/OES Emisión de plasma</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Cinc (Zn)</td><td style="text-align:center;">mg/L</td><td style="text-align:right; font-weight:bold;">0.275</td><td style="color:#64748b; font-size:0.78rem;">ICP/OES Emisión de plasma</td></tr>
+                                    <tr style="border-bottom:1px solid #e2e8f0;"><td style="padding:7px 8px; font-weight:bold;">Coliformes Fecales (CF)</td><td style="text-align:center;">NMP</td><td style="text-align:right; font-weight:bold; color:#b91c1c;">2.42E+04</td><td style="color:#64748b; font-size:0.78rem;">APHA 9223 Enzyme substrate</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- GUÍAS PRÁCTICAS PARA BENEFICIADO Y MEZCLAS -->
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.25rem;">
+                        <div style="background:#f0fdf4; border:1px solid #86efac; border-radius:10px; padding:1.25rem;">
+                            <h4 style="margin:0 0 0.5rem; color:#166534; font-size:0.95rem;">☕ 1. Para Beneficiado Húmedo de Café:</h4>
+                            <p style="font-size:0.84rem; color:#14532d; line-height:1.45; margin:0;">
+                                El agua de despulpe y lavado adquiere acidez y carga orgánica rápidamente. Se aconseja recircular únicamente en despulpe preliminar y conducir las aguas mieles hacia fosas de sedimentación y desarenado antes de cualquier vertimiento, manteniendo el flujo constante de 2.5 l/s para evitar desbordes.
+                            </p>
+                        </div>
+                        <div style="background:#eff6ff; border:1px solid #93c5fd; border-radius:10px; padding:1.25rem;">
+                            <h4 style="margin:0 0 0.5rem; color:#1d4ed8; font-size:0.95rem;">🧪 2. Para Tanque de Mezclas (Foliar y Plaguicidas):</h4>
+                            <p style="font-size:0.84rem; color:#1e40af; line-height:1.45; margin:0;">
+                                Con un pH ácido de 4.23 a 5.0, es crítico acondicionar el agua con un regulador o buffer neutro (pH ideal 5.5 a 6.0) antes de verter nutrientes foliares o aplicar bioinsecticidas como <em>Beauveria bassiana</em> contra la Broca, ya que la acidez extrema reduce la viabilidad de las conidias.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SUBTAB 7: DIAGNÓSTICO INTEGRAL IA (CLIMA, SUELO, AGUA & BROCA) -->
             <div id="clima-subtab-ia" style="display:none;">
                 <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:1.25rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:1.5rem;">
                     <!-- BANNER DEL MOTOR IA -->
                     <div style="background:linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%); color:white; border-radius:10px; padding:1.25rem; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-                        <div style="max-width:700px;">
+                        <div style="max-width:720px;">
                             <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
                                 <span style="font-size:1.4rem;">🤖</span>
-                                <h3 style="margin:0; color:white; font-size:1.2rem;">Asesor Agronómico Inteligente (Finca Los Robles)</h3>
+                                <h3 style="margin:0; color:white; font-size:1.2rem;">Asesor Agronómico Integral (Clima, Suelo, Agua & Broca)</h3>
                                 <span style="background:rgba(255,255,255,0.2); padding:2px 8px; border-radius:10px; font-size:0.7rem; font-weight:bold;">Gemini 3.8 Flash</span>
                             </div>
                             <p style="margin:0; font-size:0.85rem; opacity:0.9; line-height:1.4;">
-                                Interpreta los registros reales de la estación meteorológica (#138) y provee diagnósticos fitopatológicos (Roya, Ojo de Gallo), ventanas ideales de fertilización y recomendaciones de manejo de sombra y tejido para tus cafetales.
+                                Cruza la agrometeorología de Estación #138 con los análisis de suelo AS-4 y agua A-7 de ANALAB. Evalúa el riesgo de Broca del Café, Roya, nutrición mineral y acondicionamiento hídrico.
                             </p>
                         </div>
                         <div>
-                            <button class="btn btn-save" style="background:#fbbf24; color:#3b0764; font-weight:800; padding:10px 18px; margin:0;" onclick="ejecutarAnalisisIAClima('general')">
-                                ✨ Analizar Datos del Ciclo
+                            <button class="btn btn-save" style="background:#fbbf24; color:#3b0764; font-weight:800; padding:10px 18px; margin:0;" onclick="ejecutarAnalisisIAClima('integral')">
+                                ✨ Diagnóstico 360° Integral
                             </button>
                         </div>
                     </div>
 
                     <!-- BOTONES DE ACCIÓN RÁPIDA -->
                     <div style="margin-bottom:1.25rem;">
-                        <label style="font-size:0.78rem; font-weight:bold; color:#475569; display:block; margin-bottom:6px;">CONSULTAS RÁPIDAS FRECUENTES DEL PRODUCTOR:</label>
+                        <label style="font-size:0.78rem; font-weight:bold; color:#475569; display:block; margin-bottom:6px;">CONSULTAS AGRONÓMICAS ESPECIALIZADAS:</label>
                         <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button type="button" class="btn btn-xs" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('broca')">
+                                🪲 Alerta Broca del Café & Manejo MIP
+                            </button>
                             <button type="button" class="btn btn-xs" style="background:#fee2e2; color:#991b1b; border:1px solid #fca5a5; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('fitosanitario')">
-                                🍄 Alerta de Roya y Ojo de Gallo
+                                🍄 Roya y Ojo de Gallo
                             </button>
-                            <button type="button" class="btn btn-xs" style="background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('fertilizacion')">
-                                🌱 Ventana Óptima de Fertilización
+                            <button type="button" class="btn btn-xs" style="background:#f0fdf4; color:#166534; border:1px solid #86efac; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('suelo')">
+                                🌱 Corrección de Fósforo y Potasio (Suelo)
                             </button>
-                            <button type="button" class="btn btn-xs" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('floracion')">
-                                🌸 Estrés Hídrico y Cuajado Floral
+                            <button type="button" class="btn btn-xs" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('agua')">
+                                💧 Acondicionamiento de Agua de Mezcla
                             </button>
-                            <button type="button" class="btn btn-xs" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('cambio_climatico')">
-                                🔄 Impacto de Cambio Climático
+                            <button type="button" class="btn btn-xs" style="background:#f3e8ff; color:#6b21a8; border:1px solid #d8b4fe; font-weight:bold; padding:8px 12px;" onclick="lanzarConsultaRapidaClima('cambio_climatico')">
+                                🔄 Cambio Climático Interanual
                             </button>
                         </div>
                     </div>
@@ -3817,10 +4124,10 @@
                     <!-- ÁREA DE CONSULTA PERSONALIZADA -->
                     <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; margin-bottom:1.25rem;">
                         <label style="font-size:0.8rem; font-weight:bold; color:#334155; display:block; margin-bottom:6px;">
-                            💬 Pregunta o Situación Específica del Cafetal:
+                            💬 Pregunta Agronómica Específica:
                         </label>
                         <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                            <input type="text" id="clima-ia-pregunta-custom" placeholder="Ej: ¿Qué variaciones climáticas observamos este año respecto al ciclo anterior y cómo ajustar la sombra y fertilización?" style="flex:1; min-width:280px; padding:10px 14px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
+                            <input type="text" id="clima-ia-pregunta-custom" placeholder="Ej: Con las lluvias registradas y el fósforo bajo en el suelo, ¿cuándo fertilizar y cómo prevenir broca con trampas y Beauveria?" style="flex:1; min-width:280px; padding:10px 14px; border:1px solid #cbd5e1; border-radius:6px; font-size:0.9rem;">
                             <button type="button" class="btn btn-primary" id="btn-consultar-ia-clima" style="background:#7c3aed; color:white; font-weight:bold; padding:10px 18px; margin:0;" onclick="ejecutarAnalisisIAClima('custom')">
                                 🤖 Consultar a la IA
                             </button>
@@ -3833,10 +4140,10 @@
                         <div id="clima-ia-loading" style="display:none; text-align:center; padding:3rem 1rem;">
                             <div style="display:inline-block; width:44px; height:44px; border:4px solid #e2e8f0; border-top-color:#7c3aed; border-radius:50%; animation:spin 1s linear infinite;"></div>
                             <div style="font-weight:bold; color:#4c1d95; font-size:1rem; margin-top:12px;" id="clima-ia-loading-text">
-                                Analizando registros pluviométricos y térmicos de la Estación #138...
+                                Analizando datos de Clima, Suelo, Agua y Broca con IA...
                             </div>
                             <div style="font-size:0.8rem; color:#64748b; margin-top:4px;">
-                                Cruzando humedad relativa, temperaturas y ciclos de patógenos del café.
+                                Cruzando Estación #138 Anacafé con estudios de laboratorio ANALAB.
                             </div>
                         </div>
 
@@ -3844,8 +4151,8 @@
                         <div id="clima-ia-contenido-informe" style="display:none;">
                             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:10px; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
                                 <div>
-                                    <span style="font-size:0.75rem; text-transform:uppercase; color:#7c3aed; font-weight:bold;">INFORME TÉCNICO GENERADO</span>
-                                    <h4 style="margin:2px 0 0; color:#1e293b; font-size:1.1rem;" id="clima-ia-informe-titulo">Diagnóstico y Recomendaciones Agronómicas</h4>
+                                    <span style="font-size:0.75rem; text-transform:uppercase; color:#7c3aed; font-weight:bold;">INFORME INTEGRAL GENERADO</span>
+                                    <h4 style="margin:2px 0 0; color:#1e293b; font-size:1.1rem;" id="clima-ia-informe-titulo">Diagnóstico y Plan de Manejo Finca Los Robles</h4>
                                 </div>
                                 <div style="display:flex; gap:8px;">
                                     <button class="btn btn-xs btn-pdf" onclick="descargarPDFAnalisisIAClima()">
@@ -3906,6 +4213,163 @@
                 Cerrar
             </button>
         </div>
+    </div>
+</div>
+
+<!-- MODAL: VISOR DE DOCUMENTO PDF ANALAB -->
+<div class="modal-overlay" id="modal-visor-pdf-analab">
+    <div class="modal-content-large" style="max-width:960px; height:90vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.6rem; margin-bottom:0.75rem;">
+            <div>
+                <h3 style="margin:0; color:#0369a1; font-size:1.15rem;" id="visor-pdf-analab-titulo">📄 Documento Oficial de Laboratorio ANALAB</h3>
+                <span style="font-size:0.8rem; color:#64748b;" id="visor-pdf-analab-subtitulo">Asociación Nacional del Café - Anacafé</span>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <a id="visor-pdf-analab-abrir-btn" href="#" target="_blank" class="btn btn-xs btn-primary" style="background:#0284c7; color:white; text-decoration:none; display:inline-flex; align-items:center; gap:4px; font-weight:bold;">
+                    ↗️ Abrir en Pestaña Nueva
+                </a>
+                <button class="btn btn-xs" onclick="cerrarModal('modal-visor-pdf-analab')" style="background:none; border:none; font-size:1.4rem; cursor:pointer; color:#64748b; line-height:1;">✕</button>
+            </div>
+        </div>
+
+        <div style="flex:1; background:#f1f5f9; border-radius:8px; overflow:hidden; position:relative; border:1px solid #cbd5e1;">
+            <iframe id="visor-pdf-analab-frame" src="" style="width:100%; height:100%; border:none;" title="Visor ANALAB"></iframe>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.75rem; flex-wrap:wrap; gap:8px;">
+            <span style="font-size:0.8rem; color:#64748b;">
+                Laboratorio de Suelos, Plantas y Aguas ANALAB Anacafé • Finca Los Robles
+            </span>
+            <button type="button" class="btn btn-secondary btn-small" onclick="cerrarModal('modal-visor-pdf-analab')">
+                Cerrar Visor
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: REGISTRAR / EDITAR MUESTRA DE SUELO ANALAB -->
+<div class="modal-overlay" id="modal-nuevo-suelo">
+    <div class="modal-content-large" style="max-width:760px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #16a34a; padding-bottom:0.5rem; margin-bottom:1rem;">
+            <div>
+                <h3 style="margin:0; color:#166534;">🌱 Registrar Análisis de Suelo (ANALAB AS-4)</h3>
+                <span style="font-size:0.8rem; color:#64748b;">Ingresa los parámetros analíticos de fertilidad por tablón o lote</span>
+            </div>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-nuevo-suelo')" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+
+        <form id="form-nuevo-suelo" onsubmit="event.preventDefault(); window.guardarMuestraSuelo();">
+            <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Identificación de Muestra / Lote / Tablón *</label>
+                    <input type="text" id="suelo-in-identificacion" class="yellow-input" placeholder="Ej: 15751 - Lote 4 Caturra" required>
+                </div>
+                <div class="form-group">
+                    <label>pH (H₂O 1:1)</label>
+                    <input type="number" id="suelo-in-ph" step="0.01" class="yellow-input" placeholder="Ej: 5.85" required>
+                </div>
+                <div class="form-group">
+                    <label>Fósforo P (mg/Kg)</label>
+                    <input type="number" id="suelo-in-p" step="0.01" class="yellow-input" placeholder="Ej: 4.5" required>
+                </div>
+                <div class="form-group">
+                    <label>Potasio K (Cmol/Kg)</label>
+                    <input type="number" id="suelo-in-k" step="0.01" class="yellow-input" placeholder="Ej: 0.45" required>
+                </div>
+                <div class="form-group">
+                    <label>Calcio Ca (Cmol/Kg)</label>
+                    <input type="number" id="suelo-in-ca" step="0.01" class="yellow-input" placeholder="Ej: 8.50" required>
+                </div>
+                <div class="form-group">
+                    <label>Magnesio Mg (Cmol/Kg)</label>
+                    <input type="number" id="suelo-in-mg" step="0.01" class="yellow-input" placeholder="Ej: 1.80" required>
+                </div>
+                <div class="form-group">
+                    <label>Materia Orgánica M.O. (%)</label>
+                    <input type="number" id="suelo-in-mo" step="0.01" class="yellow-input" placeholder="Ej: 9.50" required>
+                </div>
+                <div class="form-group">
+                    <label>Boro B (mg/Kg)</label>
+                    <input type="number" id="suelo-in-boro" step="0.01" placeholder="Ej: 0.60">
+                </div>
+                <div class="form-group">
+                    <label>Azufre S (mg/Kg)</label>
+                    <input type="number" id="suelo-in-azufre" step="0.01" placeholder="Ej: 12.00">
+                </div>
+                <div class="form-group">
+                    <label>CICe (Cmol/Kg)</label>
+                    <input type="number" id="suelo-in-cice" step="0.01" placeholder="Ej: 11.20">
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1.25rem;">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modal-nuevo-suelo')">Cancelar</button>
+                <button type="submit" class="btn btn-success" style="background:#166534; font-weight:bold;">💾 Guardar Muestra de Suelo</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: REGISTRAR / EDITAR MUESTRA DE AGUA ANALAB -->
+<div class="modal-overlay" id="modal-nuevo-agua">
+    <div class="modal-content-large" style="max-width:760px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0284c7; padding-bottom:0.5rem; margin-bottom:1rem;">
+            <div>
+                <h3 style="margin:0; color:#0369a1;">💧 Registrar Análisis de Calidad de Agua (ANALAB A-7)</h3>
+                <span style="font-size:0.8rem; color:#64748b;">Parámetros fisicoquímicos para beneficiado de café o mezcla de caldos</span>
+            </div>
+            <button class="btn btn-xs" onclick="cerrarModal('modal-nuevo-agua')" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#64748b;">✕</button>
+        </div>
+
+        <form id="form-nuevo-agua" onsubmit="event.preventDefault(); window.guardarMuestraAgua();">
+            <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));">
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Fuente / Identificación del Agua *</label>
+                    <input type="text" id="agua-in-fuente" class="yellow-input" placeholder="Ej: Nacimiento Principal / Tanque de Mezclas" required>
+                </div>
+                <div class="form-group">
+                    <label>pH en Laboratorio *</label>
+                    <input type="number" id="agua-in-ph" step="0.01" class="yellow-input" placeholder="Ej: 4.23" required>
+                </div>
+                <div class="form-group">
+                    <label>Temperatura (°C)</label>
+                    <input type="number" id="agua-in-temp" step="0.1" class="yellow-input" placeholder="Ej: 25.0">
+                </div>
+                <div class="form-group">
+                    <label>Caudal (l/s)</label>
+                    <input type="number" id="agua-in-caudal" step="0.01" placeholder="Ej: 2.50">
+                </div>
+                <div class="form-group">
+                    <label>DBO (mg/L)</label>
+                    <input type="number" id="agua-in-dbo" step="0.1" placeholder="Ej: 215.0">
+                </div>
+                <div class="form-group">
+                    <label>DQO (mg/L)</label>
+                    <input type="number" id="agua-in-dqo" step="0.1" placeholder="Ej: 290.0">
+                </div>
+                <div class="form-group">
+                    <label>Sólidos Totales STS (mg/L)</label>
+                    <input type="number" id="agua-in-sts" step="0.1" placeholder="Ej: 360.0">
+                </div>
+                <div class="form-group">
+                    <label>Grasas y Aceites GyA (mg/L)</label>
+                    <input type="number" id="agua-in-gya" step="0.1" placeholder="Ej: 6.0">
+                </div>
+                <div class="form-group">
+                    <label>Nitrógeno Total N (mg/L)</label>
+                    <input type="number" id="agua-in-n" step="0.1" placeholder="Ej: 24.0">
+                </div>
+                <div class="form-group">
+                    <label>Fósforo Total P (mg/L)</label>
+                    <input type="number" id="agua-in-p" step="0.1" placeholder="Ej: 13.0">
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:1.25rem;">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal('modal-nuevo-agua')">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="background:#0284c7; font-weight:bold;">💾 Guardar Registro de Agua</button>
+            </div>
+        </form>
     </div>
 </div>
 
