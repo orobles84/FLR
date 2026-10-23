@@ -12584,8 +12584,10 @@ function renderGraficaMultianualBarras() {
 
 const DATOS_BASE_SUELO_ANALAB = [
     {
-        id: "15748",
+        id: "15748-2025",
         identificacion: "15748 - Lote 1 Anacafé 14",
+        anio: 2025,
+        fecha: "2025-02-07",
         ph: 5.73,
         p: 5.30,
         k: 0.40,
@@ -12599,8 +12601,10 @@ const DATOS_BASE_SUELO_ANALAB = [
         mgk: 4.18
     },
     {
-        id: "15749",
+        id: "15749-2025",
         identificacion: "15749 - Lote 2 Catimor",
+        anio: 2025,
+        fecha: "2025-02-07",
         ph: 5.94,
         p: 3.32,
         k: 0.34,
@@ -12614,8 +12618,10 @@ const DATOS_BASE_SUELO_ANALAB = [
         mgk: 6.15
     },
     {
-        id: "15750",
+        id: "15750-2025",
         identificacion: "15750 - Lote 3 Plantilla",
+        anio: 2025,
+        fecha: "2025-02-07",
         ph: 5.87,
         p: 3.00,
         k: 0.82,
@@ -12632,8 +12638,9 @@ const DATOS_BASE_SUELO_ANALAB = [
 
 const DATOS_BASE_AGUA_ANALAB = [
     {
-        id: "AG-1286",
+        id: "AG-1286-2025",
         fuente: "Efluente Fosa / Beneficiado y Mezclas (San Cristóbal Verapaz)",
+        anio: 2025,
         fecha: "2025-02-07",
         caudal: 2.50,
         ph: 4.23,
@@ -12656,7 +12663,14 @@ function cargarMuestrasSuelo() {
         const guardado = localStorage.getItem('flr_suelo_muestras_v1');
         if (guardado) {
             const parsed = JSON.parse(guardado);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                // Asegurar que cada muestra tenga su año (por defecto 2025)
+                return parsed.map(m => ({
+                    ...m,
+                    id: m.id || `M-${Date.now().toString().slice(-4)}`,
+                    anio: m.anio ? parseInt(m.anio) : 2025
+                }));
+            }
         }
     } catch(e){}
     return DATOS_BASE_SUELO_ANALAB;
@@ -12667,18 +12681,159 @@ function cargarMuestrasAgua() {
         const guardado = localStorage.getItem('flr_agua_muestras_v1');
         if (guardado) {
             const parsed = JSON.parse(guardado);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                return parsed.map(m => ({
+                    ...m,
+                    id: m.id || `AG-${Date.now().toString().slice(-4)}`,
+                    anio: m.anio ? parseInt(m.anio) : (m.fecha ? parseInt(m.fecha.slice(0, 4)) : 2025)
+                }));
+            }
         }
     } catch(e){}
     return DATOS_BASE_AGUA_ANALAB;
 }
 
-function renderModuloSuelo() {
+// Eliminar un registro de muestra de suelo individual
+window.eliminarMuestraSuelo = (id) => {
     const muestras = cargarMuestrasSuelo();
+    const item = muestras.find(m => String(m.id) === String(id));
+    const desc = item ? `${item.identificacion} (Año ${item.anio || 2025})` : `Muestra #${id}`;
+
+    if (!confirm(`¿Estás seguro de eliminar el registro de análisis de suelo "${desc}"?`)) {
+        return;
+    }
+
+    const filtradas = muestras.filter(m => String(m.id) !== String(id));
+    localStorage.setItem('flr_suelo_muestras_v1', JSON.stringify(filtradas));
+    renderModuloSuelo();
+};
+
+// Limpiar duplicados de suelo en un solo clic
+window.limpiarDuplicadosSuelo = () => {
+    const muestras = cargarMuestrasSuelo();
+    const vistos = new Set();
+    const unicos = [];
+    let countDuplicados = 0;
+
+    for (const m of muestras) {
+        // Clave única compuesta por Año + Identificación normalizada
+        const key = `${m.anio || 2025}__${(m.identificacion || '').trim().toLowerCase()}`;
+        if (!vistos.has(key)) {
+            vistos.add(key);
+            unicos.push(m);
+        } else {
+            countDuplicados++;
+        }
+    }
+
+    if (countDuplicados === 0) {
+        return alert("ℹ️ No se detectaron registros duplicados en los análisis de suelo.");
+    }
+
+    if (confirm(`Se detectaron ${countDuplicados} registros de suelo duplicados del mismo lote y año.\n\n¿Deseas eliminarlos y conservar únicamente un registro limpio por lote y año?`)) {
+        localStorage.setItem('flr_suelo_muestras_v1', JSON.stringify(unicos));
+        renderModuloSuelo();
+        alert(`✅ Se eliminaron ${countDuplicados} registros duplicados con éxito.`);
+    }
+};
+
+// Eliminar registro individual de análisis de agua
+window.eliminarMuestraAgua = (id) => {
+    const muestras = cargarMuestrasAgua();
+    const item = muestras.find(m => String(m.id) === String(id));
+    const desc = item ? `${item.fuente} (Año ${item.anio || 2025})` : `Registro #${id}`;
+
+    if (!confirm(`¿Estás seguro de eliminar el registro de análisis de agua "${desc}"?`)) {
+        return;
+    }
+
+    const filtradas = muestras.filter(m => String(m.id) !== String(id));
+    localStorage.setItem('flr_agua_muestras_v1', JSON.stringify(filtradas));
+    renderModuloAgua();
+};
+
+// Limpiar duplicados de agua
+window.limpiarDuplicadosAgua = () => {
+    const muestras = cargarMuestrasAgua();
+    const vistos = new Set();
+    const unicos = [];
+    let countDuplicados = 0;
+
+    for (const m of muestras) {
+        const key = `${m.anio || 2025}__${(m.fuente || '').trim().toLowerCase()}`;
+        if (!vistos.has(key)) {
+            vistos.add(key);
+            unicos.push(m);
+        } else {
+            countDuplicados++;
+        }
+    }
+
+    if (countDuplicados === 0) {
+        return alert("ℹ️ No se detectaron registros duplicados en los análisis de agua.");
+    }
+
+    if (confirm(`Se detectaron ${countDuplicados} registros duplicados de agua.\n\n¿Deseas eliminarlos y conservar un solo registro por fuente y año?`)) {
+        localStorage.setItem('flr_agua_muestras_v1', JSON.stringify(unicos));
+        renderModuloAgua();
+        alert(`✅ Se eliminaron ${countDuplicados} registros de agua duplicados.`);
+    }
+};
+
+function renderModuloSuelo() {
+    const todasMuestras = cargarMuestrasSuelo();
+    const selAnio = document.getElementById('filtro-anio-suelo');
+    const anioActual = selAnio ? selAnio.value : 'todos';
+
+    // Obtener lista única de años registrados
+    const aniosDisponibles = [...new Set(todasMuestras.map(m => m.anio || 2025))].sort((a,b) => b - a);
+
+    // Actualizar opciones del select si es necesario
+    if (selAnio) {
+        const opcionesExistentes = Array.from(selAnio.options).map(o => o.value);
+        const necesitaActualizar = aniosDisponibles.some(a => !opcionesExistentes.includes(String(a)));
+        if (necesitaActualizar || selAnio.options.length <= 1) {
+            selAnio.innerHTML = `
+                <option value="todos" ${anioActual === 'todos' ? 'selected' : ''}>Todos los Años (${todasMuestras.length})</option>
+                ${aniosDisponibles.map(a => {
+                    const cant = todasMuestras.filter(m => (m.anio || 2025) === a).length;
+                    return `<option value="${a}" ${String(anioActual) === String(a) ? 'selected' : ''}>Año ${a} (${cant})</option>`;
+                }).join('')}
+            `;
+        }
+    }
+
+    // Filtrar muestras por año
+    const muestrasFiltradas = (selAnio && selAnio.value !== 'todos')
+        ? todasMuestras.filter(m => String(m.anio || 2025) === String(selAnio.value))
+        : todasMuestras;
+
+    // Actualizar contador
+    const badgeContador = document.getElementById('badge-contador-muestras-suelo');
+    if (badgeContador) {
+        badgeContador.innerText = `Muestras: ${muestrasFiltradas.length}`;
+    }
+
     const tbody = document.getElementById('tbody-analisis-suelos');
     if (tbody) {
-        tbody.innerHTML = muestras.map(m => `
+        if (muestrasFiltradas.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="14" style="text-align:center; padding:1.5rem; color:#64748b; font-style:italic;">
+                        No hay análisis de suelo registrados para el año seleccionado.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = muestrasFiltradas.map(m => `
             <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="text-align:center; padding:8px;">
+                    <span style="background:#e0f2fe; color:#0369a1; font-weight:bold; font-size:0.75rem; padding:2px 7px; border-radius:10px;">
+                        ${m.anio || 2025}
+                    </span>
+                </td>
                 <td style="padding:8px; font-weight:bold; color:#0f766e;">${m.identificacion}</td>
                 <td style="text-align:right; padding:8px; font-weight:600;">${Number(m.ph).toFixed(2)}</td>
                 <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">${Number(m.p).toFixed(2)} 🔴</td>
@@ -12691,15 +12846,45 @@ function renderModuloSuelo() {
                 <td style="text-align:right; padding:8px;">${Number(m.cice).toFixed(2)}</td>
                 <td style="text-align:right; padding:8px; color:#b91c1c; font-weight:bold;">${Number(m.cak).toFixed(2)} 🔴</td>
                 <td style="text-align:right; padding:8px; color:${Number(m.mgk) > 2.5 ? '#b91c1c' : '#1e293b'};">${m.mgk !== undefined ? Number(m.mgk).toFixed(2) : '-'}</td>
+                <td style="text-align:center; padding:6px 4px;">
+                    <button type="button" class="btn btn-xs" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:3px 7px; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="window.eliminarMuestraSuelo('${m.id}')" title="Borrar este registro">
+                        🗑️
+                    </button>
+                </td>
             </tr>
         `).join('');
     }
 }
 
 function renderModuloAgua() {
-    const muestras = cargarMuestrasAgua();
-    if (!muestras || muestras.length === 0) return;
-    const m = muestras[muestras.length - 1]; // Última muestra analizada
+    const todasMuestras = cargarMuestrasAgua();
+    if (!todasMuestras || todasMuestras.length === 0) return;
+
+    const selAnio = document.getElementById('filtro-anio-agua');
+    const anioActual = selAnio ? selAnio.value : 'todos';
+
+    // Lista de años disponibles en agua
+    const aniosDisponibles = [...new Set(todasMuestras.map(m => m.anio || 2025))].sort((a,b) => b - a);
+
+    if (selAnio) {
+        const opcionesExistentes = Array.from(selAnio.options).map(o => o.value);
+        const necesitaActualizar = aniosDisponibles.some(a => !opcionesExistentes.includes(String(a)));
+        if (necesitaActualizar || selAnio.options.length <= 1) {
+            selAnio.innerHTML = `
+                <option value="todos" ${anioActual === 'todos' ? 'selected' : ''}>Todos los Años (${todasMuestras.length})</option>
+                ${aniosDisponibles.map(a => {
+                    const cant = todasMuestras.filter(m => (m.anio || 2025) === a).length;
+                    return `<option value="${a}" ${String(anioActual) === String(a) ? 'selected' : ''}>Año ${a} (${cant})</option>`;
+                }).join('')}
+            `;
+        }
+    }
+
+    const muestrasFiltradas = (selAnio && selAnio.value !== 'todos')
+        ? todasMuestras.filter(m => String(m.anio || 2025) === String(selAnio.value))
+        : todasMuestras;
+
+    const m = muestrasFiltradas.length > 0 ? muestrasFiltradas[muestrasFiltradas.length - 1] : todasMuestras[todasMuestras.length - 1];
 
     // Actualizar KPIs en el DOM si existen
     const phEl = document.querySelector('#clima-subtab-agua .dash-kpi-grid .card:nth-child(1) div');
@@ -12716,6 +12901,43 @@ function renderModuloAgua() {
     const stsEl = document.querySelector('#clima-subtab-agua .dash-kpi-grid .card:nth-child(4) div');
     if (stsEl && m.sts !== undefined) {
         stsEl.innerText = `${Number(m.sts).toFixed(0)} mg/L`;
+    }
+
+    // Renderizar la tabla de historial de análisis de agua
+    const tbodyAgua = document.getElementById('tbody-analisis-agua');
+    if (tbodyAgua) {
+        if (muestrasFiltradas.length === 0) {
+            tbodyAgua.innerHTML = `
+                <tr>
+                    <td colspan="9" style="text-align:center; padding:1.25rem; color:#64748b; font-style:italic;">
+                        No hay informes de agua para el año seleccionado.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbodyAgua.innerHTML = muestrasFiltradas.map(a => `
+            <tr style="border-bottom:1px solid #e2e8f0;">
+                <td style="text-align:center; padding:8px;">
+                    <span style="background:#e0f2fe; color:#0369a1; font-weight:bold; font-size:0.75rem; padding:2px 7px; border-radius:10px;">
+                        ${a.anio || 2025}
+                    </span>
+                </td>
+                <td style="padding:8px; color:#475569; font-size:0.8rem;">${a.fecha || '-'}</td>
+                <td style="padding:8px; font-weight:bold; color:#0f766e;">${a.fuente || 'Efluente Fosa'}</td>
+                <td style="text-align:right; padding:8px; font-weight:bold; color:#b91c1c;">${Number(a.ph || 4.23).toFixed(2)}</td>
+                <td style="text-align:right; padding:8px;">${Number(a.temp || 25.0).toFixed(1)}</td>
+                <td style="text-align:right; padding:8px;">${Number(a.caudal || 2.5).toFixed(2)}</td>
+                <td style="text-align:right; padding:8px; color:#0369a1; font-weight:bold;">${Number(a.dbo || 215).toFixed(0)}</td>
+                <td style="text-align:right; padding:8px;">${Number(a.sts || 360).toFixed(0)}</td>
+                <td style="text-align:center; padding:6px 4px;">
+                    <button type="button" class="btn btn-xs" style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:3px 7px; border-radius:4px; font-weight:bold; cursor:pointer;" onclick="window.eliminarMuestraAgua('${a.id}')" title="Borrar este informe de agua">
+                        🗑️
+                    </button>
+                </td>
+            </tr>
+        `).join('');
     }
 }
 
@@ -13552,6 +13774,8 @@ window.confirmarGuardarDatosPDFExtraidos = async () => {
 
     const { tipo, datos, archivo } = window._pdfExtraidoTemp;
     const guardarMemoria = document.getElementById('pdf-check-guardar-memoria')?.checked;
+    const anioSeleccionado = parseInt(document.getElementById('pdf-preview-anio')?.value || '2025');
+    const reemplazarDuplicados = document.getElementById('pdf-check-reemplazar-duplicados')?.checked !== false;
 
     try {
         if (tipo === 'suelo') {
@@ -13562,17 +13786,27 @@ window.confirmarGuardarDatosPDFExtraidos = async () => {
                 return alert('⚠️ No se encontraron muestras de suelo estructuradas en el informe.');
             }
 
-            // Normalizar y agregar
-            nuevasMuestras.forEach(m => {
+            let insertadas = 0;
+            let actualizadas = 0;
+
+            nuevasMuestras.forEach((m, idx) => {
                 const k = Number(m.k || 0);
                 const ca = Number(m.ca || 0);
                 const mg = Number(m.mg || 0);
                 const cak = k > 0 ? (ca / k) : 0;
                 const mgk = k > 0 ? (mg / k) : 0;
+                const identNorm = (m.identificacion || '').trim().toLowerCase();
 
-                muestrasActuales.push({
-                    id: m.id || `M-${Date.now().toString().slice(-4)}`,
+                // Verificar si ya existe este lote en este año para no duplicar
+                const indexExistente = reemplazarDuplicados
+                    ? muestrasActuales.findIndex(ex => (ex.anio || 2025) === anioSeleccionado && (ex.identificacion || '').trim().toLowerCase() === identNorm)
+                    : -1;
+
+                const muestraData = {
+                    id: indexExistente >= 0 ? muestrasActuales[indexExistente].id : `M-${anioSeleccionado}-${Date.now().toString().slice(-4)}-${idx}`,
                     identificacion: m.identificacion || 'Muestra de Suelo Extraída',
+                    anio: anioSeleccionado,
+                    fecha: datos.fecha || new Date().toISOString().split('T')[0],
                     ph: Number(m.ph || 5.85),
                     p: Number(m.p || 3.0),
                     k: Number(m.k || 0.45),
@@ -13584,10 +13818,22 @@ window.confirmarGuardarDatosPDFExtraidos = async () => {
                     cice: Number(m.cice || 12.0),
                     cak: Math.round(cak * 100) / 100,
                     mgk: Math.round(mgk * 100) / 100
-                });
+                };
+
+                if (indexExistente >= 0) {
+                    muestrasActuales[indexExistente] = muestraData;
+                    actualizadas++;
+                } else {
+                    muestrasActuales.push(muestraData);
+                    insertadas++;
+                }
             });
 
             localStorage.setItem('flr_suelo_muestras_v1', JSON.stringify(muestrasActuales));
+
+            // Ajustar el filtro para mostrar el año recién registrado
+            const selAnioSuelo = document.getElementById('filtro-anio-suelo');
+            if (selAnioSuelo) selAnioSuelo.value = String(anioSeleccionado);
             renderModuloSuelo();
 
             if (guardarMemoria && archivo) {
@@ -13595,16 +13841,27 @@ window.confirmarGuardarDatosPDFExtraidos = async () => {
             }
 
             window.cerrarModal('modal-subir-pdf-laboratorio');
-            alert(`✅ ¡Éxito! Se registraron ${nuevasMuestras.length} tablones/muestras de suelo extraídos automáticamente con IA.`);
+            
+            const mensaje = actualizadas > 0
+                ? `✅ Año ${anioSeleccionado}: Se registraron ${insertadas} muestras nuevas y se actualizaron ${actualizadas} existentes (sin duplicados).`
+                : `✅ Año ${anioSeleccionado}: Se registraron ${insertadas} muestras de suelo con éxito.`;
+            alert(mensaje);
 
         } else {
             // Agua
             const muestrasActuales = cargarMuestrasAgua();
             const p = datos.parametros || {};
+            const fuente = datos.puntoMuestreo || 'Muestra de Agua Extraída';
+            const fuenteNorm = fuente.trim().toLowerCase();
+
+            const indexExistente = reemplazarDuplicados
+                ? muestrasActuales.findIndex(ex => (ex.anio || 2025) === anioSeleccionado && (ex.fuente || '').trim().toLowerCase() === fuenteNorm)
+                : -1;
 
             const nuevaAgua = {
-                id: datos.ordenTrabajo ? `AG-${datos.ordenTrabajo}` : `AG-${Date.now().toString().slice(-4)}`,
-                fuente: datos.puntoMuestreo || 'Muestra de Agua Extraída',
+                id: indexExistente >= 0 ? muestrasActuales[indexExistente].id : (datos.ordenTrabajo ? `AG-${datos.ordenTrabajo}-${anioSeleccionado}` : `AG-${Date.now().toString().slice(-4)}`),
+                fuente: fuente,
+                anio: anioSeleccionado,
                 fecha: datos.fechaEmision || new Date().toISOString().split('T')[0],
                 caudal: Number(datos.caudalLps || 2.5),
                 ph: Number(p.ph || 4.23),
@@ -13618,8 +13875,16 @@ window.confirmarGuardarDatosPDFExtraidos = async () => {
                 coliformes: p.coliformes || '2.42E+04'
             };
 
-            muestrasActuales.push(nuevaAgua);
+            if (indexExistente >= 0) {
+                muestrasActuales[indexExistente] = nuevaAgua;
+            } else {
+                muestrasActuales.push(nuevaAgua);
+            }
+
             localStorage.setItem('flr_agua_muestras_v1', JSON.stringify(muestrasActuales));
+
+            const selAnioAgua = document.getElementById('filtro-anio-agua');
+            if (selAnioAgua) selAnioAgua.value = String(anioSeleccionado);
             renderModuloAgua();
 
             if (guardarMemoria && archivo) {
@@ -13627,7 +13892,7 @@ window.confirmarGuardarDatosPDFExtraidos = async () => {
             }
 
             window.cerrarModal('modal-subir-pdf-laboratorio');
-            alert(`✅ ¡Éxito! Se registraron los parámetros analíticos de agua extraídos con IA.`);
+            alert(`✅ Año ${anioSeleccionado}: Se registraron los parámetros de agua con éxito (sin duplicados).`);
         }
     } catch(e) {
         console.error('Error al guardar datos extraídos:', e);
@@ -13642,6 +13907,7 @@ window.abrirModalNuevoSuelo = () => {
 
 window.guardarMuestraSuelo = () => {
     const ident = document.getElementById('suelo-in-identificacion')?.value.trim();
+    const anio = parseInt(document.getElementById('suelo-in-anio')?.value || '2025');
     const ph = parseFloat(document.getElementById('suelo-in-ph')?.value || '5.85');
     const p = parseFloat(document.getElementById('suelo-in-p')?.value || '4.0');
     const k = parseFloat(document.getElementById('suelo-in-k')?.value || '0.45');
@@ -13658,8 +13924,10 @@ window.guardarMuestraSuelo = () => {
     const mgk = k > 0 ? (mg / k) : 0;
 
     const nuevaMuestra = {
-        id: `M-${Date.now().toString().slice(-4)}`,
+        id: `M-${anio}-${Date.now().toString().slice(-4)}`,
         identificacion: ident,
+        anio: anio,
+        fecha: new Date().toISOString().split('T')[0],
         ph, p, k, ca, mg, boro, azufre, mo, cice,
         cak: Math.round(cak * 100) / 100,
         mgk: Math.round(mgk * 100) / 100
@@ -13671,9 +13939,12 @@ window.guardarMuestraSuelo = () => {
         localStorage.setItem('flr_suelo_muestras_v1', JSON.stringify(muestras));
     } catch(e){}
 
+    const selAnioSuelo = document.getElementById('filtro-anio-suelo');
+    if (selAnioSuelo) selAnioSuelo.value = String(anio);
+
     renderModuloSuelo();
     window.cerrarModal('modal-nuevo-suelo');
-    alert("✅ Muestra de suelo guardada con éxito.");
+    alert(`✅ Muestra de suelo guardada con éxito para el año ${anio}.`);
 };
 
 window.abrirModalNuevoAgua = () => {
@@ -13683,6 +13954,7 @@ window.abrirModalNuevoAgua = () => {
 
 window.guardarMuestraAgua = () => {
     const fuente = document.getElementById('agua-in-fuente')?.value.trim();
+    const anio = parseInt(document.getElementById('agua-in-anio')?.value || '2025');
     const ph = parseFloat(document.getElementById('agua-in-ph')?.value || '4.23');
     const temp = parseFloat(document.getElementById('agua-in-temp')?.value || '25.0');
     const caudal = parseFloat(document.getElementById('agua-in-caudal')?.value || '2.5');
@@ -13696,8 +13968,10 @@ window.guardarMuestraAgua = () => {
     if (!fuente) return alert("Por favor indica la fuente o identificación del agua.");
 
     const nueva = {
-        id: `AG-${Date.now().toString().slice(-4)}`,
-        fuente, fecha: new Date().toISOString().split('T')[0],
+        id: `AG-${anio}-${Date.now().toString().slice(-4)}`,
+        fuente,
+        anio: anio,
+        fecha: new Date().toISOString().split('T')[0],
         caudal, ph, temp, dbo, dqo, sts, gya, n, p
     };
 
@@ -13707,8 +13981,12 @@ window.guardarMuestraAgua = () => {
         localStorage.setItem('flr_agua_muestras_v1', JSON.stringify(muestras));
     } catch(e){}
 
+    const selAnioAgua = document.getElementById('filtro-anio-agua');
+    if (selAnioAgua) selAnioAgua.value = String(anio);
+
+    renderModuloAgua();
     window.cerrarModal('modal-nuevo-agua');
-    alert("✅ Registro de análisis de agua guardado con éxito.");
+    alert(`✅ Registro de análisis de agua guardado con éxito para el año ${anio}.`);
 };
 
 function obtenerDatosSueloParaIA() {
