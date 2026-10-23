@@ -11,7 +11,13 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/751/751621.png">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        if (window.pdfjsLib) {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+    </script>
     <style>
         :root {
             --primary: #2C5E2E; --primary-dark: #1e4220; --secondary: #8B5A2B;
