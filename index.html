@@ -2936,8 +2936,8 @@
                         <button type="button" class="btn btn-xs" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:bold; padding:6px 12px; border-radius:6px;" onclick="limpiarDuplicadosCortes()" title="Elimina registros idénticos repetidos en la cosecha">
                             🧹 Limpiar Duplicados
                         </button>
-                        <button type="button" class="btn btn-xs" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-weight:bold; padding:6px 12px; border-radius:6px;" onclick="restaurarCortes2026Oficiales()" title="Restaura los 81 cortes oficiales del informe PDF 2025-2026">
-                            🔄 Restaurar Cosecha 2025-2026 (PDF)
+                        <button type="button" class="btn btn-xs" id="btn-sync-cortes" style="background:#0284c7; color:white; border:none; font-weight:bold; padding:6px 12px; border-radius:6px;" onclick="sincronizarCortesConFirestore(true)" title="Sincroniza y descarga cosechas y cortes desde la base de datos de Firebase">
+                            ☁️ Sincronizar Nube
                         </button>
                     </div>
                 </div>
@@ -3233,34 +3233,36 @@
             <!-- SUBTAB: IMPORTAR CORTES DE AÑOS ANTERIORES -->
             <div id="cortes-subtab-importar" style="display:none;">
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:1.5rem; margin-bottom:1.5rem;">
-                    <h3 style="margin:0 0 0.5rem; color:var(--primary); font-size:1.15rem;">📥 Cargar Información de Cortes de Años Anteriores</h3>
+                    <h3 style="margin:0 0 0.5rem; color:var(--primary); font-size:1.15rem;">📥 Cargar Información de Cortes de Cosechas (Nube Firebase)</h3>
                     <p style="margin:0 0 1.25rem; font-size:0.88rem; color:#64748b; line-height:1.45;">
-                        Puedes subir cualquier documento PDF donde hayas llevado los cortes diarios de cosechas pasadas (como el informe 2025-2026). La IA de Gemini y el lector integrado extraerán automáticamente la fecha, quintales, precio, pago, saldo neto y comprador o destino (Erika / Pergamino).
+                        Puedes subir cualquier documento PDF donde hayas llevado los cortes diarios de cosechas pasadas o actuales. La IA de Gemini y el lector integrado digitalizan automáticamente la fecha, quintales, precio, pago a cortadores, saldo neto y comprador o destino (Erika / Pergamino). Toda la información se guarda directamente en la base de datos de Firebase para que esté disponible en cualquier dispositivo.
                     </p>
 
-                    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.25rem;">
-                        <!-- OPCIÓN 1: SUBIR PDF -->
-                        <div style="background:#f0fdf4; border:2px dashed #86efac; border-radius:10px; padding:1.5rem; text-align:center;">
-                            <div style="font-size:2.5rem; margin-bottom:0.5rem;">📄✨</div>
-                            <h4 style="margin:0 0 0.4rem; color:#166534;">Subir Nuevo PDF de Cortes</h4>
-                            <p style="font-size:0.8rem; color:#15803d; margin:0 0 1rem;">
-                                Selecciona un archivo PDF de tu computadora con tablas de cortes de cualquier temporada.
-                            </p>
-                            <button type="button" class="btn btn-success" style="font-weight:bold; padding:9px 18px;" onclick="abrirModalSubirPDFCortes()">
-                                📤 Seleccionar y Extraer PDF
+                    <!-- CAJA DE CARGA UNIVERSAL DE PDF -->
+                    <div style="background:#f0fdf4; border:2px dashed #86efac; border-radius:12px; padding:2rem 1.5rem; text-align:center; max-width:680px; margin:0 auto 1.5rem;">
+                        <div style="font-size:2.8rem; margin-bottom:0.4rem;">📄✨</div>
+                        <h4 style="margin:0 0 0.4rem; color:#166534; font-size:1.1rem;">Cargar y Extraer PDF de Cualquier Cosecha</h4>
+                        <p style="font-size:0.82rem; color:#15803d; margin:0 0 1.25rem;">
+                            Sube el archivo PDF de cualquier año o temporada (ej. 2024-2025, 2025-2026, 2026-2027). La información se almacenará en la nube compartida.
+                        </p>
+                        <button type="button" class="btn btn-success" style="font-weight:bold; font-size:0.95rem; padding:10px 24px;" onclick="abrirModalSubirPDFCortes()">
+                            📤 Seleccionar Archivo PDF y Extraer
+                        </button>
+                    </div>
+
+                    <!-- RESUMEN DE COSECHAS GUARDADAS EN LA BASE DE DATOS -->
+                    <div style="margin-top:1.5rem; border-top:1px solid #e2e8f0; padding-top:1.25rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:1rem;">
+                            <div>
+                                <h4 style="margin:0; font-size:0.98rem; color:#1e293b;">☁️ Cosechas Registradas en la Base de Datos (Firebase)</h4>
+                                <p style="margin:2px 0 0; font-size:0.78rem; color:#64748b;">Información centralizada accesible desde tu teléfono, tablet o computadora.</p>
+                            </div>
+                            <button type="button" class="btn btn-xs" style="background:#0284c7; color:white; font-weight:bold; padding:6px 12px; border-radius:6px;" onclick="sincronizarCortesConFirestore(true)">
+                                🔄 Actualizar desde la Nube
                             </button>
                         </div>
-
-                        <!-- OPCIÓN 2: RESTAURAR OFICIAL 2025-2026 -->
-                        <div style="background:#fef3c7; border:2px solid #fde68a; border-radius:10px; padding:1.5rem; text-align:center;">
-                            <div style="font-size:2.5rem; margin-bottom:0.5rem;">📂☕</div>
-                            <h4 style="margin:0 0 0.4rem; color:#92400e;">Cosecha 2025-2026 (PDF Oficial Finca Los Robles)</h4>
-                            <p style="font-size:0.8rem; color:#78350f; margin:0 0 1rem;">
-                                Contiene los 81 cortes registrados (514.28 qq cosechados, Q 158,389.80 total, Q 51,428.00 pago, Q 106,961.80 saldo neto).
-                            </p>
-                            <button type="button" class="btn" style="background:#b45309; color:white; font-weight:bold; padding:9px 18px;" onclick="restaurarCortes2026Oficiales()">
-                                🔄 Cargar Cosecha 2025-2026
-                            </button>
+                        <div id="cortes-resumen-cosechas-db">
+                            <!-- Se renderiza dinámicamente con las cosechas registradas -->
                         </div>
                     </div>
                 </div>
@@ -3817,6 +3819,9 @@
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button class="btn btn-small btn-primary" style="background:#0284c7; color:white; font-weight:bold;" onclick="abrirModalCargaCSVClima()">
                         📂 Cargar CSV Clima
+                    </button>
+                    <button class="btn btn-small" id="btn-sync-clima" style="background:#0369a1; color:white; font-weight:bold;" onclick="sincronizarClimaConFirestore(true)" title="Descarga y sincroniza las observaciones climáticas desde Firebase Firestore">
+                        ☁️ Sincronizar Nube
                     </button>
                     <button class="btn btn-small" style="background:#15803d; color:white; font-weight:bold;" onclick="mostrarSubtabClima('suelo')">
                         🌱 Suelo ANALAB
@@ -6078,7 +6083,7 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.10.24-02 (Cosecha Unificada + Auth Resiliente)</div>
+<div class="version-tag">v2026.10.24-03 (Nube Firebase: Cosecha y Clima Multi-Dispositivo)</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
