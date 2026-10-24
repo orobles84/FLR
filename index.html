@@ -901,8 +901,8 @@
         </svg>
         <div id="form-login">
             <h2>Iniciar Sesión</h2>
-            <input type="text" id="login-email" placeholder="Usuario o Correo electrónico" autocomplete="username">
-            <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password">
+            <input type="text" id="login-email" placeholder="Usuario (ej. orobles) o Correo electrónico" autocomplete="username" onkeydown="if(event.key==='Enter') login()">
+            <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter') login()">
             <button class="btn" id="btn-login" onclick="login()">Ingresar</button>
             <p style="font-size:0.75rem; color:#64748b; margin-top:6px;">Ingresa con tu usuario asignado o correo registrado.</p>
             <p class="error-msg" id="login-error"></p>
@@ -6078,7 +6078,7 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.09.03</div>
+<div class="version-tag">v2026.10.24-02 (Cosecha Unificada + Auth Resiliente)</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
