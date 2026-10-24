@@ -1,6 +1,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail, updatePassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, addDoc, getDocs, query, orderBy, doc, setDoc, getDoc, serverTimestamp, updateDoc, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import {
+    DATOS_BASE_CORTES_2026,
+    todosLosCortesDiarios,
+    temporadaCortesActual,
+    cargarCortesDiarios,
+    inicializarModuloCortesDiarios,
+    renderModuloCortesDiarios,
+    renderGraficasComparativaCortes
+} from "./cortesCosecha.js";
 
 const getJsPDF = () => (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : window.jsPDF;
 const getChart = () => window.Chart;
@@ -273,8 +282,8 @@ function construirMenu() {
     } else {
         const todosLosModulos = [
             { id:'madera', icon:'🪵', label:'Cubicación Madera' },
-            { id:'cortes', icon:'🧺', label:'Cortes y Cosecha' },
-            { id:'cereza', icon:'🍒', label:'Café Cereza (Venta/Proceso)' },
+            { id:'cortes', icon:'🧺', label:'Cosecha, Cortes y Cereza' },
+            { id:'cereza', icon:'🍒', label:'Café Cereza (Histórico)' },
             { id:'catacion', icon:'☕', label:'Catación SCA' },
             { id:'proyectos', icon:'🗂️', label:'Proyectos y Pendientes' },
             { id:'muestreo', icon:'🔬', label:'Muestreo Lab' },
@@ -337,6 +346,7 @@ function entrarAlSistema() {
         cargarCamionadas();
         cargarUsuariosPermisos();
         cargarDatosClimaIniciales();
+        cargarCortesDiarios();
         window.calcularCotizador();
         window.onVentaTipoChange();
     } else {
@@ -10065,6 +10075,9 @@ function obtenerRangoSemanaLunesSabado(fechaRef) {
 }
 
 window.inicializarModuloCortes = async () => {
+    // 0. Inicializar módulo unificado de cortes diarios y destino
+    inicializarModuloCortesDiarios();
+
     // 1. Cargar tarifa de corte por libra guardada
     const tarifaSaved = parseFloat(localStorage.getItem('flr_tarifa_corte_lb'));
     if (!isNaN(tarifaSaved) && tarifaSaved > 0) {
@@ -10150,7 +10163,7 @@ window.alCambiarFechaPesaje = (fechaSeleccionada) => {
 };
 
 window.mostrarSubtabCortes = (tab) => {
-    const tabs = ['planilla', 'pesadas', 'cortadores'];
+    const tabs = ['diarios', 'graficas', 'planilla', 'pesadas', 'cortadores', 'importar'];
     tabs.forEach(t => {
         const cont = document.getElementById(`cortes-subtab-${t}`);
         const btn = document.getElementById(`tab-btn-cortes-${t}`);
@@ -10161,7 +10174,11 @@ window.mostrarSubtabCortes = (tab) => {
         }
     });
 
-    if (tab === 'planilla') {
+    if (tab === 'diarios') {
+        renderModuloCortesDiarios();
+    } else if (tab === 'graficas') {
+        renderGraficasComparativaCortes();
+    } else if (tab === 'planilla') {
         window.recalcularPlanillaCortes();
     } else if (tab === 'pesadas') {
         window.renderTablaPesajesCortes();
