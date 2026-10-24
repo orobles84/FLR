@@ -105,32 +105,228 @@ let chartComparativaInstance = null;
 let chartFinanzasInstance = null;
 let cortesExtraidosPreview = [];
 
-// Clave en almacenamiento local
+// Clave en almacenamiento local (caché offline y de acceso rápido)
 const STORAGE_KEY_CORTES = "flr_cortes_diarios_v1";
 
-// Cargar cortes desde localStorage
-function cargarCortesDiarios() {
+// Cargar cortes desde Firestore y localStorage
+async function cargarCortesDiarios() {
+  let cargadoLocal = false;
+
+  // 1. Cargar desde localStorage para disponibilidad inmediata sin latencia
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CORTES);
     if (raw) {
-      todosLosCortesDiarios = JSON.parse(raw);
-    }
-    if (!todosLosCortesDiarios || todosLosCortesDiarios.length === 0) {
-      todosLosCortesDiarios = JSON.parse(JSON.stringify(DATOS_BASE_CORTES_2026));
-      guardarCortesStorage();
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        todosLosCortesDiarios = parsed;
+        cargadoLocal = true;
+      }
     }
   } catch (e) {
-    console.error("Error al cargar cortes de café:", e);
+    console.warn("Aviso al cargar cortes de localStorage:", e);
+  }
+
+  if (!cargadoLocal || todosLosCortesDiarios.length === 0) {
     todosLosCortesDiarios = JSON.parse(JSON.stringify(DATOS_BASE_CORTES_2026));
   }
 
   // Ordenar cronológicamente (fechas más recientes primero para trabajo diario)
   todosLosCortesDiarios.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+  // 2. Sincronizar en segundo plano con Firebase Firestore para compartir datos entre todos los dispositivos
+  sincronizarCortesConFirestore();
 }
 
+// Guardar cortes en localStorage y en Firestore
 function guardarCortesStorage() {
-  localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(todosLosCortesDiarios));
+  try {
+    localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(todosLosCortesDiarios));
+  } catch(e) {
+    console.warn("Aviso al guardar en localStorage:", e);
+  }
+
+  // Sincronizar automáticamente en la nube (Firestore)
+  guardarCortesEnFirestore();
 }
+
+// Guardar en la base de datos de Firebase Firestore (colección 'cortes_cosecha')
+async function guardarCortesEnFirestore() {
+  const dbInst = window.db;
+  const fTools = window.firestoreTools;
+  if (!dbInst || !fTools) return;
+
+  try {
+    // Agrupar cortes por temporada para almacenamiento eficiente y escalable
+    const temporadasMap = {};
+    todosLosCortesDiarios.forEach(c => {
+      const temp = (c.temporada || "2025-2026").trim();
+      if (!temporadasMap[temp]) temporadasMap[temp] = [];
+      temporadasMap[temp].push(c);
+    });
+
+    const promesas = [];
+    for (const [temp, cortesTemp] of Object.entries(temporadasMap)) {
+      const tempDocId = temp.replace(/[\/\s]/g, '-');
+      const totalQq = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.quintal) || 0), 0);
+      const totalPag = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.total) || 0), 0);
+      const totalPagoCort = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.pago) || 0), 0);
+      const totalSaldo = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.saldoNeto) || 0), 0);
+
+      const docData = {
+        temporada: temp,
+        cortes: cortesTemp,
+        totalCortes: cortesTemp.length,
+        totalQuintales: parseFloat(totalQq.toFixed(2)),
+        totalPagado: parseFloat(totalPag.toFixed(2)),
+        totalPagoCortadores: parseFloat(totalPagoCort.toFixed(2)),
+        totalSaldoNeto: parseFloat(totalSaldo.toFixed(2)),
+        actualizadoEn: new Date().toISOString()
+      };
+
+      promesas.push(
+        fTools.setDoc(fTools.doc(dbInst, "cortes_cosecha", tempDocId), docData, { merge: true })
+          .catch(err => console.warn(`Aviso guardando cosecha ${temp} en Firestore:`, err))
+      );
+    }
+
+    await Promise.all(promesas);
+    actualizarResumenCosechasDB();
+  } catch(e) {
+    console.warn("Aviso en guardarCortesEnFirestore:", e);
+  }
+}
+
+// Sincronizar desde Firebase Firestore para que cualquier dispositivo tenga los mismos datos
+async function sincronizarCortesConFirestore(mostrarAlerta = false) {
+  const dbInst = window.db;
+  const fTools = window.firestoreTools;
+  if (!dbInst || !fTools) {
+    if (mostrarAlerta) alert("Base de datos no disponible para sincronización.");
+    return false;
+  }
+
+  const btnSync = document.getElementById('btn-sync-cortes');
+  if (btnSync && mostrarAlerta) {
+    btnSync.disabled = true;
+    btnSync.innerText = "⏳ Sincronizando...";
+  }
+
+  try {
+    const snap = await Promise.race([
+      fTools.getDocs(fTools.collection(dbInst, "cortes_cosecha")),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+    ]);
+
+    if (snap && !snap.empty) {
+      const cortesRemotos = [];
+      snap.forEach(d => {
+        const dData = d.data();
+        if (Array.isArray(dData.cortes)) {
+          cortesRemotos.push(...dData.cortes);
+        }
+      });
+
+      if (cortesRemotos.length > 0) {
+        // Combinar con los locales sin duplicar
+        const map = new Map();
+        // Primero remotos
+        cortesRemotos.forEach(c => {
+          const key = `${c.temporada || ''}_${c.fecha || ''}_${(c.destino || '').toUpperCase()}_${c.quintal || 0}`;
+          map.set(key, c);
+        });
+        // Agregar locales que falten
+        todosLosCortesDiarios.forEach(c => {
+          const key = `${c.temporada || ''}_${c.fecha || ''}_${(c.destino || '').toUpperCase()}_${c.quintal || 0}`;
+          if (!map.has(key)) map.set(key, c);
+        });
+
+        todosLosCortesDiarios = Array.from(map.values());
+        todosLosCortesDiarios.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+        try {
+          localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(todosLosCortesDiarios));
+        } catch(e){}
+
+        renderModuloCortesDiarios();
+        actualizarResumenCosechasDB();
+
+        if (mostrarAlerta) {
+          alert(`✅ Sincronización exitosa con la base de datos de Firebase:\n${todosLosCortesDiarios.length} cortes sincronizados en todos tus dispositivos.`);
+        }
+        return true;
+      }
+    } else {
+      // Si Firestore está vacío, subir lo que tenemos actualmente para que otros dispositivos lo vean
+      await guardarCortesEnFirestore();
+      if (mostrarAlerta) {
+        alert("✅ Datos de cortes guardados en la base de datos de Firebase.");
+      }
+      return true;
+    }
+  } catch(err) {
+    console.warn("Aviso al sincronizar cortes con Firestore:", err);
+    if (mostrarAlerta) {
+      alert("❌ No se pudo sincronizar con Firebase: " + (err.message || 'Error de conexión'));
+    }
+    return false;
+  } finally {
+    if (btnSync && mostrarAlerta) {
+      btnSync.disabled = false;
+      btnSync.innerText = "☁️ Sincronizar Nube";
+    }
+  }
+}
+
+// Renderizar resumen de cosechas presentes en la base de datos
+function actualizarResumenCosechasDB() {
+  const cont = document.getElementById("cortes-resumen-cosechas-db");
+  if (!cont) return;
+
+  const temporadas = [...new Set(todosLosCortesDiarios.map(c => c.temporada || "2025-2026"))].sort().reverse();
+  if (temporadas.length === 0) {
+    cont.innerHTML = `<div style="text-align:center; color:#64748b; font-size:0.85rem;">No hay cosechas registradas todavía.</div>`;
+    return;
+  }
+
+  cont.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
+      ${temporadas.map(t => {
+        const delTemp = todosLosCortesDiarios.filter(c => c.temporada === t);
+        const qq = delTemp.reduce((acc, c) => acc + (parseFloat(c.quintal) || 0), 0);
+        const saldo = delTemp.reduce((acc, c) => acc + (parseFloat(c.saldoNeto) || 0), 0);
+        const totalPag = delTemp.reduce((acc, c) => acc + (parseFloat(c.total) || 0), 0);
+        return `
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="color:var(--primary); font-size:0.95rem;">Cosecha ${t}</strong>
+              <span style="background:#ecfdf5; color:#065f46; font-size:0.7rem; font-weight:bold; padding:2px 8px; border-radius:10px; border:1px solid #a7f3d0;">☁️ En Firebase</span>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>Cortes registrados:</span>
+              <strong style="color:#1e293b;">${delTemp.length} cortes</strong>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>Quintales recolectados:</span>
+              <strong style="color:#0284c7;">${qq.toFixed(2)} qq</strong>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>Total valor cortes:</span>
+              <strong style="color:#1e293b;">Q ${totalPag.toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:4px; margin-top:4px;">
+              <span style="font-weight:bold;">Saldo Neto:</span>
+              <strong style="color:#15803d; font-size:0.9rem;">Q ${saldo.toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+window.sincronizarCortesConFirestore = () => sincronizarCortesConFirestore(true);
+window.guardarCortesEnFirestore = guardarCortesEnFirestore;
+window.actualizarResumenCosechasDB = actualizarResumenCosechasDB;
 
 // Inicializar el módulo unificado de cortes
 function inicializarModuloCortesDiarios() {
@@ -1346,6 +1542,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+window.db = db;
+window.auth = auth;
+window.firestoreTools = { collection, doc, setDoc, getDocs, getDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp };
 
 let currentAuthUid = null;
 let currentAuthEmail = null;
@@ -11560,6 +11760,8 @@ window.mostrarSubtabCortes = (tab) => {
         window.renderTablaPesajesCortes();
     } else if (tab === 'cortadores') {
         window.renderTablaCortadores();
+    } else if (tab === 'importar') {
+        if (typeof window.actualizarResumenCosechasDB === 'function') window.actualizarResumenCosechasDB();
     }
 };
 
@@ -13415,55 +13617,175 @@ function parsearCSVAnacafe(csvText) {
     return registros;
 }
 
-// Cargar dataset inicial (precarga del archivo 2025 de Anacafé o localStorage, con histórico 2024 de referencia)
+// Guardar observaciones climáticas en la base de datos de Firebase Firestore (colección 'clima_estacion')
+async function guardarClimaEnFirestore() {
+    if (typeof db === 'undefined' || !db) return;
+    try {
+        const aniosMap = {};
+        todosLosRegistrosClima.forEach(r => {
+            const a = (r.anio || (r.dia ? r.dia.substring(0,4) : '2025')).trim();
+            if (!aniosMap[a]) aniosMap[a] = [];
+            aniosMap[a].push(r);
+        });
+
+        for (const [anio, regs] of Object.entries(aniosMap)) {
+            const lluviaTotal = regs.reduce((acc, x) => acc + (parseFloat(x.lluviaMm) || 0), 0);
+            const docData = {
+                anio: String(anio),
+                idEstacion: "138",
+                nombreEstacion: "LOS ROBLES",
+                totalDias: regs.length,
+                lluviaAcumulada: parseFloat(lluviaTotal.toFixed(1)),
+                registros: regs,
+                actualizadoEn: new Date().toISOString()
+            };
+            setDoc(doc(db, "clima_estacion", String(anio)), docData, { merge: true }).catch(err => {
+                console.warn(`Aviso guardando clima ${anio} en Firestore:`, err);
+            });
+        }
+    } catch(e) {
+        console.warn("Aviso en guardarClimaEnFirestore:", e);
+    }
+}
+
+// Sincronizar observaciones climáticas con Firebase Firestore
+window.sincronizarClimaConFirestore = async (mostrarAlerta = true) => {
+    if (typeof db === 'undefined' || !db) {
+        if (mostrarAlerta) alert("Firestore no está disponible en este momento.");
+        return;
+    }
+    const btn = document.getElementById('btn-sync-clima');
+    if (btn && mostrarAlerta) { btn.disabled = true; btn.innerText = "⏳ Sincronizando..."; }
+
+    try {
+        const snap = await Promise.race([
+            getDocs(collection(db, "clima_estacion")),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+        ]);
+
+        if (snap && !snap.empty) {
+            const mapDias = new Map();
+            // Primero registros locales
+            todosLosRegistrosClima.forEach(r => mapDias.set(r.dia, r));
+
+            // Agregar o actualizar con los de Firestore
+            snap.forEach(dSnap => {
+                const dData = dSnap.data();
+                if (Array.isArray(dData.registros)) {
+                    dData.registros.forEach(r => mapDias.set(r.dia, r));
+                }
+            });
+
+            todosLosRegistrosClima = Array.from(mapDias.values());
+            todosLosRegistrosClima.sort((a,b) => (a.dia || '').localeCompare(b.dia || ''));
+            datosClimaCargados = true;
+            try {
+                localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima));
+            } catch(e){}
+
+            actualizarSelectAniosClima();
+            if (typeof window.renderModuloClima === 'function') window.renderModuloClima();
+            if (mostrarAlerta) {
+                alert(`✅ Sincronización exitosa con la base de datos de Firebase:\n${todosLosRegistrosClima.length} observaciones climáticas cargadas y compartidas en todos tus dispositivos.`);
+            }
+        } else {
+            // Si la colección de Firestore estaba vacía, subir los datos actuales
+            await guardarClimaEnFirestore();
+            if (mostrarAlerta) {
+                alert("✅ Observaciones climáticas guardadas en la base de datos de Firebase para todos tus dispositivos.");
+            }
+        }
+    } catch(err) {
+        console.error("Error al sincronizar clima con Firestore:", err);
+        if (mostrarAlerta) {
+            alert("❌ Error al sincronizar con la nube: " + (err.message || 'Error de conexión'));
+        }
+    } finally {
+        if (btn && mostrarAlerta) { btn.disabled = false; btn.innerText = "☁️ Sincronizar Nube"; }
+    }
+};
+
+// Cargar dataset inicial (precarga desde Firestore, localStorage y dataset de referencia)
 async function cargarDatosClimaIniciales() {
     if (datosClimaCargados && todosLosRegistrosClima.length > 0) return;
 
+    // 1. Cargar desde localStorage para respuesta inmediata sin retardo de pantalla
     try {
         const guardado = localStorage.getItem('flr_clima_registros_v2');
         if (guardado) {
             const parsed = JSON.parse(guardado);
             if (Array.isArray(parsed) && parsed.length > 0) {
-                // Asegurar que exista histórico 2024 para la comparativa si solo hay 2025
-                const anios = new Set(parsed.map(r => r.anio));
-                if (!anios.has('2024')) {
-                    const historico2024 = generarHistorico2024Estacion138();
-                    todosLosRegistrosClima = [...historico2024, ...parsed];
-                    todosLosRegistrosClima.sort((a,b) => a.dia.localeCompare(b.dia));
-                    try { localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima)); } catch(e){}
-                } else {
-                    todosLosRegistrosClima = parsed;
-                }
+                todosLosRegistrosClima = parsed;
                 datosClimaCargados = true;
                 actualizarSelectAniosClima();
-                return;
             }
         }
     } catch (e) {
         console.warn("Aviso al leer clima de localStorage:", e);
     }
 
-    // Cargar directamente del archivo 2025 de Anacafé en /assets/aistudio/
-    try {
-        const resp = await fetch('/assets/aistudio/Anacafe_DIARIO_138_Los_Robles_2025_7f47b95f.csv');
-        if (resp.ok) {
-            const csvText = await resp.text();
-            const registros2025 = parsearCSVAnacafe(csvText);
-            const historico2024 = generarHistorico2024Estacion138();
+    // 2. Consultar Firebase Firestore en segundo plano para sincronizar cualquier año nuevo subido desde otro dispositivo
+    if (typeof db !== 'undefined' && db) {
+        try {
+            const snap = await Promise.race([
+                getDocs(collection(db, "clima_estacion")),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 4500))
+            ]);
 
-            todosLosRegistrosClima = [...historico2024, ...registros2025];
-            todosLosRegistrosClima.sort((a, b) => a.dia.localeCompare(b.dia));
-            datosClimaCargados = true;
+            if (snap && !snap.empty) {
+                const mapDias = new Map();
+                todosLosRegistrosClima.forEach(r => mapDias.set(r.dia, r));
 
-            try {
-                localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima));
-            } catch(e){}
+                snap.forEach(dSnap => {
+                    const dData = dSnap.data();
+                    if (Array.isArray(dData.registros)) {
+                        dData.registros.forEach(r => mapDias.set(r.dia, r));
+                    }
+                });
 
-            actualizarSelectAniosClima();
-            console.log(`[Clima] Se cargaron ${todosLosRegistrosClima.length} observaciones meteorológicas de Estación #138 (2024 y 2025 disponibles).`);
+                todosLosRegistrosClima = Array.from(mapDias.values());
+                todosLosRegistrosClima.sort((a,b) => (a.dia || '').localeCompare(b.dia || ''));
+                datosClimaCargados = true;
+                try {
+                    localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima));
+                } catch(e){}
+
+                actualizarSelectAniosClima();
+                if (typeof window.renderModuloClima === 'function') window.renderModuloClima();
+                console.log(`[Clima] ${todosLosRegistrosClima.length} observaciones climáticas sincronizadas desde Firebase Firestore.`);
+                return;
+            }
+        } catch(errDb) {
+            console.warn("Aviso al consultar clima_estacion en Firestore:", errDb);
         }
-    } catch (err) {
-        console.error("Error al precargar archivo CSV de clima:", err);
+    }
+
+    // 3. Si no hay datos ni en Firestore ni en localStorage, precargar el CSV 2025 de Anacafé y generar histórico 2024
+    if (todosLosRegistrosClima.length === 0) {
+        try {
+            const resp = await fetch('/assets/aistudio/Anacafe_DIARIO_138_Los_Robles_2025_7f47b95f.csv');
+            if (resp.ok) {
+                const csvText = await resp.text();
+                const registros2025 = parsearCSVAnacafe(csvText);
+                const historico2024 = generarHistorico2024Estacion138();
+
+                todosLosRegistrosClima = [...historico2024, ...registros2025];
+                todosLosRegistrosClima.sort((a, b) => a.dia.localeCompare(b.dia));
+                datosClimaCargados = true;
+
+                try {
+                    localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima));
+                } catch(e){}
+
+                actualizarSelectAniosClima();
+
+                // Subir a Firestore para que quede guardado en la nube
+                guardarClimaEnFirestore();
+                console.log(`[Clima] Se cargaron ${todosLosRegistrosClima.length} observaciones meteorológicas y se subieron a Firebase Firestore.`);
+            }
+        } catch (err) {
+            console.error("Error al precargar archivo CSV de clima:", err);
+        }
     }
 }
 
@@ -16308,18 +16630,21 @@ window.procesarArchivoCSVClima = (file) => {
                 localStorage.setItem('flr_clima_registros_v2', JSON.stringify(todosLosRegistrosClima));
             } catch(e){}
 
+            // Guardar permanentemente en la base de datos de Firebase Firestore para acceso multi-dispositivo
+            guardarClimaEnFirestore();
+
             actualizarSelectAniosClima();
             window.renderModuloClima();
 
             if (status) {
                 status.style.background = '#ecfdf5';
                 status.style.color = '#065f46';
-                status.innerHTML = `✅ ¡Éxito! Se cargaron <strong>${nuevosRegistros.length}</strong> observaciones climáticas. Total en base de datos: <strong>${todosLosRegistrosClima.length} días</strong>.`;
+                status.innerHTML = `✅ ¡Éxito! Se cargaron <strong>${nuevosRegistros.length}</strong> observaciones climáticas y se guardaron en la base de datos de Firebase. Disponibles ahora en cualquier dispositivo.`;
             }
 
             setTimeout(() => {
                 window.cerrarModal('modal-cargar-csv-clima');
-                alert(`✅ Se actualizaron los datos climáticos de Finca Los Robles (${todosLosRegistrosClima.length} días disponibles).`);
+                alert(`✅ Datos climáticos guardados en la base de datos de Firebase (${todosLosRegistrosClima.length} días disponibles en todos tus dispositivos).`);
             }, 1200);
 
         } catch (err) {
