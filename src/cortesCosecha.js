@@ -98,32 +98,228 @@ let chartComparativaInstance = null;
 let chartFinanzasInstance = null;
 let cortesExtraidosPreview = [];
 
-// Clave en almacenamiento local
+// Clave en almacenamiento local (caché offline y de acceso rápido)
 const STORAGE_KEY_CORTES = "flr_cortes_diarios_v1";
 
-// Cargar cortes desde localStorage
-export function cargarCortesDiarios() {
+// Cargar cortes desde Firestore y localStorage
+export async function cargarCortesDiarios() {
+  let cargadoLocal = false;
+
+  // 1. Cargar desde localStorage para disponibilidad inmediata sin latencia
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CORTES);
     if (raw) {
-      todosLosCortesDiarios = JSON.parse(raw);
-    }
-    if (!todosLosCortesDiarios || todosLosCortesDiarios.length === 0) {
-      todosLosCortesDiarios = JSON.parse(JSON.stringify(DATOS_BASE_CORTES_2026));
-      guardarCortesStorage();
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        todosLosCortesDiarios = parsed;
+        cargadoLocal = true;
+      }
     }
   } catch (e) {
-    console.error("Error al cargar cortes de café:", e);
+    console.warn("Aviso al cargar cortes de localStorage:", e);
+  }
+
+  if (!cargadoLocal || todosLosCortesDiarios.length === 0) {
     todosLosCortesDiarios = JSON.parse(JSON.stringify(DATOS_BASE_CORTES_2026));
   }
 
   // Ordenar cronológicamente (fechas más recientes primero para trabajo diario)
   todosLosCortesDiarios.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+  // 2. Sincronizar en segundo plano con Firebase Firestore para compartir datos entre todos los dispositivos
+  sincronizarCortesConFirestore();
 }
 
+// Guardar cortes en localStorage y en Firestore
 export function guardarCortesStorage() {
-  localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(todosLosCortesDiarios));
+  try {
+    localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(todosLosCortesDiarios));
+  } catch(e) {
+    console.warn("Aviso al guardar en localStorage:", e);
+  }
+
+  // Sincronizar automáticamente en la nube (Firestore)
+  guardarCortesEnFirestore();
 }
+
+// Guardar en la base de datos de Firebase Firestore (colección 'cortes_cosecha')
+export async function guardarCortesEnFirestore() {
+  const dbInst = window.db;
+  const fTools = window.firestoreTools;
+  if (!dbInst || !fTools) return;
+
+  try {
+    // Agrupar cortes por temporada para almacenamiento eficiente y escalable
+    const temporadasMap = {};
+    todosLosCortesDiarios.forEach(c => {
+      const temp = (c.temporada || "2025-2026").trim();
+      if (!temporadasMap[temp]) temporadasMap[temp] = [];
+      temporadasMap[temp].push(c);
+    });
+
+    const promesas = [];
+    for (const [temp, cortesTemp] of Object.entries(temporadasMap)) {
+      const tempDocId = temp.replace(/[\/\s]/g, '-');
+      const totalQq = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.quintal) || 0), 0);
+      const totalPag = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.total) || 0), 0);
+      const totalPagoCort = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.pago) || 0), 0);
+      const totalSaldo = cortesTemp.reduce((acc, c) => acc + (parseFloat(c.saldoNeto) || 0), 0);
+
+      const docData = {
+        temporada: temp,
+        cortes: cortesTemp,
+        totalCortes: cortesTemp.length,
+        totalQuintales: parseFloat(totalQq.toFixed(2)),
+        totalPagado: parseFloat(totalPag.toFixed(2)),
+        totalPagoCortadores: parseFloat(totalPagoCort.toFixed(2)),
+        totalSaldoNeto: parseFloat(totalSaldo.toFixed(2)),
+        actualizadoEn: new Date().toISOString()
+      };
+
+      promesas.push(
+        fTools.setDoc(fTools.doc(dbInst, "cortes_cosecha", tempDocId), docData, { merge: true })
+          .catch(err => console.warn(`Aviso guardando cosecha ${temp} en Firestore:`, err))
+      );
+    }
+
+    await Promise.all(promesas);
+    actualizarResumenCosechasDB();
+  } catch(e) {
+    console.warn("Aviso en guardarCortesEnFirestore:", e);
+  }
+}
+
+// Sincronizar desde Firebase Firestore para que cualquier dispositivo tenga los mismos datos
+export async function sincronizarCortesConFirestore(mostrarAlerta = false) {
+  const dbInst = window.db;
+  const fTools = window.firestoreTools;
+  if (!dbInst || !fTools) {
+    if (mostrarAlerta) alert("Base de datos no disponible para sincronización.");
+    return false;
+  }
+
+  const btnSync = document.getElementById('btn-sync-cortes');
+  if (btnSync && mostrarAlerta) {
+    btnSync.disabled = true;
+    btnSync.innerText = "⏳ Sincronizando...";
+  }
+
+  try {
+    const snap = await Promise.race([
+      fTools.getDocs(fTools.collection(dbInst, "cortes_cosecha")),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+    ]);
+
+    if (snap && !snap.empty) {
+      const cortesRemotos = [];
+      snap.forEach(d => {
+        const dData = d.data();
+        if (Array.isArray(dData.cortes)) {
+          cortesRemotos.push(...dData.cortes);
+        }
+      });
+
+      if (cortesRemotos.length > 0) {
+        // Combinar con los locales sin duplicar
+        const map = new Map();
+        // Primero remotos
+        cortesRemotos.forEach(c => {
+          const key = `${c.temporada || ''}_${c.fecha || ''}_${(c.destino || '').toUpperCase()}_${c.quintal || 0}`;
+          map.set(key, c);
+        });
+        // Agregar locales que falten
+        todosLosCortesDiarios.forEach(c => {
+          const key = `${c.temporada || ''}_${c.fecha || ''}_${(c.destino || '').toUpperCase()}_${c.quintal || 0}`;
+          if (!map.has(key)) map.set(key, c);
+        });
+
+        todosLosCortesDiarios = Array.from(map.values());
+        todosLosCortesDiarios.sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+        try {
+          localStorage.setItem(STORAGE_KEY_CORTES, JSON.stringify(todosLosCortesDiarios));
+        } catch(e){}
+
+        renderModuloCortesDiarios();
+        actualizarResumenCosechasDB();
+
+        if (mostrarAlerta) {
+          alert(`✅ Sincronización exitosa con la base de datos de Firebase:\n${todosLosCortesDiarios.length} cortes sincronizados en todos tus dispositivos.`);
+        }
+        return true;
+      }
+    } else {
+      // Si Firestore está vacío, subir lo que tenemos actualmente para que otros dispositivos lo vean
+      await guardarCortesEnFirestore();
+      if (mostrarAlerta) {
+        alert("✅ Datos de cortes guardados en la base de datos de Firebase.");
+      }
+      return true;
+    }
+  } catch(err) {
+    console.warn("Aviso al sincronizar cortes con Firestore:", err);
+    if (mostrarAlerta) {
+      alert("❌ No se pudo sincronizar con Firebase: " + (err.message || 'Error de conexión'));
+    }
+    return false;
+  } finally {
+    if (btnSync && mostrarAlerta) {
+      btnSync.disabled = false;
+      btnSync.innerText = "☁️ Sincronizar Nube";
+    }
+  }
+}
+
+// Renderizar resumen de cosechas presentes en la base de datos
+export function actualizarResumenCosechasDB() {
+  const cont = document.getElementById("cortes-resumen-cosechas-db");
+  if (!cont) return;
+
+  const temporadas = [...new Set(todosLosCortesDiarios.map(c => c.temporada || "2025-2026"))].sort().reverse();
+  if (temporadas.length === 0) {
+    cont.innerHTML = `<div style="text-align:center; color:#64748b; font-size:0.85rem;">No hay cosechas registradas todavía.</div>`;
+    return;
+  }
+
+  cont.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:12px;">
+      ${temporadas.map(t => {
+        const delTemp = todosLosCortesDiarios.filter(c => c.temporada === t);
+        const qq = delTemp.reduce((acc, c) => acc + (parseFloat(c.quintal) || 0), 0);
+        const saldo = delTemp.reduce((acc, c) => acc + (parseFloat(c.saldoNeto) || 0), 0);
+        const totalPag = delTemp.reduce((acc, c) => acc + (parseFloat(c.total) || 0), 0);
+        return `
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <strong style="color:var(--primary); font-size:0.95rem;">Cosecha ${t}</strong>
+              <span style="background:#ecfdf5; color:#065f46; font-size:0.7rem; font-weight:bold; padding:2px 8px; border-radius:10px; border:1px solid #a7f3d0;">☁️ En Firebase</span>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>Cortes registrados:</span>
+              <strong style="color:#1e293b;">${delTemp.length} cortes</strong>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>Quintales recolectados:</span>
+              <strong style="color:#0284c7;">${qq.toFixed(2)} qq</strong>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; margin-bottom:3px;">
+              <span>Total valor cortes:</span>
+              <strong style="color:#1e293b;">Q ${totalPag.toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>
+            </div>
+            <div style="font-size:0.82rem; color:#475569; display:flex; justify-content:space-between; border-top:1px solid #f1f5f9; padding-top:4px; margin-top:4px;">
+              <span style="font-weight:bold;">Saldo Neto:</span>
+              <strong style="color:#15803d; font-size:0.9rem;">Q ${saldo.toLocaleString('es-GT', {minimumFractionDigits:2, maximumFractionDigits:2})}</strong>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+window.sincronizarCortesConFirestore = () => sincronizarCortesConFirestore(true);
+window.guardarCortesEnFirestore = guardarCortesEnFirestore;
+window.actualizarResumenCosechasDB = actualizarResumenCosechasDB;
 
 // Inicializar el módulo unificado de cortes
 export function inicializarModuloCortesDiarios() {
