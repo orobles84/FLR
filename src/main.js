@@ -1584,8 +1584,10 @@ let carritoPedido = [];
 // --- VARIABLES DE INVENTARIO Y ALERTAS VISUALES ---
 let umbralStockAlerta = parseFloat(localStorage.getItem('flr_inventario_umbral_alerta')) || 10;
 let filtroStockBajo = false;
+let filtroCategoriaInventario = 'todas';
 let busquedaInventarioTerm = '';
 let todosLosItemsInventario = [];
+let ajusteStockActualId = null;
 
 // --- VARIABLES DEL MÓDULO DE PROYECTOS Y PENDIENTES ---
 let todosLosProyectos = [];
@@ -1642,18 +1644,75 @@ let subtabMaderaActual = 'nueva';
 
 const FLETES = { "usa-golfo":90, "usa-este":110, "canada":105, "europa":120, "japon":160, "corea":155, "australia":200, "china":170 };
 
-const PRECIOS_DEFAULT = {
-    "Tostado": { nombre: "Café Tostado (Entero/Molido)", unidad: "libra", precio: 80 },
-    "Oro": { nombre: "Café Verde (Oro)", unidad: "libra", precio: 25 },
-    "Pergamino": { nombre: "Café Pergamino", unidad: "libra", precio: 12 },
-    "Miel-Botella": { nombre: "Miel de Abeja Botella 750ml", unidad: "botella", precio: 75 },
-    "Miel-Galon": { nombre: "Miel de Abeja Galón", unidad: "galón", precio: 375 },
-    "Licor-Botella": { nombre: "Licor de Guayaba Botella 750ml", unidad: "botella", precio: 75 },
-    "Licor-Litro": { nombre: "Licor de Guayaba Litro", unidad: "litro", precio: 85 },
-    "Licor-Galon": { nombre: "Licor de Guayaba Galón", unidad: "galón", precio: 300 }
+const CATEGORIAS_PRODUCTO = ["Café", "Miel", "Licor de Guayaba", "Insumos"];
+
+const CATEGORIAS_META = {
+    "Café": { icon: "☕", label: "Café", badgeBg: "#fef3c7", badgeColor: "#92400e", gridId: "dash-cafe-grid" },
+    "Miel": { icon: "🍯", label: "Miel de Abeja", badgeBg: "#ffedd5", badgeColor: "#9a3412", gridId: "dash-miel-grid" },
+    "Licor de Guayaba": { icon: "🍷", label: "Licor de Guayaba", badgeBg: "#fce7f3", badgeColor: "#9d174d", gridId: "dash-licor-grid" },
+    "Insumos": { icon: "📦", label: "Insumos (Uso Interno)", badgeBg: "#e0f2fe", badgeColor: "#0369a1", gridId: "dash-insumos-grid" }
 };
 
-let preciosListaActual = { ...PRECIOS_DEFAULT };
+const PRECIOS_DEFAULT = {
+    "Tostado": { nombre: "Café Tostado (Entero/Molido)", categoria: "Café", unidad: "libra", precio: 80, vendible: true, esCafeLote: true },
+    "Oro": { nombre: "Café Verde (Oro)", categoria: "Café", unidad: "libra", precio: 25, vendible: true, esCafeLote: true },
+    "Pergamino": { nombre: "Café Pergamino", categoria: "Café", unidad: "libra", precio: 12, vendible: true, esCafeLote: true },
+    "Miel-Botella": { nombre: "Miel de Abeja Botella 750ml", categoria: "Miel", unidad: "botella", precio: 75, vendible: true, esCafeLote: false },
+    "Miel-Galon": { nombre: "Miel de Abeja Galón", categoria: "Miel", unidad: "galón", precio: 375, vendible: true, esCafeLote: false },
+    "Licor-Botella-250ml": { nombre: "Licor de Guayaba Botella 250ml", categoria: "Licor de Guayaba", unidad: "botella", precio: 30, vendible: true, esCafeLote: false },
+    "Licor-Botella": { nombre: "Licor de Guayaba Botella 750ml", categoria: "Licor de Guayaba", unidad: "botella", precio: 75, vendible: true, esCafeLote: false },
+    "Licor-Litro": { nombre: "Licor de Guayaba Litro", categoria: "Licor de Guayaba", unidad: "litro", precio: 85, vendible: true, esCafeLote: false },
+    "Licor-Galon": { nombre: "Licor de Guayaba Galón", categoria: "Licor de Guayaba", unidad: "galón", precio: 300, vendible: true, esCafeLote: false },
+    "Insumo-Bolsas-Cafe": { nombre: "Bolsas para Café Tostado", categoria: "Insumos", unidad: "bolsa", precio: 0, vendible: false, esCafeLote: false }
+};
+
+let preciosListaActual = JSON.parse(JSON.stringify(PRECIOS_DEFAULT));
+
+function inferirMetaProducto(key, item = {}) {
+    const def = PRECIOS_DEFAULT[key] || {};
+    let categoria = item.categoria || def.categoria;
+    if (!categoria) {
+        const kLow = String(key || '').toLowerCase();
+        const nLow = String(item.nombre || '').toLowerCase();
+        if (['pergamino', 'oro', 'tostado'].includes(kLow) || nLow.includes('café') || nLow.includes('cafe')) {
+            categoria = nLow.includes('bolsa') ? "Insumos" : "Café";
+        } else if (kLow.startsWith('miel') || nLow.includes('miel')) {
+            categoria = "Miel";
+        } else if (kLow.startsWith('licor') || nLow.includes('licor')) {
+            categoria = "Licor de Guayaba";
+        } else if (kLow.startsWith('insumo') || item.vendible === false) {
+            categoria = "Insumos";
+        } else {
+            categoria = "Insumos";
+        }
+    }
+    const vendible = item.vendible !== undefined ? Boolean(item.vendible) : (def.vendible !== undefined ? def.vendible : categoria !== "Insumos");
+    const esCafeLote = item.esCafeLote !== undefined ? Boolean(item.esCafeLote) : (def.esCafeLote !== undefined ? def.esCafeLote : ['Pergamino', 'Oro', 'Tostado'].includes(key));
+    return {
+        nombre: item.nombre || def.nombre || key,
+        categoria,
+        unidad: item.unidad || def.unidad || 'unidad',
+        precio: item.precio !== undefined ? Number(item.precio) : (def.precio || 0),
+        vendible,
+        esCafeLote
+    };
+}
+
+function normalizarCatalogoProductos(catalogoRaw = {}) {
+    const resultado = {};
+    // Conservar todos los productos guardados con su metadata normalizada
+    Object.keys(catalogoRaw || {}).forEach(k => {
+        resultado[k] = inferirMetaProducto(k, catalogoRaw[k]);
+    });
+    // Asegurar que los nuevos productos base estén disponibles si no han sido eliminados explícitamente
+    const eliminados = JSON.parse(localStorage.getItem('flr_productos_eliminados') || '[]');
+    Object.keys(PRECIOS_DEFAULT).forEach(k => {
+        if (!resultado[k] && !eliminados.includes(k)) {
+            resultado[k] = JSON.parse(JSON.stringify(PRECIOS_DEFAULT[k]));
+        }
+    });
+    return resultado;
+}
 
 const SCA_CATEGORIAS = [
     { k:'fragancia', n:'1. Fragancia / Aroma', d:'Evaluación del café seco y húmedo', min:6, def:7.5 },
@@ -2391,20 +2450,125 @@ window.showSection = (id, el) => {
         inicializarModuloTostado();
     } else if (id === 'clima') {
         inicializarModuloClima();
+    } else if (id === 'inventario') {
+        sincronizarSelectoresProductos();
+        renderTablaInventario();
+    } else if (id === 'precios') {
+        renderPreciosLista();
     } else if (id === 'usuarios') {
         cargarUsuariosPermisos();
     }
 };
 
+function construirOpcionesAgrupadasHTML({ soloVendibles = false, categoriaFiltro = 'todas' } = {}) {
+    let html = '';
+    CATEGORIAS_PRODUCTO.forEach(cat => {
+        if (categoriaFiltro !== 'todas' && categoriaFiltro !== cat) return;
+        const metaCat = CATEGORIAS_META[cat] || { icon: '📦', label: cat };
+        const keys = Object.keys(preciosListaActual).filter(k => {
+            const p = inferirMetaProducto(k, preciosListaActual[k]);
+            if (p.categoria !== cat) return false;
+            if (soloVendibles && p.vendible === false) return false;
+            return true;
+        });
+        if (keys.length === 0) return;
+        html += `<optgroup label="${metaCat.icon} ${cat}">`;
+        keys.forEach(k => {
+            const p = inferirMetaProducto(k, preciosListaActual[k]);
+            html += `<option value="${k}">${p.nombre}${p.vendible === false ? ' (Uso interno)' : ''}</option>`;
+        });
+        html += `</optgroup>`;
+    });
+    return html;
+}
+
+function sincronizarSelectoresProductos() {
+    const catFiltroInv = document.getElementById('inv-categoria-filtro')?.value || 'todas';
+
+    const selInv = document.getElementById('inv-estado');
+    if (selInv) {
+        const valPrev = selInv.value;
+        const htmlInv = construirOpcionesAgrupadasHTML({ soloVendibles: false, categoriaFiltro: catFiltroInv });
+        selInv.innerHTML = htmlInv || '<option value="">-- Sin productos en esta categoría --</option>';
+        if (valPrev && Array.from(selInv.options).some(o => o.value === valPrev)) {
+            selInv.value = valPrev;
+        }
+    }
+
+    const selEditInv = document.getElementById('ei-estado');
+    if (selEditInv) {
+        const valPrev = selEditInv.value;
+        selEditInv.innerHTML = construirOpcionesAgrupadasHTML({ soloVendibles: false });
+        if (valPrev && Array.from(selEditInv.options).some(o => o.value === valPrev)) {
+            selEditInv.value = valPrev;
+        }
+    }
+
+    const selVenta = document.getElementById('venta-tipo');
+    if (selVenta) {
+        const valPrev = selVenta.value;
+        selVenta.innerHTML = construirOpcionesAgrupadasHTML({ soloVendibles: true });
+        if (valPrev && Array.from(selVenta.options).some(o => o.value === valPrev)) {
+            selVenta.value = valPrev;
+        }
+    }
+
+    const selPed = document.getElementById('ped-prod-tipo');
+    if (selPed) {
+        const valPrev = selPed.value;
+        selPed.innerHTML = construirOpcionesAgrupadasHTML({ soloVendibles: true });
+        if (valPrev && Array.from(selPed.options).some(o => o.value === valPrev)) {
+            selPed.value = valPrev;
+        }
+    }
+
+    if (typeof window.toggleInvFields === 'function') window.toggleInvFields();
+}
+window.sincronizarSelectoresProductos = sincronizarSelectoresProductos;
+
+window.filtrarSelectorProductoInv = () => {
+    sincronizarSelectoresProductos();
+};
+
 async function cargarPreciosLista() {
+    // 1. Cargar caché local inmediato
+    try {
+        const cached = localStorage.getItem('flr_catalogo_productos_v1');
+        if (cached) {
+            preciosListaActual = normalizarCatalogoProductos(JSON.parse(cached));
+            sincronizarSelectoresProductos();
+            renderPreciosLista();
+        }
+    } catch (e) {}
+
+    // 2. Sincronizar con Firestore
     try {
         const snap = await getDoc(doc(db, "precios", "catalogo"));
-        if (snap.exists()) preciosListaActual = snap.data().productos || { ...PRECIOS_DEFAULT };
-        else preciosListaActual = { ...PRECIOS_DEFAULT };
+        if (snap.exists()) {
+            const productosDB = snap.data().productos || {};
+            const normalizado = normalizarCatalogoProductos(productosDB);
+            preciosListaActual = normalizado;
+            // Si se enriqueció con nuevos defaults (ej. Licor-Botella-250ml o Insumo-Bolsas-Cafe), sincronizar de vuelta
+            if (Object.keys(normalizado).length > Object.keys(productosDB).length) {
+                setDoc(doc(db, "precios", "catalogo"), { productos: preciosListaActual, actualizado: serverTimestamp() }, { merge: true }).catch(() => {});
+            }
+        } else {
+            preciosListaActual = JSON.parse(JSON.stringify(PRECIOS_DEFAULT));
+            setDoc(doc(db, "precios", "catalogo"), { productos: preciosListaActual, actualizado: serverTimestamp() }, { merge: true }).catch(() => {});
+        }
+        try { localStorage.setItem('flr_catalogo_productos_v1', JSON.stringify(preciosListaActual)); } catch (e) {}
         renderPreciosLista();
+        sincronizarSelectoresProductos();
+        if (todosLosItemsInventario.length > 0) {
+            renderTablaInventario();
+            renderizarGridsInventarioDashboard();
+        }
     } catch (e) {
-        preciosListaActual = { ...PRECIOS_DEFAULT };
+        if (!preciosListaActual || Object.keys(preciosListaActual).length === 0) {
+            preciosListaActual = JSON.parse(JSON.stringify(PRECIOS_DEFAULT));
+        }
         renderPreciosLista();
+        sincronizarSelectoresProductos();
     }
 }
 
@@ -2412,17 +2576,32 @@ function renderPreciosLista() {
     const container = document.getElementById('precios-container');
     if (!container) return;
     container.innerHTML = '';
-    Object.keys(preciosListaActual).forEach(key => {
-        const p = preciosListaActual[key];
-        const row = document.createElement('div');
-        row.className = 'precio-row';
-        row.innerHTML = `
-            <div class="producto-nombre">${p.nombre}</div>
-            <input type="number" value="${p.precio}" step="0.01" data-key="${key}" data-field="precio">
-            <input type="text" value="${p.unidad}" data-key="${key}" data-field="unidad">
-            <button class="btn btn-small btn-danger" onclick="eliminarProductoLista('${key}')">🗑️</button>
-        `;
-        container.appendChild(row);
+
+    CATEGORIAS_PRODUCTO.forEach(cat => {
+        const metaCat = CATEGORIAS_META[cat] || { icon: '📦', label: cat };
+        const keys = Object.keys(preciosListaActual).filter(k => inferirMetaProducto(k, preciosListaActual[k]).categoria === cat);
+        if (keys.length === 0) return;
+
+        const header = document.createElement('div');
+        header.style.cssText = 'font-weight:bold; color:var(--primary); margin:1rem 0 0.5rem; padding-bottom:4px; border-bottom:1px solid #e2e8f0; display:flex; align-items:center; gap:6px; font-size:0.95rem;';
+        header.innerHTML = `<span>${metaCat.icon}</span><span>${cat}</span>`;
+        container.appendChild(header);
+
+        keys.forEach(key => {
+            const p = inferirMetaProducto(key, preciosListaActual[key]);
+            const row = document.createElement('div');
+            row.className = 'precio-row';
+            const badgeUso = p.vendible === false
+                ? `<span style="display:inline-block; background:#e0f2fe; color:#0369a1; font-size:0.7rem; padding:2px 6px; border-radius:4px; margin-left:6px; font-weight:bold;">Insumo / Uso interno</span>`
+                : '';
+            row.innerHTML = `
+                <div class="producto-nombre">${p.nombre}${badgeUso}</div>
+                <input type="number" value="${p.precio}" step="0.01" data-key="${key}" data-field="precio" ${p.vendible === false ? 'title="Precio Q0 porque es uso interno"' : ''}>
+                <input type="text" value="${p.unidad}" data-key="${key}" data-field="unidad">
+                <button class="btn btn-small btn-danger" onclick="eliminarProductoLista('${key}')">🗑️</button>
+            `;
+            container.appendChild(row);
+        });
     });
 }
 
@@ -2432,27 +2611,161 @@ window.guardarPreciosLista = async () => {
         const field = input.dataset.field;
         if (preciosListaActual[key]) {
             if (field === 'precio') preciosListaActual[key].precio = parseFloat(input.value) || 0;
-            else if (field === 'unidad') preciosListaActual[key].unidad = input.value;
+            else if (field === 'unidad') preciosListaActual[key].unidad = input.value.trim() || 'unidad';
         }
     });
     try {
+        localStorage.setItem('flr_catalogo_productos_v1', JSON.stringify(preciosListaActual));
         await setDoc(doc(db, "precios", "catalogo"), { productos: preciosListaActual, actualizado: serverTimestamp() });
-        alert("✅ Lista guardada.");
+        sincronizarSelectoresProductos();
+        renderTablaInventario();
+        alert("✅ Lista de precios y catálogo guardados.");
     } catch (e) { alert("Error: " + e.message); }
 };
 
-window.restaurarPreciosDefault = () => {
-    if (confirm("¿Restaurar precios por defecto?")) {
+window.restaurarPreciosDefault = async () => {
+    if (confirm("¿Restaurar catálogo y precios por defecto?")) {
+        localStorage.removeItem('flr_productos_eliminados');
         preciosListaActual = JSON.parse(JSON.stringify(PRECIOS_DEFAULT));
+        localStorage.setItem('flr_catalogo_productos_v1', JSON.stringify(preciosListaActual));
+        try {
+            await setDoc(doc(db, "precios", "catalogo"), { productos: preciosListaActual, actualizado: serverTimestamp() });
+        } catch(e) {}
         renderPreciosLista();
+        sincronizarSelectoresProductos();
     }
 };
 
-window.eliminarProductoLista = (key) => {
-    if (confirm(`¿Eliminar "${preciosListaActual[key].nombre}"?`)) {
+window.eliminarProductoLista = async (key) => {
+    const p = preciosListaActual[key];
+    if (!p) return;
+    if (confirm(`¿Eliminar "${p.nombre}" del catálogo?`)) {
         delete preciosListaActual[key];
+        const elim = JSON.parse(localStorage.getItem('flr_productos_eliminados') || '[]');
+        if (!elim.includes(key)) {
+            elim.push(key);
+            localStorage.setItem('flr_productos_eliminados', JSON.stringify(elim));
+        }
+        localStorage.setItem('flr_catalogo_productos_v1', JSON.stringify(preciosListaActual));
+        try {
+            await setDoc(doc(db, "precios", "catalogo"), { productos: preciosListaActual, actualizado: serverTimestamp() });
+        } catch(e) {}
         renderPreciosLista();
+        sincronizarSelectoresProductos();
     }
+};
+
+// --- MODAL: CREAR NUEVO PRODUCTO O INSUMO EN EL CATÁLOGO ---
+window.abrirModalNuevoProducto = (categoriaPreselect = null) => {
+    const modal = document.getElementById('modal-nuevo-producto');
+    if (!modal) return;
+    const catFiltro = document.getElementById('inv-categoria-filtro')?.value;
+    const catInicial = categoriaPreselect || (catFiltro && catFiltro !== 'todas' ? catFiltro : 'Licor de Guayaba');
+
+    document.getElementById('np-categoria').value = catInicial;
+    document.getElementById('np-nombre').value = '';
+    document.getElementById('np-unidad').value = catInicial === 'Insumos' ? 'bolsa' : (catInicial === 'Café' ? 'libra' : 'botella');
+    document.getElementById('np-unidad-custom').style.display = 'none';
+    document.getElementById('np-unidad-custom').value = '';
+    document.getElementById('np-precio').value = '0';
+    document.getElementById('np-es-cafe-lote').checked = false;
+
+    window.onNuevoProductoCategoriaChange();
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('np-nombre')?.focus(), 100);
+};
+
+window.onNuevoProductoCategoriaChange = () => {
+    const cat = document.getElementById('np-categoria').value;
+    const selVend = document.getElementById('np-vendible');
+    const selUnidad = document.getElementById('np-unidad');
+    const cafeLoteGroup = document.getElementById('np-cafe-lote-group');
+
+    if (cat === 'Insumos') {
+        selVend.value = 'no';
+        if (selUnidad.value === 'botella' || selUnidad.value === 'libra') selUnidad.value = 'bolsa';
+    } else {
+        selVend.value = 'si';
+        if (cat === 'Café') selUnidad.value = 'libra';
+        else selUnidad.value = 'botella';
+    }
+    if (cafeLoteGroup) cafeLoteGroup.style.display = (cat === 'Café') ? 'flex' : 'none';
+    window.onNuevoProductoVendibleChange();
+    window.onNuevoProductoUnidadChange();
+};
+
+window.onNuevoProductoUnidadChange = () => {
+    const val = document.getElementById('np-unidad').value;
+    const customInp = document.getElementById('np-unidad-custom');
+    if (customInp) customInp.style.display = (val === 'otra') ? 'block' : 'none';
+};
+
+window.onNuevoProductoVendibleChange = () => {
+    const vend = document.getElementById('np-vendible').value;
+    const pGroup = document.getElementById('np-precio-group');
+    if (pGroup) pGroup.style.display = (vend === 'si') ? 'flex' : 'none';
+};
+
+window.guardarNuevoProductoCatalogo = async () => {
+    const categoria = document.getElementById('np-categoria').value;
+    const nombre = (document.getElementById('np-nombre').value || '').trim();
+    const unidadSel = document.getElementById('np-unidad').value;
+    const unidadCustom = (document.getElementById('np-unidad-custom').value || '').trim();
+    const unidad = (unidadSel === 'otra' ? unidadCustom : unidadSel) || 'unidad';
+    const vendible = document.getElementById('np-vendible').value === 'si';
+    const precio = vendible ? (parseFloat(document.getElementById('np-precio').value) || 0) : 0;
+    const esCafeLote = categoria === 'Café' && Boolean(document.getElementById('np-es-cafe-lote')?.checked);
+
+    if (!nombre) return alert("⚠️ Ingresa el nombre del producto o insumo.");
+    if (unidadSel === 'otra' && !unidadCustom) return alert("⚠️ Escribe la unidad de medida personalizada.");
+
+    // Generar código único limpio sin acentos ni espacios
+    const slug = nombre
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    const prefix = categoria === 'Insumos' ? 'Insumo-' : (categoria === 'Licor de Guayaba' ? 'Licor-' : (categoria === 'Miel' ? 'Miel-' : 'Cafe-'));
+    let codigo = slug.toLowerCase().startsWith(prefix.toLowerCase().replace('-', '')) ? slug : (prefix + slug);
+    if (!codigo || preciosListaActual[codigo]) {
+        codigo = `${codigo || 'Prod'}-${Date.now().toString().slice(-4)}`;
+    }
+
+    preciosListaActual[codigo] = {
+        nombre,
+        categoria,
+        unidad,
+        precio,
+        vendible,
+        esCafeLote
+    };
+
+    try {
+        localStorage.setItem('flr_catalogo_productos_v1', JSON.stringify(preciosListaActual));
+        await setDoc(doc(db, "precios", "catalogo"), {
+            productos: preciosListaActual,
+            actualizado: serverTimestamp()
+        }, { merge: true });
+    } catch (e) {
+        console.warn("Aviso guardando nuevo producto en Firestore:", e);
+    }
+
+    // Actualizar selectores y seleccionar automáticamente el nuevo producto en Inventario
+    const catFiltroEl = document.getElementById('inv-categoria-filtro');
+    if (catFiltroEl && catFiltroEl.value !== 'todas' && catFiltroEl.value !== categoria) {
+        catFiltroEl.value = categoria;
+    }
+    sincronizarSelectoresProductos();
+    renderPreciosLista();
+
+    const selInv = document.getElementById('inv-estado');
+    if (selInv) {
+        selInv.value = codigo;
+        window.toggleInvFields();
+    }
+
+    window.cerrarModal('modal-nuevo-producto');
+    alert(`✅ Producto "${nombre}" creado y clasificado en "${categoria}".\nYa puedes ingresar su stock inicial.`);
+    document.getElementById('inv-cantidad')?.focus();
 };
 
 async function obtenerLotesTostado(presentacion = null) {
@@ -2542,24 +2855,36 @@ window.cargarLotesDisponiblesPedido = async () => {
 };
 
 window.toggleInvFields = () => {
-    const est = document.getElementById('inv-estado').value;
+    const est = document.getElementById('inv-estado')?.value || '';
+    const meta = inferirMetaProducto(est, preciosListaActual[est]);
     const isTostado = est === 'Tostado';
-    const isCafe = ['Pergamino','Oro','Tostado'].includes(est);
-    document.getElementById('inv-presentacion-group').style.display = isTostado ? 'flex' : 'none';
-    document.getElementById('field-tostado').style.display = isTostado ? 'flex' : 'none';
-    document.getElementById('inv-variedad-group').style.display = isCafe ? 'flex' : 'none';
-    document.getElementById('inv-proceso-group').style.display = isCafe ? 'flex' : 'none';
+    const isCafe = meta.esCafeLote || ['Pergamino', 'Oro', 'Tostado'].includes(est);
+
+    const presEl = document.getElementById('inv-presentacion-group');
+    const tostEl = document.getElementById('field-tostado');
+    const varEl = document.getElementById('inv-variedad-group');
+    const procEl = document.getElementById('inv-proceso-group');
+    const uniBadge = document.getElementById('inv-unidad-badge');
+
+    if (presEl) presEl.style.display = isTostado ? 'flex' : 'none';
+    if (tostEl) tostEl.style.display = isTostado ? 'flex' : 'none';
+    if (varEl) varEl.style.display = isCafe ? 'flex' : 'none';
+    if (procEl) procEl.style.display = isCafe ? 'flex' : 'none';
+    if (uniBadge) uniBadge.innerText = `(${meta.unidad || 'unidad'})`;
 };
 
 window.guardarInventario = async () => {
     const est = document.getElementById('inv-estado').value;
-    const isCafe = ['Pergamino','Oro','Tostado'].includes(est);
+    if (!est) return alert("⚠️ Selecciona o crea un producto primero.");
+    const meta = inferirMetaProducto(est, preciosListaActual[est]);
+    const isCafe = meta.esCafeLote || ['Pergamino', 'Oro', 'Tostado'].includes(est);
     const presentacion = est === 'Tostado' ? document.getElementById('inv-presentacion').value : 'N/A';
     const cantidad = parseFloat(document.getElementById('inv-cantidad').value) || 0;
-    const finca = document.getElementById('inv-finca').value;
-    const variedad = isCafe ? document.getElementById('inv-variedad').value : 'N/A';
+    const finca = (document.getElementById('inv-finca').value || '').trim();
+    const variedad = isCafe ? (document.getElementById('inv-variedad').value || '').trim() : 'N/A';
     const proceso = isCafe ? document.getElementById('inv-proceso').value : 'N/A';
     const fechaTostado = est === 'Tostado' ? document.getElementById('inv-fecha-tostado').value : '';
+    const notas = (document.getElementById('inv-notas')?.value || '').trim();
 
     if (cantidad <= 0) return alert("La cantidad debe ser mayor a 0.");
 
@@ -2575,7 +2900,8 @@ window.guardarInventario = async () => {
                 (inv.finca || '') === finca &&
                 (inv.variedad || 'N/A') === variedad &&
                 (inv.proceso || 'N/A') === proceso &&
-                (inv.fechaTostado || '') === fechaTostado) {
+                (inv.fechaTostado || '') === fechaTostado &&
+                (inv.notas || '') === notas) {
                 itemExistente = inv;
                 docIdExistente = d.id;
                 break;
@@ -2584,17 +2910,29 @@ window.guardarInventario = async () => {
 
         if (itemExistente) {
             const nuevaCantidad = (itemExistente.cantidad || 0) + cantidad;
-            await updateDoc(doc(db, "inventario", docIdExistente), { cantidad: nuevaCantidad });
-            alert(`✅ Se sumaron ${cantidad} al inventario existente.\n\nCantidad anterior: ${(itemExistente.cantidad || 0).toFixed(1)}\nNueva cantidad: ${nuevaCantidad.toFixed(1)}`);
+            await updateDoc(doc(db, "inventario", docIdExistente), {
+                cantidad: nuevaCantidad,
+                categoria: meta.categoria
+            });
+            alert(`✅ Se sumaron ${cantidad} ${meta.unidad}(s) de "${meta.nombre}".\n\nCantidad anterior: ${(itemExistente.cantidad || 0).toFixed(1)}\nNueva cantidad: ${nuevaCantidad.toFixed(1)}`);
         } else {
             await addDoc(collection(db,"inventario"), {
-                estado: est, presentacion, cantidad, finca, variedad, proceso, fechaTostado,
+                estado: est,
+                categoria: meta.categoria,
+                presentacion,
+                cantidad,
+                finca,
+                variedad,
+                proceso,
+                fechaTostado,
+                notas,
                 fecha: serverTimestamp()
             });
-            alert("✅ Inventario agregado.");
+            alert(`✅ "${meta.nombre}" agregado al inventario (${meta.categoria}).`);
         }
         cargarDatosIniciales();
         document.getElementById('inv-cantidad').value = '';
+        if (document.getElementById('inv-notas')) document.getElementById('inv-notas').value = '';
     } catch (e) {
         alert("Error: " + e.message);
     }
@@ -3302,12 +3640,23 @@ window.editarInventario = async (docId) => {
         if (!snap.exists()) return alert("No encontrado.");
         const inv = snap.data();
         inventarioActualEditando = { id: docId, data: inv };
-        
-        document.getElementById('ei-estado').value = inv.estado;
+
+        sincronizarSelectoresProductos();
+        const selEstado = document.getElementById('ei-estado');
+        if (selEstado) {
+            if (!Array.from(selEstado.options).some(o => o.value === inv.estado)) {
+                const opt = document.createElement('option');
+                opt.value = inv.estado;
+                opt.textContent = preciosListaActual[inv.estado]?.nombre || inv.estado;
+                selEstado.appendChild(opt);
+            }
+            selEstado.value = inv.estado;
+        }
         document.getElementById('ei-cantidad').value = inv.cantidad;
         document.getElementById('ei-finca').value = inv.finca || '';
         document.getElementById('ei-variedad').value = inv.variedad || '';
         document.getElementById('ei-proceso').value = inv.proceso || 'Lavado';
+        if (document.getElementById('ei-notas')) document.getElementById('ei-notas').value = inv.notas || '';
         
         window.toggleEditarInvFields();
         
@@ -3322,8 +3671,9 @@ window.editarInventario = async (docId) => {
 
 window.toggleEditarInvFields = () => {
     const est = document.getElementById('ei-estado').value;
+    const meta = inferirMetaProducto(est, preciosListaActual[est]);
     const isTostado = est === 'Tostado';
-    const isCafe = ['Pergamino','Oro','Tostado'].includes(est);
+    const isCafe = meta.esCafeLote || ['Pergamino','Oro','Tostado'].includes(est);
     document.getElementById('ei-presentacion-group').style.display = isTostado ? 'flex' : 'none';
     document.getElementById('ei-tostado-group').style.display = isTostado ? 'flex' : 'none';
     document.getElementById('ei-variedad-group').style.display = isCafe ? 'flex' : 'none';
@@ -3333,19 +3683,22 @@ window.toggleEditarInvFields = () => {
 window.guardarEdicionInventario = async () => {
     if (!inventarioActualEditando) return;
     const est = document.getElementById('ei-estado').value;
-    const isCafe = ['Pergamino','Oro','Tostado'].includes(est);
+    const meta = inferirMetaProducto(est, preciosListaActual[est]);
+    const isCafe = meta.esCafeLote || ['Pergamino','Oro','Tostado'].includes(est);
     const nuevaCantidad = parseFloat(document.getElementById('ei-cantidad').value) || 0;
     
     if (nuevaCantidad < 0) return alert("La cantidad no puede ser negativa.");
     
     const datos = {
         estado: est,
+        categoria: meta.categoria,
         presentacion: est === 'Tostado' ? document.getElementById('ei-presentacion').value : 'N/A',
         cantidad: nuevaCantidad,
         finca: document.getElementById('ei-finca').value,
         variedad: isCafe ? document.getElementById('ei-variedad').value : 'N/A',
         proceso: isCafe ? document.getElementById('ei-proceso').value : 'N/A',
-        fechaTostado: est === 'Tostado' ? document.getElementById('ei-fecha-tostado').value : ''
+        fechaTostado: est === 'Tostado' ? document.getElementById('ei-fecha-tostado').value : '',
+        notas: (document.getElementById('ei-notas')?.value || '').trim()
     };
     
     try {
@@ -3355,6 +3708,64 @@ window.guardarEdicionInventario = async () => {
         inventarioActualEditando = null;
         cargarDatosIniciales();
     } catch (e) { alert("Error: " + e.message); }
+};
+
+window.abrirAjusteStock = (docId) => {
+    const item = todosLosItemsInventario.find(i => i.id === docId);
+    if (!item) return;
+    ajusteStockActualId = docId;
+    const v = item.data;
+    const meta = inferirMetaProducto(v.estado, { ...preciosListaActual[v.estado], categoria: v.categoria });
+
+    document.getElementById('ajuste-prod-nombre').innerText = `${meta.nombre}${v.presentacion && v.presentacion !== 'N/A' ? ` (${v.presentacion})` : ''}`;
+    document.getElementById('ajuste-stock-actual').innerText = `${Number(v.cantidad || 0).toFixed(1)} ${meta.unidad}`;
+    const selTipo = document.getElementById('ajuste-tipo');
+    selTipo.value = 'salida';
+    selTipo.onchange = () => {
+        const lbl = document.getElementById('ajuste-accion-lbl');
+        if (lbl) lbl.innerText = selTipo.value === 'salida' ? 'descontar' : 'agregar';
+    };
+    document.getElementById('ajuste-accion-lbl').innerText = 'descontar';
+    document.getElementById('ajuste-cantidad').value = '';
+    document.getElementById('ajuste-motivo').value = '';
+    document.getElementById('modal-ajuste-stock').style.display = 'flex';
+    setTimeout(() => document.getElementById('ajuste-cantidad')?.focus(), 100);
+};
+
+window.confirmarAjusteStock = async () => {
+    if (!ajusteStockActualId) return;
+    const item = todosLosItemsInventario.find(i => i.id === ajusteStockActualId);
+    if (!item) return;
+
+    const tipo = document.getElementById('ajuste-tipo').value;
+    const cantMov = parseFloat(document.getElementById('ajuste-cantidad').value) || 0;
+    const motivo = (document.getElementById('ajuste-motivo').value || '').trim();
+    const actual = Number(item.data.cantidad) || 0;
+
+    if (cantMov <= 0) return alert("⚠️ Ingresa una cantidad mayor a 0.");
+    let nueva = tipo === 'entrada' ? (actual + cantMov) : (actual - cantMov);
+    if (nueva < 0) {
+        if (!confirm(`⚠️ La salida (${cantMov}) supera la existencia actual (${actual}).\n¿Deseas dejar el stock en 0?`)) return;
+        nueva = 0;
+    }
+
+    const updatePayload = { cantidad: nueva };
+    if (motivo) {
+        const prevNotas = item.data.notas ? (item.data.notas + ' | ') : '';
+        const hoy = new Date().toLocaleDateString('es-GT');
+        const signo = tipo === 'entrada' ? '+' : '-';
+        updatePayload.notas = `${prevNotas}[${hoy} ${signo}${cantMov}: ${motivo}]`.slice(-240);
+    }
+
+    try {
+        await updateDoc(doc(db, "inventario", ajusteStockActualId), updatePayload);
+        window.cerrarModal('modal-ajuste-stock');
+        ajusteStockActualId = null;
+        await cargarDatosIniciales();
+        alert(`✅ Movimiento aplicado. Nuevo stock: ${nueva.toFixed(1)}`);
+    } catch (e) {
+        alert("❌ Error al actualizar stock: " + e.message);
+    }
 };
 
 window.eliminarInventario = async (docId) => {
@@ -5833,42 +6244,13 @@ async function cargarDatosIniciales() {
 
         const si = await getDocs(collection(db,"inventario"));
         todosLosItemsInventario = [];
-        const grupos = {
-            'Tostado-Entero': 0, 'Tostado-Molido': 0,
-            'Oro': 0, 'Pergamino': 0,
-            'Miel-Botella': 0, 'Miel-Galon': 0,
-            'Licor-Botella': 0, 'Licor-Litro': 0, 'Licor-Galon': 0
-        };
         si.forEach(d => {
             const v = d.data();
             todosLosItemsInventario.push({ id: d.id, data: v });
-            const key = v.estado === 'Tostado' ? `Tostado-${v.presentacion||'Entero'}` : v.estado;
-            if (grupos[key] !== undefined) grupos[key] += (Number(v.cantidad) || 0);
         });
         
         renderTablaInventario();
-        
-        const cafeGrid = document.getElementById('dash-cafe-grid');
-        if (cafeGrid) {
-            cafeGrid.innerHTML = 
-                renderDashMiniCard('☕ Tostado Entero', grupos['Tostado-Entero'], 'lb') +
-                renderDashMiniCard('☕ Tostado Molido', grupos['Tostado-Molido'], 'lb') +
-                renderDashMiniCard('🌱 Café Oro', grupos['Oro'], 'lb') +
-                renderDashMiniCard('🌾 Café Pergamino', grupos['Pergamino'], 'lb');
-        }
-        const mielGrid = document.getElementById('dash-miel-grid');
-        if (mielGrid) {
-            mielGrid.innerHTML = 
-                renderDashMiniCard('🍯 Miel Botella', grupos['Miel-Botella'], 'u.') +
-                renderDashMiniCard('🍯 Miel Galón', grupos['Miel-Galon'], 'u.');
-        }
-        const licorGrid = document.getElementById('dash-licor-grid');
-        if (licorGrid) {
-            licorGrid.innerHTML = 
-                renderDashMiniCard('🍷 Licor Botella', grupos['Licor-Botella'], 'u.') +
-                renderDashMiniCard('🍷 Licor Litro', grupos['Licor-Litro'], 'u.') +
-                renderDashMiniCard('🍷 Licor Galón', grupos['Licor-Galon'], 'u.');
-        }
+        renderizarGridsInventarioDashboard();
 
         const sc = await getDocs(query(collection(db,"costosTostado"),orderBy("fechaRegistro","desc")));
         const tc2 = document.querySelector('#tabla-costos tbody'); 
@@ -5897,7 +6279,66 @@ async function cargarDatosIniciales() {
     } catch(e) { console.error("Error cargando datos:", e); }
 }
 
-// --- RENDERIZADO DE INVENTARIO CON ALERTAS VISUALES DE STOCK BAJO (v2026.09.02) ---
+function renderizarGridsInventarioDashboard() {
+    // Acumular cantidades por clave de tarjeta (dividiendo Café Tostado en Entero y Molido)
+    const totalesPorClave = {};
+    todosLosItemsInventario.forEach(item => {
+        const v = item.data;
+        const clave = v.estado === 'Tostado' ? `Tostado-${v.presentacion || 'Entero'}` : v.estado;
+        totalesPorClave[clave] = (totalesPorClave[clave] || 0) + (Number(v.cantidad) || 0);
+    });
+
+    const tarjetasPorCat = {
+        "Café": [
+            { clave: "Tostado-Entero", label: "☕ Tostado Entero", unidad: "lb" },
+            { clave: "Tostado-Molido", label: "☕ Tostado Molido", unidad: "lb" },
+            { clave: "Oro", label: "🌱 Café Oro", unidad: "lb" },
+            { clave: "Pergamino", label: "🌾 Café Pergamino", unidad: "lb" }
+        ],
+        "Miel": [],
+        "Licor de Guayaba": [],
+        "Insumos": []
+    };
+
+    // Agregar productos del catálogo dinámico
+    Object.keys(preciosListaActual).forEach(k => {
+        if (['Tostado', 'Oro', 'Pergamino'].includes(k)) return;
+        const meta = inferirMetaProducto(k, preciosListaActual[k]);
+        const catMeta = CATEGORIAS_META[meta.categoria] || { icon: '📦' };
+        if (!tarjetasPorCat[meta.categoria]) tarjetasPorCat[meta.categoria] = [];
+        const unidadCort = meta.unidad === 'libra' ? 'lb' : (meta.unidad === 'bolsa' ? 'bolsas' : (meta.unidad === 'botella' ? 'bot.' : meta.unidad));
+        tarjetasPorCat[meta.categoria].push({
+            clave: k,
+            label: `${catMeta.icon} ${meta.nombre}`,
+            unidad: unidadCort
+        });
+    });
+
+    // Incluir cualquier producto existente en inventario cuyo código ya no esté en catálogo
+    todosLosItemsInventario.forEach(item => {
+        const v = item.data;
+        if (['Tostado', 'Oro', 'Pergamino'].includes(v.estado)) return;
+        const meta = inferirMetaProducto(v.estado, { categoria: v.categoria });
+        const lista = tarjetasPorCat[meta.categoria] || tarjetasPorCat["Insumos"];
+        if (!lista.some(t => t.clave === v.estado)) {
+            const catMeta = CATEGORIAS_META[meta.categoria] || { icon: '📦' };
+            lista.push({ clave: v.estado, label: `${catMeta.icon} ${meta.nombre}`, unidad: meta.unidad });
+        }
+    });
+
+    CATEGORIAS_PRODUCTO.forEach(cat => {
+        const gridEl = document.getElementById(CATEGORIAS_META[cat]?.gridId || '');
+        if (!gridEl) return;
+        const tarjetas = tarjetasPorCat[cat] || [];
+        if (tarjetas.length === 0) {
+            gridEl.innerHTML = `<div class="dash-mini-card empty"><div class="label">Sin productos registrados</div><div class="value">0.0</div></div>`;
+        } else {
+            gridEl.innerHTML = tarjetas.map(t => renderDashMiniCard(t.label, totalesPorClave[t.clave] || 0, t.unidad)).join('');
+        }
+    });
+}
+
+// --- RENDERIZADO DE INVENTARIO CON ALERTAS VISUALES Y CATEGORÍAS ---
 
 function renderTablaInventario() {
     const ti = document.querySelector('#tabla-inventario tbody'); 
@@ -5910,15 +6351,30 @@ function renderTablaInventario() {
     }
 
     let countBajos = 0;
+    const catCounts = { "Café": 0, "Miel": 0, "Licor de Guayaba": 0, "Insumos": 0 };
+
     todosLosItemsInventario.forEach(item => {
         const v = item.data;
         const cant = Number(v.cantidad) || 0;
-        if (cant <= umbralStockAlerta) {
-            countBajos++;
-        }
+        if (cant <= umbralStockAlerta) countBajos++;
+        const meta = inferirMetaProducto(v.estado, { ...preciosListaActual[v.estado], categoria: v.categoria });
+        if (catCounts[meta.categoria] !== undefined) catCounts[meta.categoria]++;
+        else catCounts["Insumos"]++;
     });
 
-    // Actualizar contadores en la barra
+    // Actualizar contadores de categorías
+    const elTodas = document.getElementById('inv-cat-cnt-todas');
+    if (elTodas) elTodas.innerText = todosLosItemsInventario.length;
+    const elCafe = document.getElementById('inv-cat-cnt-cafe');
+    if (elCafe) elCafe.innerText = catCounts["Café"];
+    const elMiel = document.getElementById('inv-cat-cnt-miel');
+    if (elMiel) elMiel.innerText = catCounts["Miel"];
+    const elLicor = document.getElementById('inv-cat-cnt-licor');
+    if (elLicor) elLicor.innerText = catCounts["Licor de Guayaba"];
+    const elInsumos = document.getElementById('inv-cat-cnt-insumos');
+    if (elInsumos) elInsumos.innerText = catCounts["Insumos"];
+
+    // Actualizar contadores en la barra de stock
     const countTotalEl = document.getElementById('inv-count-total');
     if (countTotalEl) countTotalEl.innerText = todosLosItemsInventario.length;
     const countAlertaEl = document.getElementById('inv-count-alerta');
@@ -5967,6 +6423,15 @@ function renderTablaInventario() {
 
     let itemsFiltrados = todosLosItemsInventario.slice();
 
+    // Filtro por categoría
+    if (filtroCategoriaInventario && filtroCategoriaInventario !== 'todas') {
+        itemsFiltrados = itemsFiltrados.filter(item => {
+            const v = item.data;
+            const meta = inferirMetaProducto(v.estado, { ...preciosListaActual[v.estado], categoria: v.categoria });
+            return meta.categoria === filtroCategoriaInventario;
+        });
+    }
+
     // Filtro por stock bajo
     if (filtroStockBajo) {
         itemsFiltrados = itemsFiltrados.filter(item => (Number(item.data.cantidad) || 0) <= umbralStockAlerta);
@@ -5977,18 +6442,22 @@ function renderTablaInventario() {
         const t = busquedaInventarioTerm.toLowerCase();
         itemsFiltrados = itemsFiltrados.filter(item => {
             const v = item.data;
-            const nom = (preciosListaActual[v.estado]?.nombre || v.estado || '').toLowerCase();
+            const meta = inferirMetaProducto(v.estado, { ...preciosListaActual[v.estado], categoria: v.categoria });
+            const nom = (meta.nombre || '').toLowerCase();
+            const cat = (meta.categoria || '').toLowerCase();
             const pres = (v.presentacion || '').toLowerCase();
             const var_ = (v.variedad || '').toLowerCase();
             const proc = (v.proceso || '').toLowerCase();
             const ft = (v.fechaTostado || '').toLowerCase();
-            return nom.includes(t) || pres.includes(t) || var_.includes(t) || proc.includes(t) || ft.includes(t);
+            const notas = (v.notas || '').toLowerCase();
+            const finca = (v.finca || '').toLowerCase();
+            return nom.includes(t) || cat.includes(t) || pres.includes(t) || var_.includes(t) || proc.includes(t) || ft.includes(t) || notas.includes(t) || finca.includes(t);
         });
     }
 
     if (itemsFiltrados.length === 0) {
-        ti.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:1.5rem; color:#888;">
-            ${filtroStockBajo ? '🎉 ¡Excelente! No hay productos por debajo del umbral mínimo en esta búsqueda.' : 'No se encontraron productos en el inventario.'}
+        ti.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:#888;">
+            ${filtroStockBajo ? '🎉 ¡Excelente! No hay productos por debajo del umbral mínimo en esta búsqueda.' : 'No se encontraron productos en esta categoría o búsqueda.'}
         </td></tr>`;
         return;
     }
@@ -5998,12 +6467,24 @@ function renderTablaInventario() {
         const cant = Number(v.cantidad) || 0;
         const esBajo = cant <= umbralStockAlerta;
         const f = v.fecha ? new Date(v.fecha.seconds * 1000).toLocaleDateString('es-GT') : 'N/A';
-        const nombreProd = preciosListaActual[v.estado] ? preciosListaActual[v.estado].nombre : v.estado;
-        const presentacion = v.estado === 'Tostado' ? (v.presentacion || 'N/A') : '-';
-        const variedad = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.variedad || 'N/A') : '-';
-        const proceso = ['Pergamino','Oro','Tostado'].includes(v.estado) ? (v.proceso || 'N/A') : '-';
+        const meta = inferirMetaProducto(v.estado, { ...preciosListaActual[v.estado], categoria: v.categoria });
+        const catMeta = CATEGORIAS_META[meta.categoria] || { icon: '📦', badgeBg: '#f1f5f9', badgeColor: '#475569' };
+
+        const detallesArr = [];
+        if (v.estado === 'Tostado' && v.presentacion && v.presentacion !== 'N/A') detallesArr.push(`<strong>${v.presentacion}</strong>`);
+        if (meta.esCafeLote || ['Pergamino','Oro','Tostado'].includes(v.estado)) {
+            if (v.variedad && v.variedad !== 'N/A') detallesArr.push(v.variedad);
+            if (v.proceso && v.proceso !== 'N/A') detallesArr.push(v.proceso);
+        }
+        if (v.finca && v.finca !== 'Finca Los Robles') detallesArr.push(v.finca);
+        if (v.notas) detallesArr.push(`<span style="color:#475569; font-style:italic;">📝 ${v.notas}</span>`);
+        const detallesHTML = detallesArr.length > 0 ? detallesArr.join(' &bull; ') : (v.finca || '-');
+
         const fechaTostado = v.estado === 'Tostado' ? (v.fechaTostado || 'N/A') : '-';
-        const unidad = preciosListaActual[v.estado] ? preciosListaActual[v.estado].unidad : '';
+        const unidad = meta.unidad || 'u.';
+
+        const badgeCategoria = `<span style="display:inline-block; background:${catMeta.badgeBg}; color:${catMeta.badgeColor}; font-size:0.75rem; font-weight:bold; padding:3px 8px; border-radius:12px; white-space:nowrap;">${catMeta.icon} ${meta.categoria}</span>`;
+        const badgeUso = meta.vendible === false ? `<div style="font-size:0.7rem; color:#0369a1; margin-top:2px;">🔒 Uso interno / No venta</div>` : '';
 
         const badgeStock = esBajo
             ? `<span class="badge-stock-alerta" title="Stock actual (${cant.toFixed(1)}) por debajo o igual al umbral mínimo (${umbralStockAlerta})">⚠️ ${cant.toFixed(1)} ${unidad} <span style="font-size:0.68rem; background:#7f1d1d; color:#fff; padding:1px 4px; border-radius:3px; margin-left:3px;">¡BAJO!</span></span>`
@@ -6013,19 +6494,26 @@ function renderTablaInventario() {
 
         ti.innerHTML += `<tr ${trClass}>
             <td>${f}</td>
-            <td><strong>${nombreProd}</strong></td>
-            <td>${presentacion}</td>
-            <td>${variedad}</td>
-            <td>${proceso}</td>
+            <td>${badgeCategoria}</td>
+            <td><strong>${meta.nombre}</strong>${badgeUso}</td>
+            <td style="font-size:0.84rem;">${detallesHTML}</td>
             <td>${fechaTostado}</td>
             <td>${badgeStock}</td>
-            <td class="actions-cell">
+            <td class="actions-cell" style="white-space:nowrap;">
+                <button class="btn btn-xs" style="background:#0284c7; color:white;" onclick="abrirAjusteStock('${item.id}')" title="Entrada (+) o Salida (-) rápida de stock">🔄 +/-</button>
                 <button class="btn btn-xs btn-edit" onclick="editarInventario('${item.id}')" title="Editar inventario">✏️</button>
                 <button class="btn btn-xs btn-danger" onclick="eliminarInventario('${item.id}')" title="Eliminar del inventario">🗑️</button>
             </td>
         </tr>`;
     });
 }
+
+window.filtrarCategoriaInventario = (cat, btnEl) => {
+    filtroCategoriaInventario = cat || 'todas';
+    document.querySelectorAll('#inv-cat-tabs .filter-btn').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    renderTablaInventario();
+};
 
 window.cambiarUmbralAlerta = (val) => {
     const num = parseFloat(val);
