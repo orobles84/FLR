@@ -1056,6 +1056,8 @@
             <div class="dash-mini-grid" id="dash-miel-grid"></div>
             <div class="dash-group-title">🍷 Licor de Guayaba</div>
             <div class="dash-mini-grid" id="dash-licor-grid"></div>
+            <div class="dash-group-title">📦 Insumos (Bolsas, Envases y Materiales)</div>
+            <div class="dash-mini-grid" id="dash-insumos-grid"></div>
         </div>
 
         <!-- MÓDULO DE CONTROL DE PEDIDOS Y ENTREGAS -->
@@ -1575,34 +1577,61 @@
         </div>
 
         <div id="inventario" class="section">
-            <h2>📦 Gestión de Inventario</h2>
-            <div class="info-box"><strong>💡 Nota:</strong> Si agregas un producto con las mismas características que uno existente, se <strong>sumará</strong> automáticamente.</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.75rem; border-bottom:2px solid var(--accent); padding-bottom:0.5rem;">
+                <h2 style="margin:0; border:none; padding:0;">📦 Gestión de Inventario e Insumos</h2>
+                <button type="button" class="btn btn-primary" onclick="abrirModalNuevoProducto()" style="width:auto; min-height:38px; padding:7px 15px; font-weight:bold; display:inline-flex; align-items:center; gap:6px; background:#0284c7;">
+                    <span>➕</span> Crear Nuevo Producto / Insumo
+                </button>
+            </div>
+            <div class="info-box">
+                <strong>💡 Inventario Abierto:</strong> Puedes registrar stock de <strong>Café, Miel, Licor de Guayaba</strong> e <strong>Insumos</strong> (como bolsas para café tostado entregadas al tostador). Si necesitas un producto que no está en la lista, usa <strong>"➕ Crear Nuevo Producto / Insumo"</strong> y clasifícalo en su grupo correspondiente.
+            </div>
             <div class="form-grid">
                 <div class="form-group">
-                    <label>Producto</label>
+                    <label>Grupo / Categoría</label>
+                    <select id="inv-categoria-filtro" onchange="filtrarSelectorProductoInv()">
+                        <option value="todas">📂 Todos los Grupos</option>
+                        <option value="Café">☕ Café</option>
+                        <option value="Miel">🍯 Miel</option>
+                        <option value="Licor de Guayaba">🍷 Licor de Guayaba</option>
+                        <option value="Insumos">📦 Insumos (No Venta)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <label style="margin:0;">Producto / Insumo</label>
+                        <button type="button" onclick="abrirModalNuevoProducto()" style="background:none; border:none; color:#0284c7; font-size:0.78rem; font-weight:bold; cursor:pointer; padding:0; text-decoration:underline;">+ Nuevo</button>
+                    </div>
                     <select id="inv-estado" onchange="toggleInvFields()">
-                        <optgroup label="Café">
+                        <optgroup label="☕ Café">
                             <option value="Pergamino">Café Pergamino</option>
                             <option value="Oro">Café Oro (Verde)</option>
                             <option value="Tostado">Café Tostado</option>
                         </optgroup>
-                        <optgroup label="Miel">
+                        <optgroup label="🍯 Miel">
                             <option value="Miel-Botella">Miel Botella 750ml</option>
                             <option value="Miel-Galon">Miel Galón</option>
                         </optgroup>
-                        <optgroup label="Licor de Guayaba">
+                        <optgroup label="🍷 Licor de Guayaba">
+                            <option value="Licor-Botella-250ml">Licor Botella 250ml</option>
                             <option value="Licor-Botella">Licor Botella 750ml</option>
                             <option value="Licor-Litro">Licor Litro</option>
                             <option value="Licor-Galon">Licor Galón</option>
                         </optgroup>
+                        <optgroup label="📦 Insumos (Uso Interno)">
+                            <option value="Insumo-Bolsas-Cafe">Bolsas para Café Tostado</option>
+                        </optgroup>
                     </select>
                 </div>
-                <div class="form-group"><label>Cantidad</label><input type="number" id="inv-cantidad" class="yellow-input" step="0.01"></div>
+                <div class="form-group">
+                    <label>Cantidad <span id="inv-unidad-badge" style="color:#0284c7; font-weight:normal; font-size:0.8rem;">(libra)</span></label>
+                    <input type="number" id="inv-cantidad" class="yellow-input" step="0.01" placeholder="Ej: 100">
+                </div>
                 <div class="form-group" id="inv-presentacion-group" style="display:none;">
                     <label>Presentación Café</label>
                     <select id="inv-presentacion"><option value="Entero">Grano Entero</option><option value="Molido">Molido</option></select>
                 </div>
-                <div class="form-group"><label>Finca / Origen</label><input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input"></div>
+                <div class="form-group"><label>Finca / Origen / Proveedor</label><input type="text" id="inv-finca" value="Finca Los Robles" class="yellow-input"></div>
                 <div class="form-group" id="inv-variedad-group"><label>Variedad</label><input type="text" id="inv-variedad" value="Catimor" class="yellow-input"></div>
                 <div class="form-group" id="inv-proceso-group">
                     <label>Proceso</label>
@@ -1612,10 +1641,23 @@
                     <label>Fecha de Tostado</label>
                     <input type="date" id="inv-fecha-tostado" class="yellow-input">
                 </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Notas / Referencia (Opcional)</label>
+                    <input type="text" id="inv-notas" class="yellow-input" placeholder="Ej: Bolsas 1 lb con válvula para entregar al tostador, lote guayaba oct., etc.">
+                </div>
             </div>
-            <button class="btn" onclick="guardarInventario()">Agregar al Inventario</button>
+            <button class="btn" onclick="guardarInventario()">💾 Agregar al Inventario</button>
             
             <h3 style="margin-top:2rem;">Inventario Detallado y Alertas de Existencias</h3>
+
+            <!-- FILTRO POR CLASIFICACIÓN / GRUPO -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:0.85rem;" id="inv-cat-tabs">
+                <button type="button" class="filter-btn active" onclick="filtrarCategoriaInventario('todas', this)">📦 Todos (<span id="inv-cat-cnt-todas">0</span>)</button>
+                <button type="button" class="filter-btn" onclick="filtrarCategoriaInventario('Café', this)">☕ Café (<span id="inv-cat-cnt-cafe">0</span>)</button>
+                <button type="button" class="filter-btn" onclick="filtrarCategoriaInventario('Miel', this)">🍯 Miel (<span id="inv-cat-cnt-miel">0</span>)</button>
+                <button type="button" class="filter-btn" onclick="filtrarCategoriaInventario('Licor de Guayaba', this)">🍷 Licor de Guayaba (<span id="inv-cat-cnt-licor">0</span>)</button>
+                <button type="button" class="filter-btn" onclick="filtrarCategoriaInventario('Insumos', this)">📦 Insumos (<span id="inv-cat-cnt-insumos">0</span>)</button>
+            </div>
             
             <!-- BANNER DE ALERTA DINÁMICO -->
             <div id="inv-alerta-banner" class="stock-alerta-box" style="display:none;">
@@ -1658,16 +1700,21 @@
             </div>
 
             <div class="table-wrapper">
-                <table id="tabla-inventario"><thead><tr><th>Fecha Ing.</th><th>Producto</th><th>Presentación</th><th>Variedad</th><th>Proceso</th><th>F. Tostado</th><th>Cantidad / Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table>
+                <table id="tabla-inventario"><thead><tr><th>Fecha Ing.</th><th>Categoría</th><th>Producto</th><th>Detalles / Notas</th><th>F. Tostado</th><th>Cantidad / Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table>
             </div>
         </div>
 
         <div id="precios" class="section">
-            <h2>🏷️ Lista de Precios de Venta</h2>
-            <div class="info-box"><strong>💡 Nota:</strong> Los precios se cargan automáticamente al registrar una venta.</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:0.75rem;">
+                <h2 style="margin:0;">🏷️ Catálogo de Productos y Precios de Venta</h2>
+                <button type="button" class="btn btn-primary" onclick="abrirModalNuevoProducto()" style="width:auto; padding:7px 14px; font-weight:bold; background:#0284c7;">
+                    ➕ Nuevo Producto / Insumo
+                </button>
+            </div>
+            <div class="info-box"><strong>💡 Nota:</strong> Los productos marcados para venta cargan su precio automáticamente en Ventas y Pedidos. Los marcados como <strong>Insumo / Uso Interno</strong> solo se gestionan en Inventario.</div>
             <div id="precios-container"></div>
-            <button class="btn btn-save" onclick="guardarPreciosLista()">💾 Guardar Lista de Precios</button>
-            <button class="btn btn-secondary" onclick="restaurarPreciosDefault()" style="margin-top:0.5rem;">🔄 Restaurar Precios por Defecto</button>
+            <button class="btn btn-save" onclick="guardarPreciosLista()">💾 Guardar Lista de Precios y Catálogo</button>
+            <button class="btn btn-secondary" onclick="restaurarPreciosDefault()" style="margin-top:0.5rem;">🔄 Restaurar Catálogo por Defecto</button>
         </div>
 
         <div id="costos" class="section">
@@ -5138,19 +5185,23 @@
             <div class="form-group">
                 <label>Producto</label>
                 <select id="ei-estado" onchange="toggleEditarInvFields()">
-                    <optgroup label="Café">
+                    <optgroup label="☕ Café">
                         <option value="Pergamino">Café Pergamino</option>
                         <option value="Oro">Café Oro (Verde)</option>
                         <option value="Tostado">Café Tostado</option>
                     </optgroup>
-                    <optgroup label="Miel">
+                    <optgroup label="🍯 Miel">
                         <option value="Miel-Botella">Miel Botella 750ml</option>
                         <option value="Miel-Galon">Miel Galón</option>
                     </optgroup>
-                    <optgroup label="Licor de Guayaba">
+                    <optgroup label="🍷 Licor de Guayaba">
+                        <option value="Licor-Botella-250ml">Licor Botella 250ml</option>
                         <option value="Licor-Botella">Licor Botella 750ml</option>
                         <option value="Licor-Litro">Licor Litro</option>
                         <option value="Licor-Galon">Licor Galón</option>
+                    </optgroup>
+                    <optgroup label="📦 Insumos (Uso Interno)">
+                        <option value="Insumo-Bolsas-Cafe">Bolsas para Café Tostado</option>
                     </optgroup>
                 </select>
             </div>
@@ -5159,7 +5210,7 @@
                 <label>Presentación Café</label>
                 <select id="ei-presentacion"><option value="Entero">Grano Entero</option><option value="Molido">Molido</option></select>
             </div>
-            <div class="form-group"><label>Finca / Origen</label><input type="text" id="ei-finca" class="yellow-input"></div>
+            <div class="form-group"><label>Finca / Origen / Proveedor</label><input type="text" id="ei-finca" class="yellow-input"></div>
             <div class="form-group" id="ei-variedad-group"><label>Variedad</label><input type="text" id="ei-variedad" class="yellow-input"></div>
             <div class="form-group" id="ei-proceso-group">
                 <label>Proceso</label>
@@ -5169,10 +5220,118 @@
                 <label>Fecha de Tostado</label>
                 <input type="date" id="ei-fecha-tostado" class="yellow-input">
             </div>
+            <div class="form-group" style="grid-column: 1 / -1;">
+                <label>Notas / Referencia</label>
+                <input type="text" id="ei-notas" class="yellow-input" placeholder="Detalles adicionales o notas de uso...">
+            </div>
         </div>
         <div style="display:flex; gap:10px; margin-top:1rem; flex-wrap:wrap;">
             <button class="btn btn-success" style="flex:1; min-width:150px;" onclick="guardarEdicionInventario()">💾 Guardar Cambios</button>
             <button class="btn btn-secondary" style="flex:1; min-width:150px;" onclick="cerrarModal('modal-editar-inventario')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: CREAR NUEVO PRODUCTO O INSUMO EN EL CATÁLOGO -->
+<div class="modal-overlay" id="modal-nuevo-producto">
+    <div class="modal-content-large" style="max-width:560px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.5rem; margin-bottom:1rem;">
+            <h3 style="margin:0; color:var(--primary);">➕ Nuevo Producto o Insumo en Catálogo</h3>
+            <button type="button" onclick="cerrarModal('modal-nuevo-producto')" style="background:none; border:none; font-size:1.3rem; cursor:pointer;">✕</button>
+        </div>
+        <div class="info-box" style="margin-bottom:1rem;">
+            Clasifica tu nuevo producto o insumo en su grupo correspondiente. Quedará guardado en Firebase y disponible en todos tus dispositivos.
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr;">
+            <div class="form-group">
+                <label>Grupo / Clasificación *</label>
+                <select id="np-categoria" class="yellow-input" onchange="onNuevoProductoCategoriaChange()">
+                    <option value="Café">☕ Café</option>
+                    <option value="Miel">🍯 Miel</option>
+                    <option value="Licor de Guayaba">🍷 Licor de Guayaba</option>
+                    <option value="Insumos">📦 Insumos (Bolsas, Envases, Etiquetas, etc.)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Nombre del Producto / Insumo *</label>
+                <input type="text" id="np-nombre" class="yellow-input" placeholder="Ej: Licor de Guayaba Botella 250ml, Bolsas Kraft 1 lb, Etiquetas...">
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div class="form-group">
+                    <label>Unidad de Medida *</label>
+                    <select id="np-unidad" class="yellow-input" onchange="onNuevoProductoUnidadChange()">
+                        <option value="unidad">unidad</option>
+                        <option value="botella">botella</option>
+                        <option value="bolsa">bolsa</option>
+                        <option value="libra">libra</option>
+                        <option value="litro">litro</option>
+                        <option value="galón">galón</option>
+                        <option value="paquete">paquete</option>
+                        <option value="caja">caja</option>
+                        <option value="rollo">rollo</option>
+                        <option value="kg">kg</option>
+                        <option value="otra">Otra (escribir)</option>
+                    </select>
+                    <input type="text" id="np-unidad-custom" class="yellow-input" placeholder="Ej: frasco, sobre..." style="display:none; margin-top:6px;">
+                </div>
+                <div class="form-group">
+                    <label>¿Disponible para la Venta? *</label>
+                    <select id="np-vendible" class="yellow-input" onchange="onNuevoProductoVendibleChange()">
+                        <option value="si">✅ Sí (Aparece en Ventas y Pedidos)</option>
+                        <option value="no">🔒 No (Solo Inventario / Uso Interno)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" id="np-precio-group">
+                <label>Precio de Venta Sugerido (Q)</label>
+                <input type="number" id="np-precio" class="yellow-input" step="0.01" min="0" value="0">
+            </div>
+            <div class="form-group" id="np-cafe-lote-group" style="display:flex; flex-direction:row; align-items:center; gap:8px; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;">
+                <input type="checkbox" id="np-es-cafe-lote" style="width:18px; height:18px; cursor:pointer;">
+                <label for="np-es-cafe-lote" style="margin:0; cursor:pointer; font-size:0.85rem; color:#334155;">
+                    ¿Requiere seleccionar Variedad y Proceso al ingresar al inventario? (Ej. lotes de café en grano)
+                </label>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem;">
+            <button type="button" class="btn btn-success" style="flex:1; font-weight:bold;" onclick="guardarNuevoProductoCatalogo()">✅ Guardar Producto en Catálogo</button>
+            <button type="button" class="btn btn-secondary" style="flex:1;" onclick="cerrarModal('modal-nuevo-producto')">Cancelar</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: AJUSTE RÁPIDO DE STOCK (ENTRADA / SALIDA / ENTREGA A TOSTADOR) -->
+<div class="modal-overlay" id="modal-ajuste-stock">
+    <div class="modal-content-large" style="max-width:480px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--accent); padding-bottom:0.5rem; margin-bottom:1rem;">
+            <h3 style="margin:0; color:var(--primary);">🔄 Movimiento Rápido de Stock</h3>
+            <button type="button" onclick="cerrarModal('modal-ajuste-stock')" style="background:none; border:none; font-size:1.3rem; cursor:pointer;">✕</button>
+        </div>
+        <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-bottom:1rem;">
+            <div style="font-size:0.8rem; color:#64748b;">Producto seleccionado:</div>
+            <div id="ajuste-prod-nombre" style="font-weight:bold; font-size:1.05rem; color:var(--primary); margin:2px 0;"></div>
+            <div style="font-size:0.85rem; color:#334155;">Existencia actual: <strong id="ajuste-stock-actual" style="color:#0284c7;">0</strong></div>
+        </div>
+        <div class="form-grid" style="grid-template-columns:1fr;">
+            <div class="form-group">
+                <label>Tipo de Movimiento *</label>
+                <select id="ajuste-tipo" class="yellow-input">
+                    <option value="salida">➖ Salida / Entrega (ej. bolsas entregadas al tostador, consumo interno)</option>
+                    <option value="entrada">➕ Entrada / Reposición (ej. compra de bolsas o producción)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Cantidad a <span id="ajuste-accion-lbl">descontar</span> *</label>
+                <input type="number" id="ajuste-cantidad" class="yellow-input" step="0.01" min="0.01" placeholder="Ej: 50">
+            </div>
+            <div class="form-group">
+                <label>Motivo / Nota del Movimiento (Opcional)</label>
+                <input type="text" id="ajuste-motivo" class="yellow-input" placeholder="Ej: Entregadas al tostador para lote 20-Nov">
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:1.25rem;">
+            <button type="button" class="btn btn-success" style="flex:1; font-weight:bold;" onclick="confirmarAjusteStock()">✔️ Aplicar Movimiento</button>
+            <button type="button" class="btn btn-secondary" style="flex:1;" onclick="cerrarModal('modal-ajuste-stock')">Cancelar</button>
         </div>
     </div>
 </div>
@@ -6083,7 +6242,7 @@
     </div>
 </div>
 
-<div class="version-tag">v2026.10.24-03 (Nube Firebase: Cosecha y Clima Multi-Dispositivo)</div>
+<div class="version-tag">v2026.11.20-01 (Inventario Abierto + Insumos)</div>
 
 <script type="module" src="./src/main.js"></script>
 </body>
